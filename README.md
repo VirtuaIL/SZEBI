@@ -17,9 +17,9 @@ Proces uruchomienia całego środowiska składa się z dwóch głównych kroków
 
 Przejdź do głównego folderu projektu w terminalu i uruchom kontenery Docker w tle. Spowoduje to uruchomienie serwerów PostgreSQL i MongoDB oraz automatyczne załadowanie schematu i danych startowych.
 
-```bash```
+```bash
 docker-compose up -d
-
+```
 ## Rozwój Projektu: Jak Dodać Nowy Moduł Backendowy
 
 Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. Poniższa instrukcja opisuje, jak poprawnie dodać nowy, niezależny moduł (np. dla nowego członka zespołu).
@@ -86,9 +86,10 @@ Aby przetestować współpracę Twojego nowego modułu z resztą systemu, musisz
     ```
 
 3.  Teraz w klasie `Main.java` w module `application-runner` możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
-<dependency>
+```<dependency>
     <groupId>org.example</groupId>
     <artifactId>new-feature-module</artifactId>
     <version>1.0-SNAPSHOT</version>
 </dependency>
+```
 Po odświeżeniu Mavena, w klasie Main.java w module application-runner możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
