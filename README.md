@@ -5,7 +5,7 @@ Repozytorium zawierające kod źródłowy oraz infrastrukturę dla systemu SZEBI
 ## Wymagania Wstępne
 
 - Docker Desktop
-- JDK 17 (lub nowszy)
+- JDK 21 lub nowszy
 - Apache Maven
 - IntelliJ IDEA
 
