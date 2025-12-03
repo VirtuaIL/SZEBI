@@ -26,7 +26,7 @@ Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. 
 
 ### Krok 1: Stwórz Nowy Moduł Mavena
 
-1.  Otwórz główny projekt (`SZEBI_PROJEKT_GLOWNY`) w IntelliJ IDEA.
+1.  Otwórz główny projekt (`modules`) w IntelliJ IDEA.
 2.  W panelu projektu, kliknij prawym przyciskiem myszy na folder **`/modules`**.
 3.  Wybierz **New -> Module**.
 4.  W oknie "New Module" skonfiguruj swój moduł:
@@ -34,7 +34,7 @@ Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. 
     - **Location:** Upewnij się, że ścieżka prowadzi do `.../SZEBI_PROJEKT_GLOWNY/modules/new-feature-module`.
     - **Language:** `Java`
     - **Build system:** `Maven`
-    - **JDK:** Wybierz wersję `17` (lub aktualną wersję projektu).
+    - **JDK:** Wybierz wersję `21` (lub aktualną wersję projektu).
     - **Advanced Settings:**
         - `GroupId`: `org.example` (użyj tego samego, co w innych modułach).
         - `ArtifactId`: `new-feature-module`.
@@ -56,7 +56,6 @@ Twój nowy moduł będzie prawdopodobnie potrzebował dostępu do interfejsów i
             <version>1.0-SNAPSHOT</version>
         </dependency>
         
-        <!-- Dodaj tutaj inne potrzebne zależności (np. do testów) -->
     </dependencies>
     ```
 
@@ -86,10 +85,5 @@ Aby przetestować współpracę Twojego nowego modułu z resztą systemu, musisz
     ```
 
 3.  Teraz w klasie `Main.java` w module `application-runner` możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
-```<dependency>
-    <groupId>org.example</groupId>
-    <artifactId>new-feature-module</artifactId>
-    <version>1.0-SNAPSHOT</version>
-</dependency>
-```
+
 Po odświeżeniu Mavena, w klasie Main.java w module application-runner możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
