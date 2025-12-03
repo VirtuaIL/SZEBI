@@ -26,7 +26,7 @@ Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. 
 
 ### Krok 1: Stwórz Nowy Moduł Mavena
 
-1.  Otwórz główny projekt (`modules`) w IntelliJ IDEA.
+1.  Otwórz (`modules`) w IntelliJ IDEA.
 2.  W panelu projektu, kliknij prawym przyciskiem myszy na folder **`/modules`**.
 3.  Wybierz **New -> Module**.
 4.  W oknie "New Module" skonfiguruj swój moduł:
