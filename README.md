@@ -17,7 +17,7 @@ Proces uruchomienia całego środowiska składa się z dwóch głównych kroków
 
 Przejdź do głównego folderu projektu w terminalu i uruchom kontenery Docker w tle. Spowoduje to uruchomienie serwerów PostgreSQL i MongoDB oraz automatyczne załadowanie schematu i danych startowych.
 
-```bash`
+```bash```
 docker-compose up -d
 
 ## Rozwój Projektu: Jak Dodać Nowy Moduł Backendowy
