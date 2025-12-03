@@ -200,27 +200,171 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public List<Odczyt> getReadingsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        return List.of();
+        // Krok 1: Pobierz z PostgreSQL listę wszystkich ID urządzeń w danym budynku.
+        List<Integer> deviceIdsInBuilding = new ArrayList<>();
+        // Zapytanie SQL, które łączy Urzadzenia z Pokojami, aby znaleźć urządzenia w budynku.
+        String sql = "SELECT u.id_urzadzenia FROM Urzadzenia u JOIN Pokoje p ON u.id_pokoju = p.id_pokoju WHERE p.id_budynku = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, buildingId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                deviceIdsInBuilding.add(rs.getInt("id_urzadzenia"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania listy urządzeń dla budynku: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>(); // Zwróć pustą listę w razie błędu
+        }
+
+        // Jeśli w budynku nie ma żadnych urządzeń, nie ma sensu pytać MongoDB.
+        if (deviceIdsInBuilding.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Krok 2: Użyj listy ID urządzeń, aby pobrać wszystkie ich odczyty z MongoDB.
+        List<Odczyt> readings = new ArrayList<>();
+        try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
+            MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
+            MongoCollection<Document> collection = database.getCollection(MONGO_COLLECTION);
+
+            // Budujemy filtr: czas ORAZ ID urządzenia musi być na naszej liście
+            Bson filter = Filters.and(
+                    Filters.in("id_urzadzenia", deviceIdsInBuilding), // in = ID jest w tej liście
+                    Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)),
+                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))
+            );
+
+            FindIterable<Document> documents = collection.find(filter);
+            for (Document doc : documents) {
+                Odczyt reading = new Odczyt();
+                reading.setUrzadzenieId(doc.getInteger("id_urzadzenia"));
+                reading.setCzasOdczytu(doc.getDate("czas_odczytu").toInstant());
+                if (doc.get("pomiary") != null) {
+                    reading.setPomiary(doc.get("pomiary", Document.class).toJson());
+                }
+                readings.add(reading);
+            }
+        } catch (Exception e) {
+            System.out.println("Błąd podczas pobierania odczytów z MongoDB dla budynku: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return readings;
     }
 
     @Override
     public double getTotalEnergyConsumptionForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        return 0;
+        // Krok 1: Ponownie wykorzystaj istniejącą metodę, aby pobrać wszystkie odczyty dla budynku.
+        List<Odczyt> readings = getReadingsForBuilding(buildingId, from, to);
+
+        double totalConsumption = 0.0;
+
+        // Krok 2: Przejdź przez wszystkie odczyty i zsumuj wartości zużycia energii.
+        for (Odczyt reading : readings) {
+            try {
+                // Parsujemy String JSON z pomiarami na obiekt, który możemy przeszukać.
+                Document pomiaryDoc = Document.parse(reading.getPomiary());
+
+                // Sprawdzamy, czy w danym odczycie w ogóle istnieje klucz 'zuzycie_kwh'.
+                // To pozwala ignorować odczyty, które nie mierzą energii (np. czysta temperatura).
+                if (pomiaryDoc.containsKey("zuzycie_kwh")) {
+
+                    // Pobieramy wartość. Może być zapisana jako Double lub Integer, więc
+                    // traktujemy ją jako ogólny typ Number.
+                    Object value = pomiaryDoc.get("zuzycie_kwh");
+                    if (value instanceof Number) {
+                        totalConsumption += ((Number) value).doubleValue();
+                    }
+                }
+            } catch (Exception e) {
+                // Ignorujemy błędy parsowania lub brak klucza.
+                // W ten sposób jeden błędny odczyt nie zepsuje całego obliczenia.
+            }
+        }
+
+        // Zwracamy finalną, zsumowaną wartość.
+        return totalConsumption;
     }
 
     @Override
     public Urzadzenie getDeviceById(int deviceId) {
-        return null;
+        String sql = "SELECT * FROM Urzadzenia WHERE ID_urzadzenia = ?";
+        Urzadzenie device = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, deviceId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                device = new Urzadzenie();
+                device.setId(rs.getInt("ID_urzadzenia"));
+                device.setPokojId(rs.getInt("ID_pokoju"));
+                device.setModelId(rs.getInt("ID_modelu"));
+                device.setParametryPracy(rs.getString("Parametry_pracy"));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania urządzenia o ID " + deviceId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return device;
     }
 
     @Override
     public List<Urzadzenie> getDevicesInRoom(int roomId) {
-        return List.of();
+        String sql = "SELECT * FROM Urzadzenia WHERE ID_pokoju = ?";
+        List<Urzadzenie> devices = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, roomId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Urzadzenie device = new Urzadzenie();
+                device.setId(rs.getInt("ID_urzadzenia"));
+                device.setPokojId(rs.getInt("ID_pokoju"));
+                device.setModelId(rs.getInt("ID_modelu"));
+                device.setParametryPracy(rs.getString("Parametry_pracy"));
+
+                devices.add(device);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania urządzeń dla pokoju o ID " + roomId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return devices;
     }
 
     @Override
     public void updateDevice(Urzadzenie device) {
+        // To zapytanie aktualizuje tylko pole Parametry_pracy.
+        // Można je rozbudować o aktualizację innych pól w razie potrzeby.
+        String sql = "UPDATE Urzadzenia SET Parametry_pracy = ?::jsonb WHERE ID_urzadzenia = ?";
 
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Ustawiamy wartości dla placeholderów
+            pstmt.setString(1, device.getParametryPracy()); // Przekazujemy JSON jako String
+            pstmt.setInt(2, device.getId());
+
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows == 0) {
+                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID " + device.getId() + " istnieje.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas aktualizacji urządzenia: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -258,16 +402,65 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public Rola getRoleById(int rolaId) {
-        return null;
+        String sql = "SELECT * FROM Rola WHERE ID_roli = ?";
+        Rola rola = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, rolaId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                rola = new Rola();
+                rola.setId(rs.getInt("ID_roli"));
+                rola.setNazwaRoli(rs.getString("Nazwa_roli"));
+                rola.setOpisRoli(rs.getString("Opis_roli"));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania roli o ID " + rolaId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return rola;
     }
 
     @Override
     public Uzytkownik saveUser(Uzytkownik user) {
-        return null;
-    }
+        // Zapytanie do wstawienia nowego użytkownika.
+        // Statement.RETURN_GENERATED_KEYS poprosi bazę o zwrot wygenerowanego ID.
+        String sql = "INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
 
-    @Override
-    public List<Budynek> getBuildingsForUser(int userId) {
-        return List.of();
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setInt(1, user.getRolaId());
+            pstmt.setString(2, user.getImie());
+            pstmt.setString(3, user.getNazwisko());
+            pstmt.setString(4, user.getTelefon());
+            pstmt.setString(5, user.getEmail());
+            pstmt.setString(6, user.getHasloHash());
+            pstmt.setString(7, user.getPreferencje());
+
+            int affectedRows = pstmt.executeUpdate();
+
+            // Jeśli wiersz został dodany, pobieramy wygenerowane ID
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        // Ustawiamy ID w obiekcie, który zwrócimy
+                        user.setId(generatedKeys.getInt(1));
+                    } else {
+                        throw new SQLException("Tworzenie użytkownika nie powiodło się, brak wygenerowanego ID.");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas zapisywania użytkownika: " + e.getMessage());
+            e.printStackTrace();
+            return null; // Zwracamy null w razie błędu
+        }
+        // Zwracamy obiekt użytkownika z nowym ID
+        return user;
     }
 }
