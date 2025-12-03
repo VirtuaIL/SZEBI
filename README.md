@@ -5,7 +5,7 @@ Repozytorium zawierające kod źródłowy oraz infrastrukturę dla systemu SZEBI
 ## Wymagania Wstępne
 
 - Docker Desktop
-- JDK 21 lub nowszy
+- JDK 25
 - Apache Maven
 - IntelliJ IDEA
 
@@ -34,7 +34,7 @@ Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. 
     - **Location:** Upewnij się, że ścieżka prowadzi do `.../SZEBI/modules/new-feature-module`.
     - **Language:** `Java`
     - **Build system:** `Maven`
-    - **JDK:** Wybierz wersję `21` (lub aktualną wersję projektu).
+    - **JDK:** Wybierz wersję `25`
     - **Advanced Settings:**
         - `GroupId`: `org.example` (użyj tego samego, co w innych modułach).
         - `ArtifactId`: `new-feature-module`.
