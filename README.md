@@ -31,7 +31,7 @@ Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. 
 3.  Wybierz **New -> Module**.
 4.  W oknie "New Module" skonfiguruj swój moduł:
     - **Name:** Wpisz nazwę swojego modułu, np. `new-feature-module`.
-    - **Location:** Upewnij się, że ścieżka prowadzi do `.../SZEBI_PROJEKT_GLOWNY/modules/new-feature-module`.
+    - **Location:** Upewnij się, że ścieżka prowadzi do `.../SZEBI/modules/new-feature-module`.
     - **Language:** `Java`
     - **Build system:** `Maven`
     - **JDK:** Wybierz wersję `21` (lub aktualną wersję projektu).
