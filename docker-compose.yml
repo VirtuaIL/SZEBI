@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # --- Usługa dla bazy danych MongoDB ---
+  mongodb:
+    image: mongo:latest
+    container_name: szebi_mongo # Użyj nowej nazwy kontenera
+    ports:
+      - "27018:27017" # WAŻNE: Użyj innego portu na zewnątrz, np. 27018
+    volumes:
+      - ./mongo-init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - mongodb_data_nowy:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=bazka
+
+  # --- Usługa dla bazy danych PostgreSQL ---
+  postgres:
+    image: postgres:latest
+    container_name: szebi_postgres # Użyj nowej nazwy kontenera
+    ports:
+      - "5433:5432" # WAŻNE: Użyj innego portu na zewnątrz, np. 5433
+    volumes:
+      # Mapuje Twój skrypt SQL
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Mapuje folder na dane
+      - postgres_data_nowy:/var/lib/postgresql
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=bazka_haslo
+      - POSTGRES_DB=szebi_db_nowa
+
+# --- Definicje wolumenów (użyj nowych nazw) ---
+volumes:
+  mongodb_data_nowy:
+  postgres_data_nowy:

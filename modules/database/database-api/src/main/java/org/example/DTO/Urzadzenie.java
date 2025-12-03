@@ -1,0 +1,18 @@
+package org.example.DTO;
+
+public class Urzadzenie {
+    private int id;
+    private int pokojId;
+    private int modelId;
+    private String parametryPracy; // JSON jako String
+
+    // Gettery i Settery
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public int getPokojId() { return pokojId; }
+    public void setPokojId(int pokojId) { this.pokojId = pokojId; }
+    public int getModelId() { return modelId; }
+    public void setModelId(int modelId) { this.modelId = modelId; }
+    public String getParametryPracy() { return parametryPracy; }
+    public void setParametryPracy(String parametryPracy) { this.parametryPracy = parametryPracy; }
+}
