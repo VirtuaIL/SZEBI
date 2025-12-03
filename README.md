@@ -20,46 +20,72 @@ Przejdź do głównego folderu projektu w terminalu i uruchom kontenery Docker w
 ```bash`
 docker-compose up -d
 
+## Rozwój Projektu: Jak Dodać Nowy Moduł Backendowy
 
-Struktura i Rozwój Projektu
-Projekt jest zorganizowany w architekturze wielomodułowej. Poniższa instrukcja opisuje, jak poprawnie dodać nowy, niezależny moduł do systemu.
-1. Stwórz Nowy Moduł Mavena
-W panelu projektu IntelliJ, kliknij prawym przyciskiem myszy na folder /modules.
-Wybierz New -> Module.
-W oknie "New Module" skonfiguruj swój moduł:
-Name: Wpisz nazwę modułu (np. new-feature-module).
-Location: Upewnij się, że ścieżka prowadzi do .../modules/new-feature-module.
-Language: Java
-Build system: Maven
-JDK: Wybierz wersję 21 (lub aktualną wersję projektu).
-Advanced Settings:
-GroupId: org.example (użyj tego samego groupId, co w innych modułach).
-ArtifactId: new-feature-module.
-Kliknij "Create".
-2. Dodaj Zależności w pom.xml
+Projekt jest zorganizowany w architekturze wielomodułowej przy użyciu Mavena. Poniższa instrukcja opisuje, jak poprawnie dodać nowy, niezależny moduł (np. dla nowego członka zespołu).
+
+### Krok 1: Stwórz Nowy Moduł Mavena
+
+1.  Otwórz główny projekt (`SZEBI_PROJEKT_GLOWNY`) w IntelliJ IDEA.
+2.  W panelu projektu, kliknij prawym przyciskiem myszy na folder **`/modules`**.
+3.  Wybierz **New -> Module**.
+4.  W oknie "New Module" skonfiguruj swój moduł:
+    - **Name:** Wpisz nazwę swojego modułu, np. `new-feature-module`.
+    - **Location:** Upewnij się, że ścieżka prowadzi do `.../SZEBI_PROJEKT_GLOWNY/modules/new-feature-module`.
+    - **Language:** `Java`
+    - **Build system:** `Maven`
+    - **JDK:** Wybierz wersję `17` (lub aktualną wersję projektu).
+    - **Advanced Settings:**
+        - `GroupId`: `org.example` (użyj tego samego, co w innych modułach).
+        - `ArtifactId`: `new-feature-module`.
+5.  Kliknij **"Create"**.
+
+### Krok 2: Dodaj Zależności w `pom.xml`
+
 Twój nowy moduł będzie prawdopodobnie potrzebował dostępu do interfejsów i klas DTO z modułu bazy danych.
-Otwórz plik pom.xml w folderze swojego nowego modułu.
-Dodaj blok <dependencies> z zależnością do database-api:
-code
-Xml
-<dependencies>
-    <!-- Zależność do modułu z interfejsami bazy danych -->
+
+1.  Otwórz plik `pom.xml` w folderze swojego nowego modułu (np. `/modules/new-feature-module/pom.xml`).
+2.  Dodaj blok `<dependencies>` z zależnością do `database-api`:
+
+    ```xml
+    <dependencies>
+        <!-- Zależność do modułu z interfejsami bazy danych -->
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>database-api</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        
+        <!-- Dodaj tutaj inne potrzebne zależności (np. do testów) -->
+    </dependencies>
+    ```
+
+### Krok 3: Odśwież Projekt Maven
+
+Po zapisaniu pliku `pom.xml`, kliknij ikonę odświeżania ("Reload All Maven Projects") w panelu Maven po prawej stronie IntelliJ.
+
+### Krok 4: Zacznij Pisać Kod
+
+Możesz teraz tworzyć nowe pakiety i klasy w folderze `/src/main/java/` swojego modułu. Będziesz miał pełen dostęp do wszystkich interfejsów (np. `IAlertData`) i klas DTO (np. `Alert`) z modułu `database-api`.
+
+Pamiętaj o zasadzie **programowania do interfejsu** i wstrzykiwania zależności przez konstruktor.
+
+### Krok 5: Zintegruj Moduł z Aplikacją Główną
+
+Aby przetestować współpracę Twojego nowego modułu z resztą systemu, musisz dodać go jako zależność do modułu `application-runner`.
+
+1.  Otwórz plik `pom.xml` w module `/modules/application-runner/`.
+2.  W jego bloku `<dependencies>`, dodaj nową zależność do swojego modułu:
+
+    ```xml
     <dependency>
         <groupId>org.example</groupId>
-        <artifactId>database-api</artifactId>
+        <artifactId>new-feature-module</artifactId>
         <version>1.0-SNAPSHOT</version>
     </dependency>
-    
-    <!-- Dodaj tutaj inne potrzebne zależności -->
-</dependencies>
-3. Odśwież Projekt Maven
-Po zapisaniu pliku pom.xml, kliknij ikonę odświeżania ("Reload All Maven Projects") w panelu Maven.
-4. Zintegruj Moduł z Aplikacją Główną
-Aby przetestować współpracę Twojego nowego modułu z resztą systemu, musisz dodać go jako zależność do modułu application-runner.
-Otwórz plik pom.xml w module /modules/application-runner/.
-W jego bloku <dependencies>, dodaj nową zależność do swojego modułu:
-code
-Xml
+    ```
+
+3.  Teraz w klasie `Main.java` w module `application-runner` możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
 <dependency>
     <groupId>org.example</groupId>
     <artifactId>new-feature-module</artifactId>
