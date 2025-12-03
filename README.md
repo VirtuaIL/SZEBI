@@ -87,3 +87,7 @@ Aby przetestować współpracę Twojego nowego modułu z resztą systemu, musisz
 3.  Teraz w klasie `Main.java` w module `application-runner` możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
 
 Po odświeżeniu Mavena, w klasie Main.java w module application-runner możesz tworzyć instancje klas ze swojego nowego modułu i integrować je z resztą aplikacji.
+
+
+WAŻNE!!
+Jak nie wiesz jak używać interfejsów z bazki to patrz do modułu acquisition do pliku DataCollector, powinien być git
