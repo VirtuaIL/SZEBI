@@ -3,24 +3,23 @@ package org.example;
 public class ErrorReporter {
     private final IAnalysisService analysisService;
 
-    // Wstrzykujemy zależność do zewnętrznego modułu
     public ErrorReporter(IAnalysisService analysisService) {
         this.analysisService = analysisService;
     }
 
     public void reportCommunicationError(String deviceId, String message) {
-        System.err.println("[LOG LOKALNY] Błąd komunikacji: " + message);
-        // Wysyłamy sygnał do Modułu Analizy
+        System.err.println("[ERROR] Błąd komunikacji [ID: " + deviceId + "]: " + message);
+
         if (analysisService != null) {
-            analysisService.reportAnomaly(deviceId, "CONNECTION_LOST", message);
+            analysisService.reportAnomaly(deviceId, "COMM_ERROR", message);
         }
     }
 
     public void reportDataValidationError(String deviceId, String message) {
-        System.err.println("[LOG LOKALNY] Błąd walidacji: " + message);
-        // Wysyłamy sygnał do Modułu Analizy
+        System.err.println("[WARN] Błąd walidacji [ID: " + deviceId + "]: " + message);
+
         if (analysisService != null) {
-            analysisService.reportAnomaly(deviceId, "VALUE_OUT_OF_RANGE", message);
+            analysisService.reportAnomaly(deviceId, "VALIDATION_ERROR", message);
         }
     }
 }

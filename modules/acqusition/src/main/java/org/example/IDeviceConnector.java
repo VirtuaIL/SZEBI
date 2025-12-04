@@ -1,7 +1,7 @@
 package org.example;
 
 public interface IDeviceConnector {
-    double readValue(); // Główny odczyt (np. temperatura)
-    double getPowerUsage(); // Ile watów zużywa urządzenie
+    double readValue();
+    double getPowerUsage();
     boolean checkConnection();
 }

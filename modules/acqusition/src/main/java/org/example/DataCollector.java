@@ -8,12 +8,12 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 
+/**
+ * Klasa odpowiedzialna za transformację i przesyłanie danych do Bazy Danych.
+ * Implementuje mechanizm buforowania danych w przypadku utraty połączenia.
+ */
 public class DataCollector {
-
-    // Interfejs (połączenie z bazą)
     private final IAcquisitionData dataStorage;
-
-    // Nasz bufor na wypadek awarii
     private final Queue<Odczyt> buffer = new LinkedList<>();
 
     public DataCollector(IAcquisitionData dataStorage) {
@@ -21,66 +21,45 @@ public class DataCollector {
     }
 
     /**
-     * Ta metoda przetwarza dane z mapy Device -> Wartość.
-     * Tworzy rozbudowany JSON zawierający zawsze zużycie energii.
+     * Przetwarza mapę urządzeń i wartości na format DTO wymagany przez bazę danych.
+     * Każdy rekord jest wzbogacany o informację o zużyciu energii.
+     *
+     * @param data Mapa obiektów Device i ich aktualnych odczytów.
      */
     public void saveDataBatch(Map<Device, Double> data) {
         if (data.isEmpty()) return;
 
-        System.out.println("[DataCollector] Przetwarzanie " + data.size() + " odczytów...");
-
         for (Map.Entry<Device, Double> entry : data.entrySet()) {
             Device device = entry.getKey();
-            Double value = entry.getValue(); // Główny odczyt (np. temperatura)
+            Double value = entry.getValue();
 
             Odczyt reading = new Odczyt();
-
-            // 1. ID: Bierzemy z obiektu Device i parsujemy na int (adapter)
             reading.setUrzadzenieId(parseId(device.getId()));
-
-            // 2. Czas
             reading.setCzasOdczytu(Instant.now());
 
-            // 3. POMIARY: Budowanie JSON-a z dwoma polami
+            // Budowanie JSON z pomiarem i zużyciem energii
             StringBuilder jsonBuilder = new StringBuilder();
             jsonBuilder.append("{ ");
-
-            // A. Dodajemy główny pomiar (chyba że to sam licznik energii, wtedy nie dublujemy)
-            // Jeśli urządzenie to np. "TEMP-01" (temperatura_C), dodajemy: "temperatura_C": 21.5,
             if (!device.getMetricLabel().equals("zuzycie_energii_W")) {
                 jsonBuilder.append("\"").append(device.getMetricLabel()).append("\": ")
                         .append(value).append(", ");
             }
+            double powerConsumption = device.getMetricLabel().equals("zuzycie_energii_W")
+                    ? value
+                    : device.readCurrentPowerUsage();
 
-            // B. Dodajemy zużycie energii (OBOWIĄZKOWE DLA KAŻDEGO WPISU)
-            // Jeśli to licznik energii, to główna wartość 'value' jest zużyciem.
-            // Jeśli to termometr, pobieramy zużycie z metody readCurrentPowerUsage().
-            double powerConsumption;
-            if (device.getMetricLabel().equals("zuzycie_energii_W")) {
-                powerConsumption = value;
-            } else {
-                powerConsumption = device.readCurrentPowerUsage();
-            }
-
-            // Formatujemy do 2 miejsc po przecinku i zamieniamy przecinek na kropkę (dla JSON)
             jsonBuilder.append("\"zuzycie_energii_W\": ")
                     .append(String.format("%.2f", powerConsumption).replace(',', '.'));
-
             jsonBuilder.append(" }");
 
-            // Ustawiamy gotowy JSON
             reading.setPomiary(jsonBuilder.toString());
 
-            // === PRÓBA ZAPISU DO BAZY ===
             try {
                 this.dataStorage.saveSensorReading(reading);
-                System.out.println(">> [BAZA] Zapisano dla ID " + reading.getUrzadzenieId() + ": " + jsonBuilder.toString());
-
-                // Przy okazji próbujemy opróżnić bufor
-                processBuffer();
+                processBuffer(); // Próba opróżnienia bufora przy udanym zapisie
             } catch (Exception e) {
-                System.err.println("!! [AWARIA BAZY] Błąd zapisu: " + e.getMessage());
-                buffer.add(reading); // Trafia do bufora
+                System.err.println("[DataCollector] Błąd zapisu do DB. Buforowanie danych.");
+                buffer.add(reading);
             }
         }
     }
@@ -90,22 +69,19 @@ public class DataCollector {
             Odczyt cached = buffer.poll();
             try {
                 this.dataStorage.saveSensorReading(cached);
-                System.out.println(">> [RECOVERY] Wysłano zaległy odczyt z bufora.");
             } catch (Exception e) {
-                buffer.add(cached); // Wracamy do kolejki, baza nadal leży
+                buffer.add(cached);
                 break;
             }
         }
     }
 
-    // Pomocnicza metoda do wyciągania liczby z ID (np. "TEMP-001" -> 1)
     private int parseId(String stringId) {
         try {
-            // Usuwa wszystko co nie jest cyfrą
             String numberOnly = stringId.replaceAll("\\D+", "");
             return numberOnly.isEmpty() ? 0 : Integer.parseInt(numberOnly);
         } catch (NumberFormatException e) {
-            return 999; // ID błędu
+            return 999;
         }
     }
 }

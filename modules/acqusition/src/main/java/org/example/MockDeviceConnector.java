@@ -1,30 +1,34 @@
 package org.example;
+
 import java.util.Random;
 
 public class MockDeviceConnector implements IDeviceConnector {
     private final Random random = new Random();
     private final double baseValue;
+    private final double powerUsage; // Konkretna moc z bazy danych
 
-    // Ile prądu zużywa ten czujnik (np. 0.1 W - 2.0 W)
-    private final double powerUsageBase;
-
-    public MockDeviceConnector(double startingValue) {
+    // Nowy konstruktor przyjmujący moc z bazy
+    public MockDeviceConnector(double startingValue, double powerUsage) {
         this.baseValue = startingValue;
-        // Losujemy zużycie prądu dla danego typu urządzenia (małe wartości)
-        this.powerUsageBase = 0.1 + (random.nextDouble() * 0.5);
+        this.powerUsage = powerUsage;
     }
 
     @Override
     public double readValue() {
-        return baseValue + (random.nextDouble() * 5.0) - 2.5;
+        // Symulacja: Zwraca wartość z lekkim szumem
+        double noise = (random.nextDouble() * 4.0) - 2.0;
+        return baseValue + noise;
     }
 
     @Override
     public double getPowerUsage() {
-        // Symulujemy lekkie wahania zużycia energii przez samą elektronikę
-        return powerUsageBase + (random.nextDouble() * 0.05);
+        // Symulujemy lekkie wahania zużycia energii (np. +/- 1%)
+        // Ale bazujemy na PRAWDZIWEJ mocy urządzenia z bazy danych
+        return powerUsage + (powerUsage * (random.nextDouble() * 0.02 - 0.01));
     }
 
     @Override
-    public boolean checkConnection() { return true; }
+    public boolean checkConnection() {
+        return true;
+    }
 }
