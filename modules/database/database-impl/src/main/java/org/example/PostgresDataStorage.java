@@ -19,6 +19,9 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import java.time.ZoneOffset;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData{
 
     //config postgres
@@ -89,6 +92,140 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         } catch (Exception e) {
             System.out.println("Błąd podczas hurtowego zapisywania odczytów do MongoDB: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public List<Urzadzenie> getActiveDevices() {
+        // Proste zapytanie, które pobiera wszystkie aktywne urządzenia.
+        String sql = "SELECT * FROM Urzadzenia WHERE aktywny = true";
+
+        List<Urzadzenie> activeDevices = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Urzadzenie device = new Urzadzenie();
+
+                // Mapujemy dane bezpośrednio na nasz istniejący obiekt DTO Urzadzenie
+                device.setId(rs.getInt("ID_urzadzenia"));
+                device.setPokojId(rs.getInt("ID_pokoju"));
+                device.setModelId(rs.getInt("ID_modelu"));
+                device.setParametryPracy(rs.getString("Parametry_pracy"));
+                device.setAktywny(rs.getBoolean("aktywny"));
+                // (Jeśli w DTO Urzadzenie masz pole 'aktywny', też je ustaw)
+                // device.setAktywny(rs.getBoolean("aktywny"));
+
+                activeDevices.add(device);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania aktywnych urządzeń: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return activeDevices;
+    }
+
+    @Override
+    public List<UrzadzenieSzczegoly> getActiveDevicesWithDetails() {
+        // SQL pozostaje bez zmian - pobieramy całą kolumnę JSON
+        String sql = "SELECT u.*, p.numer_pokoju, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, pu.nazwa_producenta " +
+                "FROM Urzadzenia u " +
+                "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
+                "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu " +
+                "JOIN Typ_urzadzenia tu ON m.ID_typu_urzadzenia = tu.ID_typu_urzadzenia " +
+                "JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta " +
+                "WHERE u.aktywny = true";
+
+        List<UrzadzenieSzczegoly> devicesWithDetails = new ArrayList<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                UrzadzenieSzczegoly device = new UrzadzenieSzczegoly();
+
+                // Mapowanie standardowe
+                device.setId(rs.getInt("ID_urzadzenia"));
+                device.setPokojId(rs.getInt("ID_pokoju"));
+                device.setModelId(rs.getInt("ID_modelu"));
+                device.setParametryPracy(rs.getString("Parametry_pracy"));
+                device.setAktywny(rs.getBoolean("aktywny"));
+                device.setNazwaPokoju(rs.getString("numer_pokoju"));
+                device.setNazwaModelu(rs.getString("nazwa_modelu"));
+                device.setNazwaTypu(rs.getString("nazwa_typu_urzadzenia"));
+                device.setNazwaProducenta(rs.getString("nazwa_producenta"));
+
+                // Parsowanie JSON
+                String paramsJson = rs.getString("Parametry_pracy");
+                if (paramsJson != null && !paramsJson.isEmpty()) {
+                    try {
+                        JsonNode rootNode = objectMapper.readTree(paramsJson);
+
+                        // ==========================================
+                        // 1. MOC (Dla każdego urządzenia)
+                        // ==========================================
+                        // Używamy .path() zamiast .get() - to bezpieczniejsze.
+                        // Jeśli "moc_W" nie istnieje, .asInt(0) wstawi 0.
+                        device.setMocW(rootNode.path("moc_W").asInt(0));
+
+                        // ==========================================
+                        // 2. Parametry specyficzne (Oświetlenie)
+                        // ==========================================
+                        if (rootNode.has("sciemnialna")) {
+                            device.setSciemnialna(rootNode.get("sciemnialna").asBoolean());
+                        }
+                        if (rootNode.has("barwa_K")) {
+                            device.setBarwaK(rootNode.get("barwa_K").asInt());
+                        }
+
+                        // ==========================================
+                        // 3. Parametry specyficzne (Czujniki)
+                        // ==========================================
+                        if (rootNode.has("etykieta_metryki")) {
+                            device.setMetricLabel(rootNode.get("etykieta_metryki").asText());
+                        }
+
+                        JsonNode zakresNode = rootNode.path("zakres_pomiaru");
+                        if (!zakresNode.isMissingNode()) {
+                            if (zakresNode.has("min")) {
+                                device.setMinRange(zakresNode.get("min").asDouble());
+                            }
+                            if (zakresNode.has("max")) {
+                                device.setMaxRange(zakresNode.get("max").asDouble());
+                            }
+                        }
+
+                    } catch (Exception e) {
+                        System.err.println("Błąd JSON ID " + device.getId() + ": " + e.getMessage());
+                    }
+                } else {
+                    // Jeśli JSON jest pusty/null, ustawiamy moc na 0
+                    device.setMocW(0);
+                }
+
+                devicesWithDetails.add(device);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return devicesWithDetails;
+    }
+
+    @Override
+    public boolean isDatabaseConnected() {
+        String sql = "SELECT 1";
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.executeQuery();
+            return true;
+        } catch (SQLException e) {
+            return false;
         }
     }
 
@@ -345,19 +482,25 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void updateDevice(Urzadzenie device) {
-        // To zapytanie aktualizuje tylko pole Parametry_pracy.
-        // Można je rozbudować o aktualizację innych pól w razie potrzeby.
-        String sql = "UPDATE Urzadzenia SET Parametry_pracy = ?::jsonb WHERE ID_urzadzenia = ?";
+        // Nowe zapytanie SQL, które aktualizuje wiele kolumn.
+        String sql = "UPDATE Urzadzenia SET ID_pokoju = ?, Parametry_pracy = ?::jsonb, aktywny = ? WHERE ID_urzadzenia = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // Ustawiamy wartości dla placeholderów
-            pstmt.setString(1, device.getParametryPracy()); // Przekazujemy JSON jako String
-            pstmt.setInt(2, device.getId());
+            // Ustawiamy wartości dla wszystkich placeholderów (?)
+            pstmt.setInt(1, device.getPokojId());
+            pstmt.setString(2, device.getParametryPracy());
+            pstmt.setBoolean(3, device.isAktywny());
+
+            // Ostatni placeholder to ID w klauzuli WHERE
+            pstmt.setInt(4, device.getId());
 
             int affectedRows = pstmt.executeUpdate();
-            if (affectedRows == 0) {
+
+            if (affectedRows > 0) {
+                System.out.println("Pomyślnie zaktualizowano urządzenie o ID: " + device.getId());
+            } else {
                 System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID " + device.getId() + " istnieje.");
             }
 
