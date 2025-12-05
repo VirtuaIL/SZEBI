@@ -9,6 +9,9 @@ target/
 # Pliki logów i inne pliki binarne
 *.log
 *.jar
+.settings/
+.classpath
+.project
 
 # Pliki systemowe (macOS, Windows)
 .DS_Store
