@@ -462,44 +462,30 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public List<Odczyt> getReadingsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        // Krok 1: Pobierz z PostgreSQL listę wszystkich ID urządzeń w danym budynku.
         List<Integer> deviceIdsInBuilding = new ArrayList<>();
-        // Zapytanie SQL, które łączy Urzadzenia z Pokojami, aby znaleźć urządzenia w budynku.
         String sql = "SELECT u.id_urzadzenia FROM Urzadzenia u JOIN Pokoje p ON u.id_pokoju = p.id_pokoju WHERE p.id_budynku = ?";
-
-        try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, buildingId);
             ResultSet rs = pstmt.executeQuery();
-
             while (rs.next()) {
                 deviceIdsInBuilding.add(rs.getInt("id_urzadzenia"));
             }
         } catch (SQLException e) {
-            System.out.println("Błąd podczas pobierania listy urządzeń dla budynku: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>(); // Zwróć pustą listę w razie błędu
+            return new ArrayList<>();
         }
-
-        // Jeśli w budynku nie ma żadnych urządzeń, nie ma sensu pytać MongoDB.
         if (deviceIdsInBuilding.isEmpty()) {
             return new ArrayList<>();
         }
-
-        // Krok 2: Użyj listy ID urządzeń, aby pobrać wszystkie ich odczyty z MongoDB.
         List<Odczyt> readings = new ArrayList<>();
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
             MongoCollection<Document> collection = database.getCollection(MONGO_COLLECTION);
-
-            // Budujemy filtr: czas ORAZ ID urządzenia musi być na naszej liście
             Bson filter = Filters.and(
-                    Filters.in("id_urzadzenia", deviceIdsInBuilding), // in = ID jest w tej liście
+                    Filters.in("id_urzadzenia", deviceIdsInBuilding),
                     Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)),
                     Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))
             );
-
             FindIterable<Document> documents = collection.find(filter);
             for (Document doc : documents) {
                 Odczyt reading = new Odczyt();
@@ -511,45 +497,204 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 readings.add(reading);
             }
         } catch (Exception e) {
-            System.out.println("Błąd podczas pobierania odczytów z MongoDB dla budynku: " + e.getMessage());
             e.printStackTrace();
         }
         return readings;
     }
 
     @Override
+    public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
+        String sql = "SELECT a.*, u.nazwa_wlasna, m.nazwa_modelu, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+                "FROM Alerty a " +
+                "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
+                "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
+                "JOIN Budynek b ON p.ID_budynku = b.ID_budynku " +
+                "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu " +
+                "WHERE p.ID_budynku = ? AND a.czas_alertu >= ? AND a.czas_alertu < ? ORDER BY a.czas_alertu DESC";
+
+        List<AlertSzczegoly> alertDetails = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, buildingId);
+            pstmt.setTimestamp(2, Timestamp.valueOf(from));
+            pstmt.setTimestamp(3, Timestamp.valueOf(to));
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                alertDetails.add(mapResultSetToAlertDetails(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return alertDetails;
+    }
+
+
+    @Override
+    public List<Prognoza> getForecastsForDevice(int deviceId, LocalDateTime from, LocalDateTime to) {
+        String sql = "SELECT * FROM Prognozy WHERE ID_urzadzenia = ? AND czas_prognozy >= ? AND czas_prognozy < ? ORDER BY czas_prognozy";
+        List<Prognoza> forecasts = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, deviceId);
+            pstmt.setTimestamp(2, Timestamp.valueOf(from));
+            pstmt.setTimestamp(3, Timestamp.valueOf(to));
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                forecasts.add(mapResultSetToPrognoza(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return forecasts;
+    }
+
+
+    @Override
+    public List<Prognoza> getForecastsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
+        String sql = "SELECT * FROM Prognozy WHERE ID_budynku = ? AND czas_prognozy >= ? AND czas_prognozy < ? ORDER BY czas_prognozy";
+        List<Prognoza> forecasts = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, buildingId);
+            pstmt.setTimestamp(2, Timestamp.valueOf(from));
+            pstmt.setTimestamp(3, Timestamp.valueOf(to));
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                forecasts.add(mapResultSetToPrognoza(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return forecasts;
+    }
+
+    @Override
+    public void storeForecastResult(Prognoza forecast) {
+        String sql = "INSERT INTO Prognozy (ID_urzadzenia, ID_budynku, czas_wygenerowania, czas_prognozy, prognozowana_wartosc, metryka) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Używamy setObject, aby poprawnie obsłużyć wartości null
+            pstmt.setObject(1, forecast.getUrzadzenieId());
+            pstmt.setObject(2, forecast.getBudynekId());
+
+            pstmt.setTimestamp(3, Timestamp.valueOf(forecast.getCzasWygenerowania()));
+            pstmt.setTimestamp(4, Timestamp.valueOf(forecast.getCzasPrognozy()));
+            pstmt.setDouble(5, forecast.getPrognozowanaWartosc());
+            pstmt.setString(6, forecast.getMetryka());
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas zapisywania wyniku prognozy: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    @Override
     public double getTotalEnergyConsumptionForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        // Krok 1: Ponownie wykorzystaj istniejącą metodę, aby pobrać wszystkie odczyty dla budynku.
         List<Odczyt> readings = getReadingsForBuilding(buildingId, from, to);
-
         double totalConsumption = 0.0;
-
-        // Krok 2: Przejdź przez wszystkie odczyty i zsumuj wartości zużycia energii.
         for (Odczyt reading : readings) {
             try {
-                // Parsujemy String JSON z pomiarami na obiekt, który możemy przeszukać.
                 Document pomiaryDoc = Document.parse(reading.getPomiary());
-
-                // Sprawdzamy, czy w danym odczycie w ogóle istnieje klucz 'zuzycie_kwh'.
-                // To pozwala ignorować odczyty, które nie mierzą energii (np. czysta temperatura).
                 if (pomiaryDoc.containsKey("zuzycie_kwh")) {
-
-                    // Pobieramy wartość. Może być zapisana jako Double lub Integer, więc
-                    // traktujemy ją jako ogólny typ Number.
                     Object value = pomiaryDoc.get("zuzycie_kwh");
                     if (value instanceof Number) {
                         totalConsumption += ((Number) value).doubleValue();
                     }
                 }
             } catch (Exception e) {
-                // Ignorujemy błędy parsowania lub brak klucza.
-                // W ten sposób jeden błędny odczyt nie zepsuje całego obliczenia.
+                // Ignoruj błędy
             }
         }
-
-        // Zwracamy finalną, zsumowaną wartość.
         return totalConsumption;
     }
+
+    @Override
+    public Raport saveReport(Raport report) {
+        String sql = "INSERT INTO Raporty (ID_uzytkownika, czas_wygenerowania, typ_raportu, opis, zakres_od, zakres_do, zawartosc) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setObject(1, report.getUzytkownikId());
+            pstmt.setTimestamp(2, Timestamp.valueOf(report.getCzasWygenerowania()));
+            pstmt.setString(3, report.getTypRaportu());
+            pstmt.setString(4, report.getOpis());
+            pstmt.setTimestamp(5, Timestamp.valueOf(report.getZakresOd()));
+            pstmt.setTimestamp(6, Timestamp.valueOf(report.getZakresDo()));
+            pstmt.setString(7, report.getZawartosc());
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        report.setId(generatedKeys.getInt(1));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+        return report;
+    }
+
+    @Override
+    public List<Raport> getReportsByType(String reportType) {
+        String sql = "SELECT * FROM Raporty WHERE typ_raportu = ? ORDER BY czas_wygenerowania DESC";
+        List<Raport> reports = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, reportType);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                reports.add(mapResultSetToRaport(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return reports;
+    }
+
+    @Override
+    public Raport getReportById(int reportId) {
+        String sql = "SELECT * FROM Raporty WHERE ID_raportu = ?";
+        Raport report = null;
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, reportId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                report = mapResultSetToRaport(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return report;
+    }
+
+    // PRYWATNA METODA POMOCNICZA DO MAPOWANIA
+    private Raport mapResultSetToRaport(ResultSet rs) throws SQLException {
+        Raport report = new Raport();
+        report.setId(rs.getInt("ID_raportu"));
+        report.setUzytkownikId((Integer) rs.getObject("ID_uzytkownika"));
+        report.setCzasWygenerowania(rs.getTimestamp("czas_wygenerowania").toLocalDateTime());
+        report.setTypRaportu(rs.getString("typ_raportu"));
+        report.setOpis(rs.getString("opis"));
+        report.setZakresOd(rs.getTimestamp("zakres_od").toLocalDateTime());
+        report.setZakresDo(rs.getTimestamp("zakres_do").toLocalDateTime());
+        report.setZawartosc(rs.getString("zawartosc"));
+        return report;
+    }
+
+    private Prognoza mapResultSetToPrognoza(ResultSet rs) throws SQLException {
+        Prognoza forecast = new Prognoza();
+        forecast.setId(rs.getInt("ID_prognozy"));
+        forecast.setUrzadzenieId((Integer) rs.getObject("ID_urzadzenia"));
+        forecast.setBudynekId((Integer) rs.getObject("ID_budynku"));
+        forecast.setCzasWygenerowania(rs.getTimestamp("czas_wygenerowania").toLocalDateTime());
+        forecast.setCzasPrognozy(rs.getTimestamp("czas_prognozy").toLocalDateTime());
+        forecast.setPrognozowanaWartosc(rs.getDouble("prognozowana_wartosc"));
+        forecast.setMetryka(rs.getString("metryka"));
+        return forecast;
+    }
+
+
 
     @Override
     public Urzadzenie getDeviceById(int deviceId) {
