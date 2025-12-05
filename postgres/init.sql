@@ -24,7 +24,15 @@ CREATE TABLE Urzadzenia (
     -- NOWA, WAŻNA KOLUMNA:
     aktywny BOOLEAN NOT NULL DEFAULT true -- Domyślnie każde nowe urządzenie jest aktywne
 );
-CREATE TABLE Alerty (ID_alertu SERIAL PRIMARY KEY, ID_urzadzenia INTEGER REFERENCES Urzadzenia(ID_urzadzenia), tresc TEXT, data_alertu DATE, czas_alertu TIME);
+CREATE TABLE Alerty (
+    ID_alertu SERIAL PRIMARY KEY, 
+    ID_urzadzenia INTEGER REFERENCES Urzadzenia(ID_urzadzenia), 
+    priorytet VARCHAR(50) NOT NULL, -- Przechowa "INFO", "WARNING", "CRITICAL"
+    status VARCHAR(50) NOT NULL DEFAULT 'NOWY', -- Przechowa "NOWY", "POTWIERDZONY", "ROZWIAZANY"
+    
+    tresc TEXT NOT NULL,
+    czas_alertu TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
 
 
 -- =============================================================================
@@ -51,4 +59,7 @@ INSERT INTO Urzadzenia (ID_pokoju, ID_modelu, Parametry_pracy) VALUES
 (2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700 }'), 
 (3, 2, '{ "moc_W": 11, "zakres_pomiaru": { "min": 16.0, "max": 30.0 }, "etykieta_metryki": "temperatura_C" }'), 
 (4, 1, '{ "moc_W": 12, "zakres_pomiaru": { "min": -40.0, "max": 60.0 }, "etykieta_metryki": "temperatura_C" }');
-INSERT INTO Alerty (ID_urzadzenia, tresc, data_alertu, czas_alertu) VALUES (3, 'Wysokie zużycie energii przez klimatyzator w serwerowni.', '2025-11-10', '14:30:00'), (1, 'Odnotowano skrajnie niską temperaturę w pokoju 101.', '2025-11-11', '08:00:00'), (2, 'Utracono komunikację z lampą w pokoju 102.', '2025-11-12', '10:15:00');
+INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc) VALUES
+(1, 'CRITICAL', 'NOWY', 'Temperatura w pokoju 101 przekroczyła próg alarmowy!'),
+(2, 'WARNING', 'NOWY', 'Wysoki poziom wilgotności w Serwerowni.'),
+(3, 'INFO', 'ROZWIAZANY', 'Utracono i odzyskano komunikację z lampą w pokoju 102.');

@@ -231,24 +231,16 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void saveAlert(Alert alert) {
-        // Krok 1: Przygotuj zapytanie SQL z placeholderami (?)
-        String sql = "INSERT INTO Alerty (ID_urzadzenia, tresc, czas_alertu) VALUES (?, ?, ?)";
-
-        // Krok 2: Użyj try-with-resources do zarządzania połączeniem
-        try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            // Krok 3: Ustaw wartości dla placeholderów
+        String sql = "INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc, czas_alertu) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, alert.getUrzadzenieId());
-            pstmt.setString(2, alert.getTresc());
-            pstmt.setTimestamp(3, java.sql.Timestamp.valueOf(alert.getCzasAlertu()));
-
-            // Krok 4: Wykonaj zapytanie
+            // Konwertujemy enum na String przed zapisem do bazy
+            pstmt.setString(2, alert.getPriorytet().name());
+            pstmt.setString(3, alert.getStatus().name());
+            pstmt.setString(4, alert.getTresc());
+            pstmt.setTimestamp(5, Timestamp.valueOf(alert.getCzasAlertu()));
             pstmt.executeUpdate();
-
         } catch (SQLException e) {
-            // Podstawowa obsługa błędów
-            System.out.println("Błąd podczas zapisywania alertu: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -264,22 +256,10 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             pstmt.setInt(1, deviceId);
             ResultSet rs = pstmt.executeQuery();
 
-            // Pętla `while` przejdzie przez wszystkie znalezione alerty
             while (rs.next()) {
-                Alert alert = new Alert();
-
-                // Mapujemy dane z wiersza bazy na obiekt Alert
-                alert.setId(rs.getInt("ID_alertu"));
-                alert.setUrzadzenieId(rs.getInt("ID_urzadzenia"));
-                alert.setTresc(rs.getString("tresc"));
-                // Konwersja Timestamp z bazy na LocalDateTime w Javie
-                if (rs.getTimestamp("czas_alertu") != null) {
-                    alert.setCzasAlertu(rs.getTimestamp("czas_alertu").toLocalDateTime());
-                }
-                // Możesz też dodać obsługę statusu, jeśli masz tę kolumnę
-                // alert.setStatus(rs.getString("status"));
-
-                alerts.add(alert); // Dodajemy zmapowany obiekt do listy
+                // Używamy naszej nowej, centralnej metody do mapowania.
+                // Cała logika mapowania jest teraz w jednym miejscu.
+                alerts.add(mapResultSetToAlert(rs));
             }
 
         } catch (SQLException e) {
@@ -287,8 +267,86 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             e.printStackTrace();
         }
 
-        // Zwracamy listę (będzie pusta, jeśli urządzenie nie ma alertów)
         return alerts;
+    }
+
+    @Override
+    public void updateAlertStatus(int alertId, Alert.AlertStatus newStatus) {
+        String sql = "UPDATE Alerty SET status = ? WHERE ID_alertu = ?";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            // Konwertujemy enum na String
+            pstmt.setString(1, newStatus.name());
+            pstmt.setInt(2, alertId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public List<Alert> getAlertsForBuilding(int buildingId) {
+        String sql = "SELECT a.* FROM Alerty a " +
+                "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
+                "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
+                "WHERE p.ID_budynku = ? ORDER BY a.czas_alertu DESC";
+        List<Alert> alerts = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, buildingId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                alerts.add(mapResultSetToAlert(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return alerts;
+    }
+
+    @Override
+    public List<Alert> getActiveAlertsBySeverity(Alert.AlertSeverity severity) {
+        String sql = "SELECT * FROM Alerty WHERE priorytet = ? AND status != 'ROZWIAZANY' ORDER BY czas_alertu DESC";
+        List<Alert> alerts = new ArrayList<>();
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, severity.name());
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                alerts.add(mapResultSetToAlert(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return alerts;
+    }
+
+    @Override
+    public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId) {
+        return getAlertDetailsWithFilter("WHERE p.ID_budynku = ?", buildingId);
+    }
+
+    @Override
+    public List<AlertSzczegoly> getAlertDetailsForRoom(int roomId) {
+        return getAlertDetailsWithFilter("WHERE p.ID_pokoju = ?", roomId);
+    }
+
+    @Override
+    public AlertSzczegoly getAlertDetailsById(int alertId) {
+        List<AlertSzczegoly> result = getAlertDetailsWithFilter("WHERE a.ID_alertu = ?", alertId);
+        // Zwróć pierwszy element z listy lub null, jeśli lista jest pusta
+        return result.isEmpty() ? null : result.get(0);
+    }
+
+    private Alert mapResultSetToAlert(ResultSet rs) throws SQLException {
+        Alert alert = new Alert();
+        alert.setId(rs.getInt("ID_alertu"));
+        alert.setUrzadzenieId(rs.getInt("ID_urzadzenia"));
+        alert.setTresc(rs.getString("tresc"));
+        if (rs.getTimestamp("czas_alertu") != null) {
+            alert.setCzasAlertu(rs.getTimestamp("czas_alertu").toLocalDateTime());
+        }
+        // Konwertujemy String z bazy na Enum w Javie
+        alert.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
+        alert.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
+        return alert;
     }
 
     @Override
@@ -333,6 +391,73 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
         // Zwracamy listę odczytów (może być pusta)
         return readings;
+    }
+
+    @Override
+    public Uzytkownik getUserById(int userId) {
+        String sql = "SELECT * FROM Uzytkownik WHERE ID_uzytkownika = ?";
+        Uzytkownik user = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                user.setHasloHash(rs.getString("Haslo_hash"));
+                user.setPreferencje(rs.getString("preferencje"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania użytkownika o ID " + userId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return user;
+    }
+
+    @Override
+    public Umowa getActiveContractForBuilding(int buildingId) {
+        // Zapytanie, które znajduje aktywną umowę (data końca jest w przyszłości lub jest pusta/NULL)
+        String sql = "SELECT * FROM Umowa WHERE ID_budynku = ? AND (data_konca IS NULL OR data_konca > CURRENT_DATE) ORDER BY data_poczatku DESC LIMIT 1";
+        Umowa contract = null;
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, buildingId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                contract = new Umowa();
+                contract.setId(rs.getInt("ID_umowy"));
+                contract.setBudynekId(rs.getInt("ID_budynku"));
+                contract.setDostawcaId(rs.getInt("ID_dostawcy"));
+
+                // Konwersja z java.sql.Date na java.time.LocalDate
+                Date dataPoczatkuSql = rs.getDate("data_poczatku");
+                if (dataPoczatkuSql != null) {
+                    contract.setDataPoczatku(dataPoczatkuSql.toLocalDate());
+                }
+
+                Date dataKoncaSql = rs.getDate("data_konca");
+                if (dataKoncaSql != null) {
+                    contract.setDataKonca(dataKoncaSql.toLocalDate());
+                }
+
+                contract.setSzczegolyTaryfy(rs.getString("szczegoly_taryfy"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania aktywnej umowy dla budynku o ID " + buildingId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return contract;
     }
 
     @Override
@@ -481,6 +606,33 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     }
 
     @Override
+    public List<Pokoj> getRoomsInBuilding(int buildingId) {
+        String sql = "SELECT * FROM Pokoje WHERE ID_budynku = ?";
+        List<Pokoj> rooms = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, buildingId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Pokoj room = new Pokoj();
+                room.setId(rs.getInt("ID_pokoju"));
+                room.setBudynekId(rs.getInt("ID_budynku"));
+                room.setNumerPokoju(rs.getString("numer_pokoju"));
+                room.setPietro(rs.getInt("pietro"));
+
+                rooms.add(room);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania pokoi dla budynku o ID " + buildingId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return rooms;
+    }
+
+    @Override
     public void updateDevice(Urzadzenie device) {
         // Nowe zapytanie SQL, które aktualizuje wiele kolumn.
         String sql = "UPDATE Urzadzenia SET ID_pokoju = ?, Parametry_pracy = ?::jsonb, aktywny = ? WHERE ID_urzadzenia = ?";
@@ -605,5 +757,57 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         }
         // Zwracamy obiekt użytkownika z nowym ID
         return user;
+    }
+
+    private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
+        String baseSql = "SELECT a.*, u.nazwa_wlasna, m.nazwa_modelu, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+                "FROM Alerty a " +
+                "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
+                "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
+                "JOIN Budynek b ON p.ID_budynku = b.ID_budynku " +
+                "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu ";
+
+        String finalSql = baseSql + whereClause + " ORDER BY a.czas_alertu DESC";
+
+        List<AlertSzczegoly> alertDetails = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(finalSql)) {
+
+            // Ustawiamy parametry dla klauzuli WHERE
+            for (int i = 0; i < params.length; i++) {
+                pstmt.setObject(i + 1, params[i]);
+            }
+
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                // Używamy naszej istniejącej metody pomocniczej do mapowania
+                // (Musimy ją lekko zmodyfikować, aby zwracała AlertDetails)
+                alertDetails.add(mapResultSetToAlertDetails(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return alertDetails;
+    }
+
+    // Zaktualizuj lub stwórz tę metodę pomocniczą do mapowania
+    private AlertSzczegoly mapResultSetToAlertDetails(ResultSet rs) throws SQLException {
+        AlertSzczegoly details = new AlertSzczegoly();
+        // Mapowanie pól z klasy bazowej Alert
+        details.setId(rs.getInt("ID_alertu"));
+        details.setUrzadzenieId(rs.getInt("ID_urzadzenia"));
+        details.setTresc(rs.getString("tresc"));
+        if (rs.getTimestamp("czas_alertu") != null) {
+            details.setCzasAlertu(rs.getTimestamp("czas_alertu").toLocalDateTime());
+        }
+        details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
+        details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
+        // Mapowanie nowych, dodatkowych pól
+        details.setNazwaUrzadzenia(rs.getString("nazwa_wlasna"));
+        details.setNazwaModelu(rs.getString("nazwa_modelu"));
+        details.setNazwaPokoju(rs.getString("numer_pokoju"));
+        details.setNazwaBudynku(rs.getString("nazwa_budynku"));
+        return details;
     }
 }

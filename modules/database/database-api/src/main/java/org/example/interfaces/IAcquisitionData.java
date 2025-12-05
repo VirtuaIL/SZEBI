@@ -15,10 +15,6 @@ public interface IAcquisitionData {
 
     List<UrzadzenieSzczegoly> getActiveDevicesWithDetails();
 
-    /**
-     * Wykonuje szybki test ("ping") sprawdzający dostępność usług bazodanowych.
-     * Kluczowe dla mechanizmu buforowania.
-     * @return true, jeśli połączenie z bazą danych (np. PostgreSQL) jest aktywne, w przeciwnym razie false.
-     */
+
     boolean isDatabaseConnected();
 }
