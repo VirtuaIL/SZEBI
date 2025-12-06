@@ -9,9 +9,49 @@ Repozytorium zawierające kod źródłowy oraz infrastrukturę dla systemu SZEBI
 - Apache Maven
 - IntelliJ IDEA
 
+## 🚀 Szybkie Uruchomienie
+
+**📖 Pełna instrukcja:** Zobacz [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md)
+
+### W skrócie:
+
+1. **Uruchom bazy danych:**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Zbuduj projekt (pierwszy raz):**
+   ```bash
+   mvn clean install -DskipTests
+   ```
+
+3. **Zainstaluj zależności frontendu (pierwszy raz):**
+   ```bash
+   cd modules/gui/web
+   npm install
+   ```
+
+4. **Uruchom backend** (Terminal 1):
+   ```bash
+   cd modules/application-runner
+   mvn exec:java
+   ```
+
+5. **Uruchom frontend** (Terminal 2):
+   ```bash
+   cd modules/gui/web
+   npm run dev
+   ```
+
+6. **Otwórz przeglądarkę:**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8080
+
+---
+
 ## Uruchomienie Środowiska Deweloperskiego
 
-Proces uruchomienia całego środowiska składa się z dwóch głównych kroków.
+Proces uruchomienia całego środowiska składa się z kilku kroków. Szczegółowa instrukcja znajduje się w pliku [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md).
 
 ### 1. Uruchomienie Infrastruktury (Bazy Danych)
 
