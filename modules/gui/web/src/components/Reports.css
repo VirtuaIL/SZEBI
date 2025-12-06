@@ -1,0 +1,157 @@
+.reports {
+  padding: 20px;
+}
+
+.report-filters {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  margin-bottom: 15px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.filter-group input,
+.filter-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.filter-actions {
+  margin-top: 20px;
+}
+
+.btn-generate {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.btn-generate:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-generate:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.export-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.export-section h3 {
+  margin-top: 0;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-export {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-export:hover {
+  background: #218838;
+}
+
+.report-visualization {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.report-visualization h3 {
+  margin-top: 0;
+}
+
+.anomalies-list {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.anomalies-list h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.anomalies-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.anomalies-list li {
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  background: white;
+}
+
+.anomaly-high {
+  border-left: 4px solid #e74c3c;
+}
+
+.anomaly-low {
+  border-left: 4px solid #f39c12;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .reports {
+    padding: 15px;
+  }
+
+  .report-filters {
+    padding: 15px;
+  }
+
+  .export-buttons {
+    flex-direction: column;
+  }
+
+  .btn-export {
+    width: 100%;
+  }
+
+  .filter-actions {
+    margin-top: 15px;
+  }
+
+  .btn-generate {
+    width: 100%;
+  }
+}

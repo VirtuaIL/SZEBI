@@ -1,0 +1,7 @@
+/home/kuba/Documents/studia/IO/SZEBI/.devenv/flake.json
+/home/kuba/Documents/studia/IO/SZEBI/.devenv.flake.nix
+/home/kuba/Documents/studia/IO/SZEBI/.env
+/home/kuba/Documents/studia/IO/SZEBI/devenv.local.nix
+/home/kuba/Documents/studia/IO/SZEBI/devenv.lock
+/home/kuba/Documents/studia/IO/SZEBI/devenv.nix
+/home/kuba/Documents/studia/IO/SZEBI/devenv.yaml
