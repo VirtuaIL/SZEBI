@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'; // useEffect opcjonalny, tu zrobimy to prościej
+import { useState, useEffect } from 'react';
 import './App.css';
-import Login from './Panels/LoginPanel'; // Pamiętaj o dobrej ścieżce do Twojego pliku!
+import Login from './Panels/LoginPanel';
 import AdminPanel from './Panels/AdminPanel';
 import EngineerPanel from './Panels/EngineerPanel';
 import UserPanel from './Panels/UserPanel';
@@ -24,10 +24,8 @@ function App() {
     localStorage.removeItem('user_role');    // Usuń z pamięci przeglądarki
   };
 
-  // --- Reszta kodu bez zmian (tylko podmieniamy funkcje) ---
-
   if (!userRole) {
-    // Przekazujemy naszą nową funkcję handleLogin
+
     return <Login onLogin={handleLogin} />;
   }
 

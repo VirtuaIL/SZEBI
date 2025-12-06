@@ -37,17 +37,17 @@ function Login({ onLogin }) {
             <input 
               type="text" 
               value={loginInput}
-              onChange={(e) => setLoginInput(e.target.value)}
-            />
+               onChange={(e) => setLoginInput(e.target.value)}
+             />
           </div>
-          <div className="input-group">
-            <label>Hasło:</label>
+         <div className="input-group">
+           <label>Hasło:</label>
             <input 
-              type="password" 
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-            />
-          </div>
+             type="password" 
+             value={passwordInput}
+             onChange={(e) => setPasswordInput(e.target.value)}
+           />
+         </div>
           {error && <p className="error-msg">{error}</p>}
           <button type="submit" className="login-btn">ZALOGUJ</button>
         </form>
