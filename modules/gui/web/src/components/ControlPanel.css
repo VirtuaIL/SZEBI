@@ -1,0 +1,251 @@
+.control-panel {
+  padding: 20px;
+}
+
+.control-panel h2 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.oze-status {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.oze-status h3 {
+  margin-top: 0;
+  color: #27ae60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.oze-icon {
+  font-size: 24px;
+}
+
+.oze-active-badge {
+  background: #27ae60;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: normal;
+  margin-left: auto;
+}
+
+.oze-info {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.oze-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.oze-chart {
+  margin-top: 10px;
+}
+
+.oze-bar {
+  display: flex;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.oze-production {
+  background: #27ae60;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.oze-grid {
+  background: #e74c3c;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.devices-section h3 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.device-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.device-header h4 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #3498db;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+input:disabled + .slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.device-control {
+  margin-top: 15px;
+}
+
+.temp-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.current-temp {
+  font-size: 14px;
+  color: #666;
+}
+
+.ventilation-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ventilation-buttons button {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.ventilation-buttons button:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.ventilation-buttons button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.ventilation-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.device-control label {
+  display: block;
+  margin-bottom: 10px;
+  color: #2c3e50;
+}
+
+.device-control input[type="range"] {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .control-panel {
+    padding: 15px;
+  }
+
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-card {
+    padding: 15px;
+  }
+
+  .ventilation-buttons {
+    flex-direction: column;
+  }
+
+  .ventilation-buttons button {
+    width: 100%;
+  }
+}
