@@ -5,7 +5,7 @@
 }
 
 /* --- PASEK NAWIGACJI --- */
-.navbar-admin {
+.navbar-user {
     position: fixed;     /* <--- TO PRZYKLEJA DO GÓRY */
     top: 0;
     left: 0;
@@ -20,7 +20,7 @@
     z-index: 1000;       /* Żeby pasek był zawsze NA WIERZCHU */
 }
 
-.nav-logo-admin {
+.nav-logo-user {
     margin: 0;
     font-size: 1.5rem;
     color: white;
@@ -38,7 +38,7 @@
 }
 
 /* --- ROZWIJANE MENU --- */
-.dropdown-menu-admin {
+.dropdown-menu-user {
     position: absolute;  /* Pozycjonowane względem paska .navbar */
     top: 70px;           /* Wysuwa się dokładnie pod paskiem */
     right: 0;            /* Przyklejone do prawej krawędzi */
@@ -48,13 +48,13 @@
     box-shadow: -2px 5px 10px rgba(0,0,0,0.1);
 }
 
-.dropdown-menu-admin ul {
+.dropdown-menu-user ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.dropdown-menu-admin li {
+.dropdown-menu-user li {
     padding: 15px;
     border-bottom: 1px solid #eee;
     cursor: pointer;
@@ -62,11 +62,11 @@
     font-size: 1rem;
 }
 
-.dropdown-menu-admin li:hover {
+.dropdown-menu-user li:hover {
     background-color: #f0f0f0; /* Szary po najechaniu */
 }
 
-.dropdown-menu-admin .logout-option {
+.dropdown-menu-user .logout-option {
     color: red;
     font-weight: bold;
 }
@@ -79,7 +79,7 @@
     padding-right: 20px;
 }
 
-.info-box-admin {
+.info-box-user {
     background-color: yellow; /* Twój żółty div */
     padding: 20px;
     border-radius: 8px;
