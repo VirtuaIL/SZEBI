@@ -4,6 +4,8 @@ import Login from './Panels/LoginPanel';
 import AdminPanel from './Panels/AdminPanel';
 import EngineerPanel from './Panels/EngineerPanel';
 import UserPanel from './Panels/UserPanel';
+import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   // 1. INICJALIZACJA: Sprawdzamy LocalStorage przy pierwszym uruchomieniu
@@ -27,30 +29,26 @@ function App() {
     localStorage.removeItem('user_role');    // Usuń z pamięci przeglądarki
   };
 
-  if (!userRole) {
-
-    return <Login onLogin={handleLogin} />;
-  }
-
-  switch (userRole) {
-    case 'admin':
-      return <AdminPanel onLogout={handleLogout} />;
-    
-    case 'engineer':
-      return <EngineerPanel onLogout={handleLogout} />;
-    
-    case 'user':
-      return <UserPanel onLogout={handleLogout} />;
-    
-    default:
-      // Zabezpieczenie: jeśli w storage jest coś dziwnego, czyścimy to
-      return (
-        <div>
-          Nieznana rola! 
-          <button onClick={handleLogout}>Wróć do logowania</button>
-        </div>
-      );
-  }
+  return (
+    <ErrorBoundary>
+      {!userRole ? (
+        <Login onLogin={handleLogin} />
+      ) : (
+        <>
+          {userRole === 'admin' && <AdminPanel onLogout={handleLogout} />}
+          {userRole === 'engineer' && <EngineerPanel onLogout={handleLogout} />}
+          {userRole === 'user' && <UserPanel onLogout={handleLogout} />}
+          {userRole !== 'admin' && userRole !== 'engineer' && userRole !== 'user' && (
+            <div>
+              Nieznana rola! 
+              <button onClick={handleLogout}>Wróć do logowania</button>
+            </div>
+          )}
+        </>
+      )}
+      <ToastContainer />
+    </ErrorBoundary>
+  );
 }
 
 export default App;

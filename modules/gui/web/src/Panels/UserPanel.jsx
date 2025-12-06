@@ -1,51 +1,52 @@
 import { useState } from 'react';
 import './UserPanel.css';
+import Navigation from '../components/Navigation';
+import Header from '../components/Header';
+import ControlPanel from '../components/ControlPanel';
+import Dashboard from '../components/Dashboard';
+import Reports from '../components/Reports';
 
-export default function AdminPanel({ onLogout }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+export default function UserPanel({ onLogout }) {
+  const [currentView, setCurrentView] = useState('dashboard');
+  const userRole = 'user';
+  
+  const userData = (() => {
+    const stored = localStorage.getItem('user_data');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  })();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const renderView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard userRole={userRole} />;
+      case 'control':
+        return <ControlPanel userRole={userRole} />;
+      case 'reports':
+        return <Reports userRole={userRole} />;
+      default:
+        return <Dashboard userRole={userRole} />;
+    }
   };
 
   return (
     <div className="user-container">
-      
-      {/* --- NAGŁÓWEK (Przyklejony do góry) --- */}
-      <nav className="navbar-user">
-        <h1 className="nav-logo-user">Panel Użytkownika</h1>
-        
-        {/* Przycisk Hamburgera */}
-        <div className="menu" onClick={toggleMenu}>
-          ☰
-        </div>
-
-        {/* --- ROZWIJANE MENU --- */}
-        {/* Wyświetla się tylko gdy isMenuOpen === true */}
-        {isMenuOpen && (
-          <div className="dropdown-menu-user">
-            <ul>
-              <li>Ustawienia</li>
-              <li>Profil</li>
-              <hr />
-              <li onClick={onLogout} className="logout-option">
-                Wyloguj się
-              </li>
-            </ul>
-          </div>
-        )}
-      </nav>
-
-      {/* --- TREŚĆ GŁÓWNA --- */}
+      <Navigation 
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        userRole={userRole}
+        onLogout={onLogout}
+      />
+      <Header userData={userData} onLogout={onLogout} />
       <main className="content">
-        <div className="info-box-user">
-          <h2>Witaj w panelu Użytkownika</h2>
-          <p>Nie masz na razie dostępu do niczego ;P</p>
-        </div>
-        
-        {/* Tu możesz dodawać kolejne klocki, wykresy itp. */}
+        {renderView()}
       </main>
-
     </div>
   );
 }

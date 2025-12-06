@@ -1,52 +1,68 @@
 import { useState } from 'react';
 import './AdminPanel.css';
+import Navigation from '../components/Navigation';
+import Header from '../components/Header';
+import ControlPanel from '../components/ControlPanel';
+import AlertsCenter from '../components/AlertsCenter';
+import Monitoring from '../components/Monitoring';
+import Dashboard from '../components/Dashboard';
+import Reports from '../components/Reports';
+import DeviceManagement from '../components/DeviceManagement';
+import UserManagement from '../components/UserManagement';
+import Settings from '../components/Settings';
 
 export default function AdminPanel({ onLogout }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard');
+  const userRole = 'admin';
+  
+  // Pobierz dane użytkownika z localStorage
+  const userData = (() => {
+    const stored = localStorage.getItem('user_data');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  })();
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const renderView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard userRole={userRole} />;
+      case 'control':
+        return <ControlPanel userRole={userRole} />;
+      case 'monitoring':
+        return <Monitoring userRole={userRole} />;
+      case 'alerts':
+        return <AlertsCenter userRole={userRole} />;
+      case 'reports':
+        return <Reports userRole={userRole} />;
+      case 'devices':
+        return <DeviceManagement userRole={userRole} />;
+      case 'users':
+        return <UserManagement userRole={userRole} />;
+      case 'settings':
+        return <Settings userRole={userRole} />;
+      default:
+        return <Dashboard userRole={userRole} />;
+    }
   };
 
   return (
     <div className="admin-container">
-      
-      {/* --- NAGŁÓWEK (Przyklejony do góry) --- */}
-      <nav className="navbar-admin">
-        <h1 className="nav-logo-admin">Panel Administratora</h1>
-        
-        {/* Przycisk Hamburgera */}
-        <div className="menu" onClick={toggleMenu}>
-          ☰
-        </div>
-
-        {/* --- ROZWIJANE MENU --- */}
-        {/* Wyświetla się tylko gdy isMenuOpen === true */}
-        {isMenuOpen && (
-          <div className="dropdown-menu-admin">
-            <ul>
-              <li>Ustawienia</li>
-              <li>Użytkownicy</li>
-              <li>Logi systemu</li>
-              <hr />
-              <li onClick={onLogout} className="logout-option">
-                Wyloguj się
-              </li>
-            </ul>
-          </div>
-        )}
-      </nav>
-
-      {/* --- TREŚĆ GŁÓWNA --- */}
+      <Navigation 
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        userRole={userRole}
+        onLogout={onLogout}
+      />
+      <Header userData={userData} onLogout={onLogout} />
       <main className="content">
-        <div className="info-box-admin">
-          <h2>Witaj w panelu Administratora</h2>
-          <p>Masz dostęp do konfiguracji systemu i zarządzania użytkownikami.</p>
-        </div>
-        
-        {/* Tu możesz dodawać kolejne klocki, wykresy itp. */}
+        {renderView()}
       </main>
-
     </div>
   );
 }
