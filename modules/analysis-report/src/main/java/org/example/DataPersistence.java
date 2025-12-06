@@ -4,7 +4,6 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 import org.example.DTO.Raport;
-import org.example.Documents.Document;
 import org.example.Documents.IDocument;
 import org.example.interfaces.IAnalyticsData;
 
@@ -24,7 +23,7 @@ public class DataPersistence {
     Raport raport = new Raport();
 
     raport.setCzasWygenerowania(document.getDateFrom());
-    raport.setId(document.getId());
+    raport.setId(document.getId().hashCode());
     raport.setTypRaportu(document.getDocumentType());
     raport.setOpis("DUPA");
     raport.setZakresDo(document.getCreationDate());
@@ -45,7 +44,7 @@ public class DataPersistence {
     }
   }
 
-  void save(IDocument<Document> document) {
+  void save(IDocument document) {
     this.analyticsData.saveReport(toRaport(document));
   }
 }

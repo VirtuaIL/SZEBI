@@ -1,8 +1,5 @@
 package org.example;
 
-import org.example.DataPersistence;
-import org.example.IDataPersistenceService;
-import org.example.Documents.DocumentBuilder;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.Period;
@@ -12,6 +9,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.example.Documents.IDocument;
+
 public class DocumentGenerator {
   interface PeriodFunc {
     long run(Period p);
@@ -19,9 +18,9 @@ public class DocumentGenerator {
 
   private final ScheduledExecutorService scheduler;
   private final String id;
-  private final Map<DocumentBuilder, List<Period>> documentsConfig;
+  private final Map<IDocument.Builder, List<Period>> documentsConfig;
   private final LocalDate creationTime;
-  private final IDataPersistenceService dataService;
+  private final IDocumentFactoryService dataService;
   private final DataPersistence database;
 
   private DocumentGenerator(Builder builder) {
@@ -39,34 +38,34 @@ public class DocumentGenerator {
 
   public static class Builder {
     private ScheduledExecutorService scheduler;
-    private final Map<DocumentBuilder, List<Period>> documentsConfig = new HashMap<>();
-    private IDataPersistenceService dataService;
+    private final Map<IDocument.Builder, List<Period>> documentsConfig = new HashMap<>();
+    private IDocumentFactoryService dataService;
     private DataPersistence database;
 
     public Builder id(String id) {
       return this;
     }
 
-    public Builder addDocumentConfig(DocumentBuilder scheme, Period period) {
+    public Builder addDocumentConfig(IDocument.Builder scheme, Period period) {
       this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).add(period);
       return this;
     }
 
-    public Builder addDocumentConfigs(DocumentBuilder scheme, List<Period> periods) {
+    public Builder addDocumentConfigs(IDocument.Builder scheme, List<Period> periods) {
       this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).addAll(periods);
       return this;
     }
 
-    public Builder addDocumentConfigs(DocumentBuilder scheme, Period... periods) {
+    public Builder addDocumentConfigs(IDocument.Builder scheme, Period... periods) {
       if (periods != null && periods.length > 0) {
         this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).addAll(Arrays.asList(periods));
       }
       return this;
     }
 
-    public Builder addDocumentConfigs(Map<DocumentBuilder, List<Period>> configs) {
+    public Builder addDocumentConfigs(Map<IDocument.Builder, List<Period>> configs) {
       if (configs != null) {
-        for (Map.Entry<DocumentBuilder, List<Period>> entry : configs.entrySet()) {
+        for (Map.Entry<IDocument.Builder, List<Period>> entry : configs.entrySet()) {
           this.documentsConfig.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
               .addAll(entry.getValue());
         }
@@ -78,7 +77,7 @@ public class DocumentGenerator {
       return new DocumentGenerator(this);
     }
 
-    public Builder setDataService(IDataPersistenceService dataService) {
+    public Builder setDataService(IDocumentFactoryService dataService) {
       this.dataService = dataService;
       return this;
     }
@@ -89,7 +88,7 @@ public class DocumentGenerator {
     }
   }
 
-  public static Builder builder(IDataPersistenceService dataService, DataPersistence dataStorage) {
+  public static Builder builder(IDocumentFactoryService dataService, DataPersistence dataStorage) {
     return new Builder().setDataService(dataService).setDatabase(dataStorage);
   }
 
@@ -107,14 +106,15 @@ public class DocumentGenerator {
     };
 
     for (var entry : documentsConfig.entrySet()) {
-      DocumentBuilder scheme = entry.getKey();
+      IDocument.Builder scheme = entry.getKey();
 
       for (Period period : entry.getValue()) {
         long delayMs = periodToMillis.run(period);
 
         scheduler.schedule(() -> {
           try {
-            var document = this.dataService.saveDocument(scheme, AnalysisReportAPI.aquisitionService.getLabelValues());
+            var document = this.dataService.createDocument(scheme,
+                AnalysisReportAPI.aquisitionService.getLabelValues());
             this.database.addDocument(document);
 
           } catch (Exception e) {
@@ -128,11 +128,11 @@ public class DocumentGenerator {
     return true;
   }
 
-  List<DocumentBuilder> getDocumentSchemes() {
+  List<IDocument.Builder> getDocumentSchemes() {
     return Collections.unmodifiableList(new ArrayList<>(this.documentsConfig.keySet()));
   }
 
-  public Map<DocumentBuilder, List<Period>> getDocumentConfigs() {
+  public Map<IDocument.Builder, List<Period>> getDocumentConfigs() {
     return Collections.unmodifiableMap(documentsConfig);
   }
 

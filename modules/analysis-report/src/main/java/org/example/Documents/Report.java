@@ -5,27 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-public final class Report extends Document implements IDocument<Report> {
-
-  public Report(DocumentBuilder scheme) {
-    this.setId(1);
-    this.setDateTo(scheme.getTo());
-    this.setDateFrom(scheme.getFrom());
-
-    ObjectMapper mapper = new ObjectMapper();
-
-    mapper.registerModule(new JavaTimeModule());
-    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-    String content = "";
-    try {
-      content = mapper.writeValueAsString(scheme);
-    } catch (JsonProcessingException e) {
-      e.printStackTrace();
-      content = "{\"error\": \"Failed to generate JSON\"}";
-    }
-    setContent(content);
+public final class Report extends IDocument.Document {
+  protected Report(Builder builder) {
+    super(builder);
   }
 
   public String generateJson() {
@@ -37,8 +19,28 @@ public final class Report extends Document implements IDocument<Report> {
     return "Raport";
   }
 
+  /**
+   * Funckja używana w constructorze
+   *
+   * @param data String
+   * @return [TODO:return]
+   */
   @Override
-  public Report getThis() {
-    return this;
+  protected String generateContent(String data) {
+    ObjectMapper mapper = new ObjectMapper();
+
+    mapper.registerModule(new JavaTimeModule());
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+    String content = "";
+    try {
+      content = mapper.writeValueAsString(data);
+    } catch (JsonProcessingException e) {
+      e.printStackTrace();
+      content = "{\"error\": \"Failed to generate JSON\"}";
+    }
+
+    return content;
   }
 }

@@ -15,7 +15,6 @@ public class Main {
     // 1. Inicjalizacja komponentów zewnętrznych
     System.out.println("[INFO] Inicjalizacja bazy danych...");
     PostgresDataStorage databaseStorage = new PostgresDataStorage();
-    IAnalysisService analysisService = new MockAnalysisService();
 
     // 2. Inicjalizacja komponentów wewnętrznych - Moduł Akwizycji
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
@@ -28,8 +27,8 @@ public class Main {
         dataCollector, errorReporter, AnalysisReportAPI.aquisitionService);
     AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector, AnalysisReportAPI.aquisitionService);
 
+    // 3.5. Inicjalizacja modułu Analizy i raportowania
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
-    IDataPersistenceService dataServiceMock = new MockDataPersistenceService();
 
     // 4. Pobieranie konfiguracji z Bazy Danych
     System.out.println("[INFO] Pobieranie konfiguracji urządzeń z bazy danych...");
@@ -90,9 +89,10 @@ public class Main {
     optimizationController.optimizeBuildingByRooms(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
+    // Dalsza część modułu analizy i raportowania
     anal.sendDocumentScheme((t -> {
       return t;
-    }), dataServiceMock);
+    }));
   }
 
 }

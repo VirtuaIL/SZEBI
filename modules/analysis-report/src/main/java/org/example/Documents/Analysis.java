@@ -1,8 +1,8 @@
 package org.example.Documents;
 
-public final class Analysis extends Document implements IDocument<Analysis> {
-  public Analysis(DocumentBuilder scheme) {
-
+public final class Analysis extends IDocument.Document {
+  public Analysis(IDocument.Builder scheme) {
+    super(scheme);
   }
 
   public String generateJson() {
@@ -14,8 +14,9 @@ public final class Analysis extends Document implements IDocument<Analysis> {
   }
 
   @Override
-  public Analysis getThis() {
-    return this;
+  protected String generateContent(String data) {
+    // TODO Auto-generated method stub
+    throw new UnsupportedOperationException("Unimplemented method 'generateContent'");
   }
 
 }
