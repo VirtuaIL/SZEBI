@@ -1,24 +1,26 @@
 package org.example.Documents;
 
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public class DocumentScheme {
-  private Set<String> configurations;
+public class DocumentBuilder {
+  private Map<String, List<Double>> configurations;
   private LocalDateTime from;
   private LocalDateTime to;
 
-  DocumentScheme(Set<String> configurations, LocalDateTime from, LocalDateTime to) {
+  DocumentBuilder(HashMap<String, List<Double>> configurations, LocalDateTime from, LocalDateTime to) {
     this.configurations = configurations;
     this.from = from;
     this.to = to;
   }
 
-  public Set<String> getConfigurations() {
+  public Map<String, List<Double>> getConfigurations() {
     return configurations;
   }
 
-  public void setConfigurations(Set<String> configurations) {
+  public void setConfigurations(Map<String, List<Double>> configurations) {
     this.configurations = configurations;
   }
 

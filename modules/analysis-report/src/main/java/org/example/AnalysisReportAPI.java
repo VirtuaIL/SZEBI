@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.example.Documents.DocumentScheme;
+import org.example.Documents.DocumentBuilder;
 import org.example.Documents.Report;
 import org.example.interfaces.IAnalyticsData;
 
@@ -13,19 +13,18 @@ public class AnalysisReportAPI {
   private final List<IAlertNotifier> notifiers = new ArrayList<>();
   private final Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
   private final DataPersistence dataStorage;
-  private final AquisitionProxyService aquisitionService;
+  static final AquisitionProxyService aquisitionService = new AquisitionProxyService();
 
   public AnalysisReportAPI(IAnalyticsData datastorage) {
     this.dataStorage = new DataPersistence(datastorage);
-    this.aquisitionService = new AquisitionProxyService();
   }
 
-  static public Report createReport(DocumentScheme scheme) {
+  static public Report createReport(DocumentBuilder scheme) {
     return new Report(scheme);
   }
 
-  public void sendDocumentScheme(DocumentScheme scheme, IDataPersistenceService dataService) {
-    var document = dataService.saveDocument(scheme);
+  public void sendDocumentScheme(DocumentBuilder scheme, IDataPersistenceService dataService) {
+    var document = dataService.saveDocument(scheme, AnalysisReportAPI.aquisitionService.getLabelValue());
     this.dataStorage.addDocument(document);
   }
 

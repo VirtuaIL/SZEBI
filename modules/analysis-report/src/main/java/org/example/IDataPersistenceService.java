@@ -1,8 +1,12 @@
 package org.example;
 
-import org.example.Documents.DocumentScheme;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.example.Documents.DocumentBuilder;
 import org.example.Documents.IDocument;
 
 public interface IDataPersistenceService {
-  public IDocument saveDocument(DocumentScheme scheme);
+  public IDocument saveDocument(DocumentBuilder scheme, Map<String, List<Double>> conf);
 }

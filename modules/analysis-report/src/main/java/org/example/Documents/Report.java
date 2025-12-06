@@ -2,9 +2,9 @@ package org.example.Documents;
 
 public final class Report extends Document implements IDocument<Report> {
 
-  public Report(DocumentScheme scheme) {
+  public Report(DocumentBuilder scheme) {
 
-    setContent(content);
+    // setContent(this.content);
   }
 
   public String generateJson() {

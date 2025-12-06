@@ -1,25 +1,23 @@
 package org.example;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AquisitionProxyService implements IAnalysisService {
   List<SealedSensor> sensors = new ArrayList<>();
 
   private class SealedSensor {
+    private final String id;
+    private final double value;
+    private final String label;
+    private final double powerUsage;
+
     SealedSensor(String id, double value, String label, double powerUsage) {
       this.id = id;
       this.value = value;
       this.label = label;
       this.powerUsage = powerUsage;
     }
-
-    private String id;
-    private double value;
-    private String label;
-    private double powerUsage;
 
     String getLabel() {
       return label;
@@ -38,8 +36,14 @@ public class AquisitionProxyService implements IAnalysisService {
     }
   }
 
-  public Map<String, Double> getLabelValue() {
-    return sensors.stream().collect(Collectors.toMap(SealedSensor::getLabel, SealedSensor::getValue));
+  public Map<String, List<Double>> getLabelValue() {
+    return sensors.stream()
+        .collect(Collectors.groupingBy(
+            SealedSensor::getLabel,
+            HashMap::new,
+            Collectors.mapping(
+                SealedSensor::getValue,
+                Collectors.toList())));
   }
 
   @Override

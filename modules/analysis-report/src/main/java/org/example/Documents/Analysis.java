@@ -1,7 +1,7 @@
 package org.example.Documents;
 
 public final class Analysis extends Document implements IDocument<Analysis> {
-  public Analysis(DocumentScheme scheme) {
+  public Analysis(DocumentBuilder scheme) {
 
   }
 
