@@ -1,17 +1,17 @@
 /* Resetuje marginesy dla tego komponentu */
-.admin-container {
+.engineer-container {
     background-color: white;
     min-height: 100vh;
 }
 
 /* --- PASEK NAWIGACJI --- */
-.navbar {
+.navbar-engineer {
     position: fixed;     /* <--- TO PRZYKLEJA DO GÓRY */
     top: 0;
     left: 0;
     width: 100%;
     height: 8%;        /* Stała wysokość paska */
-    background-color: greenyellow; /* Twój kolor */
+    background-color: lightblue; /* Twój kolor */
     display: flex;
     justify-content: space-between; /* Rozrzuca logo i menu na boki */
     align-items: center;
@@ -20,7 +20,7 @@
     z-index: 1000;       /* Żeby pasek był zawsze NA WIERZCHU */
 }
 
-.nav-logo {
+.nav-logo-engineer {
     margin: 0;
     font-size: 1.5rem;
     color: white;
@@ -38,7 +38,7 @@
 }
 
 /* --- ROZWIJANE MENU --- */
-.dropdown-menu {
+.dropdown-menu-engineer {
     position: absolute;  /* Pozycjonowane względem paska .navbar */
     top: 70px;           /* Wysuwa się dokładnie pod paskiem */
     right: 0;            /* Przyklejone do prawej krawędzi */
@@ -48,13 +48,13 @@
     box-shadow: -2px 5px 10px rgba(0,0,0,0.1);
 }
 
-.dropdown-menu ul {
+.dropdown-menu-engineer ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.dropdown-menu li {
+.dropdown-menu-engineer li {
     padding: 15px;
     border-bottom: 1px solid #eee;
     cursor: pointer;
@@ -62,11 +62,11 @@
     font-size: 1rem;
 }
 
-.dropdown-menu li:hover {
+.dropdown-menu-engineer li:hover {
     background-color: #f0f0f0; /* Szary po najechaniu */
 }
 
-.dropdown-menu .logout-option {
+.dropdown-menu-engineer .logout-option {
     color: red;
     font-weight: bold;
 }
@@ -79,7 +79,7 @@
     padding-right: 20px;
 }
 
-.info-box {
+.info-box-engineer {
     background-color: yellow; /* Twój żółty div */
     padding: 20px;
     border-radius: 8px;
