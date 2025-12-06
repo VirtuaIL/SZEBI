@@ -11,6 +11,8 @@ public class MockDataPersistenceService implements IDataPersistenceService {
   @Override
   public IDocument saveDocument(DocumentBuilder scheme, Map<String, List<Double>> conf) {
     scheme.setConfigurations(conf);
-    return AnalysisReportAPI.createReport(scheme);
+    var report = AnalysisReportAPI.createReport(scheme);
+    System.out.println("[MOCK] Zapisano dokument: " + report.toString());
+    return report;
   }
 }

@@ -2,13 +2,11 @@ package org.example.runner;
 
 import org.example.*;
 import org.example.DTO.UrzadzenieSzczegoly;
-import org.example.Documents.Analysis;
+
 import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
-import org.example.OZEResource;
 
 import java.util.List;
-import java.util.Scanner;
 
 public class Main {
   public static void main(String[] args) {
@@ -23,20 +21,15 @@ public class Main {
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
     DataCollector dataCollector = new DataCollector(databaseStorage);
     DeviceManager deviceManager = new DeviceManager();
-    // ErrorReporter errorReporter = new ErrorReporter(analysisService);
     ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.aquisitionService);
 
     // 3. Wstrzykiwanie zależności
     CollectionService service = new CollectionService(deviceManager,
         dataCollector, errorReporter, AnalysisReportAPI.aquisitionService);
-    // CollectionService service = new CollectionService(deviceManager,
-    // dataCollector, errorReporter,
-    // analysisService);
     AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector, AnalysisReportAPI.aquisitionService);
-    // AcquisitionAPI api = new AcquisitionAPI(service, deviceManager,
-    // dataCollector, analysisService);
 
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
+    IDataPersistenceService dataServiceMock = new MockDataPersistenceService();
 
     // 4. Pobieranie konfiguracji z Bazy Danych
     System.out.println("[INFO] Pobieranie konfiguracji urządzeń z bazy danych...");
@@ -97,6 +90,9 @@ public class Main {
     optimizationController.optimizeBuildingByRooms(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
+    anal.sendDocumentScheme((t -> {
+      return t;
+    }), dataServiceMock);
   }
 
 }

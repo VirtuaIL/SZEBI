@@ -10,34 +10,37 @@ public class DocumentBuilder {
   private LocalDateTime from;
   private LocalDateTime to;
 
-  DocumentBuilder(HashMap<String, List<Double>> configurations, LocalDateTime from, LocalDateTime to) {
+  public DocumentBuilder(HashMap<String, List<Double>> configurations) {
     this.configurations = configurations;
-    this.from = from;
-    this.to = to;
+    this.from = LocalDateTime.MIN;
+    this.to = LocalDateTime.MAX;
   }
 
   public Map<String, List<Double>> getConfigurations() {
     return configurations;
   }
 
-  public void setConfigurations(Map<String, List<Double>> configurations) {
+  public DocumentBuilder setConfigurations(Map<String, List<Double>> configurations) {
     this.configurations = configurations;
+    return this;
   }
 
   public LocalDateTime getFrom() {
     return from;
   }
 
-  public void setFrom(LocalDateTime from) {
+  public DocumentBuilder setFrom(LocalDateTime from) {
     this.from = from;
+    return this;
   }
 
   public LocalDateTime getTo() {
     return to;
   }
 
-  public void setTo(LocalDateTime to) {
+  public DocumentBuilder setTo(LocalDateTime to) {
     this.to = to;
+    return this;
   }
 
   // public void configure(ConfigurationType optionName, Number option) {

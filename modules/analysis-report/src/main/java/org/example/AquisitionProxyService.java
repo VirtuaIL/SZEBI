@@ -36,7 +36,8 @@ public class AquisitionProxyService implements IAnalysisService {
     }
   }
 
-  public Map<String, List<Double>> getLabelValue() {
+  public HashMap<String, List<Double>> getLabelValues() {
+    System.out.println(sensors);
     return sensors.stream()
         .collect(Collectors.groupingBy(
             SealedSensor::getLabel,
@@ -48,7 +49,6 @@ public class AquisitionProxyService implements IAnalysisService {
 
   @Override
   public void sendSensorUpdate(String deviceId, double value, String metricLabel, double powerUsage) {
-    System.out.println(deviceId + value + metricLabel + powerUsage + "XXXXXXXDDDDDDDDDDDDDDDDDDDDDDd");
     sensors.add(new SealedSensor(deviceId, value, metricLabel, powerUsage));
   }
 

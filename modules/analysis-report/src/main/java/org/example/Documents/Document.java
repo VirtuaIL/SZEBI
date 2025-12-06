@@ -45,4 +45,15 @@ public sealed class Document permits Report, Analysis {
   public LocalDateTime getCreationDate() {
     return creationDate;
   }
+
+  @Override
+  public String toString() {
+    return "Document{" +
+        "id=" + id +
+        ", content='" + content + '\'' +
+        ", creationDate=" + creationDate +
+        ", dateFrom=" + dateFrom +
+        ", dateTo=" + dateTo +
+        '}';
+  }
 }

@@ -1,11 +1,15 @@
 package org.example;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.example.Documents.DocumentBuilder;
+import org.example.Documents.IDocument;
 import org.example.Documents.Report;
 import org.example.interfaces.IAnalyticsData;
 
@@ -23,10 +27,25 @@ public class AnalysisReportAPI {
     return new Report(scheme);
   }
 
-  public void sendDocumentScheme(DocumentBuilder scheme, IDataPersistenceService dataService) {
-    var document = dataService.saveDocument(scheme, AnalysisReportAPI.aquisitionService.getLabelValue());
+  public void sendDocumentScheme(Function<DocumentBuilder, DocumentBuilder> documentBuilderFunc,
+      IDataPersistenceService dataService) {
+
+
+    var documentbuilder = documentBuilderFunc
+        .apply(new DocumentBuilder(AnalysisReportAPI.aquisitionService.getLabelValues()));
+    System.out.println(AnalysisReportAPI.aquisitionService.getLabelValues());
+    var document = dataService.saveDocument(documentbuilder, AnalysisReportAPI.aquisitionService.getLabelValues());
     this.dataStorage.addDocument(document);
   }
+
+  // public void sendDocumentScheme(
+  // DocumentBuilder scheme,
+  // IDataPersistenceService dataService
+  // ) {
+  // var document = dataService.saveDocument(scheme,
+  // AnalysisReportAPI.aquisitionService.getLabelValue());
+  // this.dataStorage.addDocument(document);
+  // }
 
   public void subscribeToAlertNotifier(IAlertNotifier notifier) {
     notifiers.add(notifier);

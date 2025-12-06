@@ -8,6 +8,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 public final class Report extends Document implements IDocument<Report> {
 
   public Report(DocumentBuilder scheme) {
+    this.setId(1);
+    this.setDateTo(scheme.getTo());
+    this.setDateFrom(scheme.getFrom());
+
     ObjectMapper mapper = new ObjectMapper();
 
     mapper.registerModule(new JavaTimeModule());

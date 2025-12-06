@@ -114,7 +114,7 @@ public class DocumentGenerator {
 
         scheduler.schedule(() -> {
           try {
-            var document = this.dataService.saveDocument(scheme, AnalysisReportAPI.aquisitionService.getLabelValue());
+            var document = this.dataService.saveDocument(scheme, AnalysisReportAPI.aquisitionService.getLabelValues());
             this.database.addDocument(document);
 
           } catch (Exception e) {
