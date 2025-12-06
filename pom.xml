@@ -12,7 +12,7 @@
     <modules>
         <module>modules/database</module>
         <module>modules/acqusition</module>
-        <module>optimization</module>
+        <module>modules/optimization</module>
         <module>modules/application-runner</module>
     </modules>
 
