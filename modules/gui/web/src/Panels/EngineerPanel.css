@@ -80,7 +80,7 @@
 }
 
 .info-box-engineer {
-    background-color: yellow; /* Twój żółty div */
+    background-color: rgba(0, 0, 255, 0.515); /* Twój żółty div */
     padding: 20px;
     border-radius: 8px;
     text-align: center;

@@ -38,7 +38,7 @@ export default function AdminPanel({ onLogout }) {
 
       {/* --- TREŚĆ GŁÓWNA --- */}
       <main className="content">
-        <div className="info-box">
+        <div className="info-box-engineer">
           <h2>Witaj w panelu Inżyniera</h2>
           <p>Będziesz miał dostęp do sporej ilośći rzeczy</p>
         </div>

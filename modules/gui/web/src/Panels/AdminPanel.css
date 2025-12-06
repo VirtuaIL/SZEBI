@@ -1,26 +1,24 @@
-/* Resetuje marginesy dla tego komponentu */
 .admin-container {
     background-color: white;
     min-height: 100vh;
 }
 
-/* --- PASEK NAWIGACJI --- */
-.navbar {
-    position: fixed;     /* <--- TO PRZYKLEJA DO GÓRY */
+.navbar-admin {
+    position: fixed; 
     top: 0;
     left: 0;
     width: 100%;
-    height: 8%;        /* Stała wysokość paska */
-    background-color: greenyellow; /* Twój kolor */
+    height: 8%;       
+    background-color: greenyellow;
     display: flex;
-    justify-content: space-between; /* Rozrzuca logo i menu na boki */
+    justify-content: space-between; 
     align-items: center;
     padding: 0 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Lekki cień pod paskiem */
-    z-index: 1000;       /* Żeby pasek był zawsze NA WIERZCHU */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000; 
 }
 
-.nav-logo {
+.nav-logo-admin {
     margin: 0;
     font-size: 1.5rem;
     color: white;
@@ -34,27 +32,27 @@
 .menu {
     font-size: 2rem;
     cursor: pointer;
-    user-select: none; /* Żeby nie zaznaczać tekstu przy klikaniu */
+    user-select: none; 
 }
 
 /* --- ROZWIJANE MENU --- */
-.dropdown-menu {
-    position: absolute;  /* Pozycjonowane względem paska .navbar */
-    top: 70px;           /* Wysuwa się dokładnie pod paskiem */
-    right: 0;            /* Przyklejone do prawej krawędzi */
+.dropdown-menu-admin {
+    position: absolute; 
+    top: 70px;          
+    right: 0;            
     width: 200px;
     background-color: white;
     border: 1px solid #ccc;
     box-shadow: -2px 5px 10px rgba(0,0,0,0.1);
 }
 
-.dropdown-menu ul {
+.dropdown-menu-admin ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.dropdown-menu li {
+.dropdown-menu-admin li {
     padding: 15px;
     border-bottom: 1px solid #eee;
     cursor: pointer;
@@ -62,25 +60,24 @@
     font-size: 1rem;
 }
 
-.dropdown-menu li:hover {
-    background-color: #f0f0f0; /* Szary po najechaniu */
+.dropdown-menu-admin li:hover {
+    background-color: #f0f0f0;
 }
 
-.dropdown-menu .logout-option {
+.dropdown-menu-admin .logout-option {
     color: red;
     font-weight: bold;
 }
 
 /* --- TREŚĆ GŁÓWNA --- */
 .content {
-    /* WAŻNE: Dodajemy margines od góry, bo pasek fixed zasłania treść */
     padding-top: 100px; 
     padding-left: 20px;
     padding-right: 20px;
 }
 
-.info-box {
-    background-color: yellow; /* Twój żółty div */
+.info-box-admin {
+    background-color: rgba(255, 0, 0, 0.767);
     padding: 20px;
     border-radius: 8px;
     text-align: center;
