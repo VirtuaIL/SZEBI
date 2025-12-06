@@ -2,4 +2,4 @@
 
 ## Dla zawodników z frontendu
 
-Generalnie zaimplementować IDocumentGenerator i jakoś to będzie
+Generalnie zaimplementować IDocumentGenerator i jakoś to będzie, powodzenia
