@@ -1,0 +1,127 @@
+{
+    "version": "1.4.0",
+    "project": {
+        "name": "acqusition",
+        "directory": "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition",
+        "workspaceDir": "/home/kuba/Documents/studia/IO/SZEBI/modules",
+        "sources": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/src/main/java"
+        ],
+        "dependencies": [
+            "database-parent",
+            "database-api"
+        ],
+        "classpath": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/database/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/database/database-api/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/target/classes",
+            "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1.jar"
+        ],
+        "out": "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/target",
+        "classesDir": "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/target/classes",
+        "resources": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/src/main/resources"
+        ],
+        "java": {
+            "options": [
+                "-g",
+                "-target",
+                "24",
+                "-source",
+                "24",
+                "-encoding",
+                "UTF-8"
+            ]
+        },
+        "test": {
+            "frameworks": [
+                {
+                    "names": [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.specs.runner.SpecsFramework",
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "utest.runner.Framework"
+                    ]
+                },
+                {
+                    "names": [
+                        "munit.Framework"
+                    ]
+                }
+            ],
+            "options": {
+                "excludes": [
+                    
+                ],
+                "arguments": [
+                    {
+                        "args": [
+                            "-v",
+                            "-a"
+                        ],
+                        "framework": {
+                            "names": [
+                                "com.novocode.junit.JUnitFramework"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "platform": {
+            "name": "jvm",
+            "config": {
+                "home": "/nix/store/kdzn0532b1ynsic2v80i4mnaxdidzzn7-openjdk-25.0.1+8/lib/openjdk",
+                "options": [
+                    
+                ]
+            },
+            "mainClass": [
+                
+            ]
+        },
+        "resolution": {
+            "modules": [
+                {
+                    "organization": "org.mongodb",
+                    "name": "bson",
+                    "version": "5.2.1",
+                    "artifacts": [
+                        {
+                            "name": "bson",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1.jar"
+                        },
+                        {
+                            "name": "bson",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tags": [
+            "library"
+        ]
+    }
+}

@@ -1,0 +1,299 @@
+{
+    "version": "1.4.0",
+    "project": {
+        "name": "analysis-report",
+        "directory": "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report",
+        "workspaceDir": "/home/kuba/Documents/studia/IO/SZEBI/modules",
+        "sources": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report/src/main/java"
+        ],
+        "dependencies": [
+            "database-parent",
+            "database-api",
+            "acqusition",
+            "database-impl"
+        ],
+        "classpath": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/database/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/database/database-api/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/acqusition/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/database/database-impl/target/classes",
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report/target/classes",
+            "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1.jar",
+            "/home/kuba/.m2/repository/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar",
+            "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-sync/5.2.1/mongodb-driver-sync-5.2.1.jar",
+            "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-core/5.2.1/mongodb-driver-core-5.2.1.jar",
+            "/home/kuba/.m2/repository/org/slf4j/slf4j-api/2.0.12/slf4j-api-2.0.12.jar",
+            "/home/kuba/.m2/repository/org/slf4j/slf4j-simple/2.0.12/slf4j-simple-2.0.12.jar",
+            "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.1/jackson-databind-2.17.1.jar",
+            "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.1/jackson-annotations-2.17.1.jar",
+            "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.1/jackson-core-2.17.1.jar"
+        ],
+        "out": "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report/target",
+        "classesDir": "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report/target/classes",
+        "resources": [
+            "/home/kuba/Documents/studia/IO/SZEBI/modules/analysis-report/src/main/resources"
+        ],
+        "java": {
+            "options": [
+                "-g",
+                "-target",
+                "24",
+                "-source",
+                "24",
+                "-encoding",
+                "UTF-8"
+            ]
+        },
+        "test": {
+            "frameworks": [
+                {
+                    "names": [
+                        "com.novocode.junit.JUnitFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalatest.tools.Framework",
+                        "org.scalatest.tools.ScalaTestFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.scalacheck.ScalaCheckFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "org.specs.runner.SpecsFramework",
+                        "org.specs2.runner.Specs2Framework",
+                        "org.specs2.runner.SpecsFramework"
+                    ]
+                },
+                {
+                    "names": [
+                        "utest.runner.Framework"
+                    ]
+                },
+                {
+                    "names": [
+                        "munit.Framework"
+                    ]
+                }
+            ],
+            "options": {
+                "excludes": [
+                    
+                ],
+                "arguments": [
+                    {
+                        "args": [
+                            "-v",
+                            "-a"
+                        ],
+                        "framework": {
+                            "names": [
+                                "com.novocode.junit.JUnitFramework"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "platform": {
+            "name": "jvm",
+            "config": {
+                "home": "/nix/store/kdzn0532b1ynsic2v80i4mnaxdidzzn7-openjdk-25.0.1+8/lib/openjdk",
+                "options": [
+                    
+                ]
+            },
+            "mainClass": [
+                
+            ]
+        },
+        "resolution": {
+            "modules": [
+                {
+                    "organization": "com.fasterxml.jackson.core",
+                    "name": "jackson-databind",
+                    "version": "2.17.1",
+                    "artifacts": [
+                        {
+                            "name": "jackson-databind",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.1/jackson-databind-2.17.1.jar"
+                        },
+                        {
+                            "name": "jackson-databind",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.1/jackson-databind-2.17.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.postgresql",
+                    "name": "postgresql",
+                    "version": "42.7.3",
+                    "artifacts": [
+                        {
+                            "name": "postgresql",
+                            "path": "/home/kuba/.m2/repository/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar"
+                        },
+                        {
+                            "name": "postgresql",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/postgresql/postgresql/42.7.3/postgresql-42.7.3-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.mongodb",
+                    "name": "bson",
+                    "version": "5.2.1",
+                    "artifacts": [
+                        {
+                            "name": "bson",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1.jar"
+                        },
+                        {
+                            "name": "bson",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson/5.2.1/bson-5.2.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.fasterxml.jackson.core",
+                    "name": "jackson-annotations",
+                    "version": "2.17.1",
+                    "artifacts": [
+                        {
+                            "name": "jackson-annotations",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.1/jackson-annotations-2.17.1.jar"
+                        },
+                        {
+                            "name": "jackson-annotations",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.1/jackson-annotations-2.17.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.mongodb",
+                    "name": "mongodb-driver-sync",
+                    "version": "5.2.1",
+                    "artifacts": [
+                        {
+                            "name": "mongodb-driver-sync",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-sync/5.2.1/mongodb-driver-sync-5.2.1.jar"
+                        },
+                        {
+                            "name": "mongodb-driver-sync",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-sync/5.2.1/mongodb-driver-sync-5.2.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.checkerframework",
+                    "name": "checker-qual",
+                    "version": "3.42.0",
+                    "artifacts": [
+                        {
+                            "name": "checker-qual",
+                            "path": "/home/kuba/.m2/repository/org/checkerframework/checker-qual/3.42.0/checker-qual-3.42.0.jar"
+                        },
+                        {
+                            "name": "checker-qual",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/checkerframework/checker-qual/3.42.0/checker-qual-3.42.0-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "com.fasterxml.jackson.core",
+                    "name": "jackson-core",
+                    "version": "2.17.1",
+                    "artifacts": [
+                        {
+                            "name": "jackson-core",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.1/jackson-core-2.17.1.jar"
+                        },
+                        {
+                            "name": "jackson-core",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.1/jackson-core-2.17.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.mongodb",
+                    "name": "mongodb-driver-core",
+                    "version": "5.2.1",
+                    "artifacts": [
+                        {
+                            "name": "mongodb-driver-core",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-core/5.2.1/mongodb-driver-core-5.2.1.jar"
+                        },
+                        {
+                            "name": "mongodb-driver-core",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/mongodb-driver-core/5.2.1/mongodb-driver-core-5.2.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.mongodb",
+                    "name": "bson-record-codec",
+                    "version": "5.2.1",
+                    "artifacts": [
+                        {
+                            "name": "bson-record-codec",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson-record-codec/5.2.1/bson-record-codec-5.2.1.jar"
+                        },
+                        {
+                            "name": "bson-record-codec",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/mongodb/bson-record-codec/5.2.1/bson-record-codec-5.2.1-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.slf4j",
+                    "name": "slf4j-api",
+                    "version": "2.0.12",
+                    "artifacts": [
+                        {
+                            "name": "slf4j-api",
+                            "path": "/home/kuba/.m2/repository/org/slf4j/slf4j-api/2.0.12/slf4j-api-2.0.12.jar"
+                        },
+                        {
+                            "name": "slf4j-api",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/slf4j/slf4j-api/2.0.12/slf4j-api-2.0.12-sources.jar"
+                        }
+                    ]
+                },
+                {
+                    "organization": "org.slf4j",
+                    "name": "slf4j-simple",
+                    "version": "2.0.12",
+                    "artifacts": [
+                        {
+                            "name": "slf4j-simple",
+                            "path": "/home/kuba/.m2/repository/org/slf4j/slf4j-simple/2.0.12/slf4j-simple-2.0.12.jar"
+                        },
+                        {
+                            "name": "slf4j-simple",
+                            "classifier": "sources",
+                            "path": "/home/kuba/.m2/repository/org/slf4j/slf4j-simple/2.0.12/slf4j-simple-2.0.12-sources.jar"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tags": [
+            "library"
+        ]
+    }
+}
