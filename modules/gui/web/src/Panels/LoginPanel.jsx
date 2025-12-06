@@ -1,29 +1,46 @@
 import { useState } from 'react';
 import './LoginPanel.css';
 
-// SYMULACJA BAZY DANYCH
-const USERS = [
-  { login: 'admin', pass: 'admin123', role: 'admin' },
-  { login: 'inz',   pass: 'inz123',   role: 'engineer' },
-  { login: 'user',  pass: 'user123',  role: 'user' }
-];
+const API_URL = 'http://localhost:8080/api/login';
 
 function Login({ onLogin }) {
-  const [loginInput, setLoginInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const foundUser = USERS.find(u => u.login === loginInput && u.pass === passwordInput);
+    setError('');
+    setLoading(true);
 
-    if (foundUser) {
-        onLogin(foundUser.role);
-    } else {
-        setError('Błędne dane! Spróbuj: admin/admin123, inz/inz123, user/user123');
-        setLoginInput('');
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: emailInput,
+          password: passwordInput
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Logowanie udane - przekaż rolę do App.jsx
+        onLogin(data.role, data);
+      } else {
+        // Błąd logowania
+        setError(data.error || 'Błędne dane logowania');
         setPasswordInput('');
+      }
+    } catch (err) {
+      console.error('Błąd podczas logowania:', err);
+      setError('Nie można połączyć się z serwerem. Upewnij się, że backend jest uruchomiony.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,12 +50,14 @@ function Login({ onLogin }) {
         <h2>System Logowania</h2>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label>Login:</label>
+            <label>Email:</label>
             <input 
-              type="text" 
-              value={loginInput}
-               onChange={(e) => setLoginInput(e.target.value)}
-             />
+              type="email" 
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              required
+              disabled={loading}
+            />
           </div>
          <div className="input-group">
            <label>Hasło:</label>
@@ -46,10 +65,20 @@ function Login({ onLogin }) {
              type="password" 
              value={passwordInput}
              onChange={(e) => setPasswordInput(e.target.value)}
+             required
+             disabled={loading}
            />
          </div>
           {error && <p className="error-msg">{error}</p>}
-          <button type="submit" className="login-btn">ZALOGUJ</button>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? 'LOGOWANIE...' : 'ZALOGUJ'}
+          </button>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+            Przykładowe konta:<br/>
+            admin@szebi.com / admin123<br/>
+            inzynier@szebi.com / inzynier123<br/>
+            natalia.nowak@szebi.com / natalia123
+          </p>
         </form>
       </div>
     </div>

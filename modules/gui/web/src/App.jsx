@@ -13,9 +13,12 @@ function App() {
   });
 
   // Funkcja pomocnicza: Zaloguj i zapisz
-  const handleLogin = (role) => {
+  const handleLogin = (role, userData = null) => {
     setUserRole(role);                 // Zmień stan w React (odświeży widok)
     localStorage.setItem('user_role', role); // Zapisz trwale w przeglądarce
+    if (userData) {
+      localStorage.setItem('user_data', JSON.stringify(userData)); // Zapisz dane użytkownika
+    }
   };
 
   // Funkcja pomocnicza: Wyloguj i wyczyść

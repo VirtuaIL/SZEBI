@@ -89,6 +89,25 @@ public class Main {
         optimizationController.optimizeBuildingByRooms(1);
         System.out.println("\n=== System SZEBI uruchomiony ===");
 
+        // === 6. Uruchomienie REST API dla GUI ===
+        System.out.println("\n=== Inicjalizacja REST API ===");
+        AuthService authService = new AuthService(databaseStorage);
+        AuthController authController = new AuthController(authService);
+        
+        io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
+            config.bundledPlugins.enableCors(cors -> {
+                cors.addRule(it -> it.anyHost());
+            });
+        });
+        
+        authController.setupRoutes(app);
+        
+        int apiPort = 8080;
+        app.start(apiPort);
+        System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
+        System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
+        System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
+
     }
 
 
