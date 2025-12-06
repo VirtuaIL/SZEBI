@@ -2,6 +2,7 @@ package org.example.runner;
 
 import org.example.*;
 import org.example.DTO.UrzadzenieSzczegoly;
+import org.example.Documents.Analysis;
 import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.OZEResource;
