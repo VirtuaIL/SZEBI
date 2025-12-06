@@ -103,9 +103,11 @@ public class Main {
         authController.setupRoutes(app);
         
         int apiPort = 8080;
-        app.start(apiPort);
+        // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych urządzeń w sieci
+        app.start("0.0.0.0", apiPort);
         System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
         System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
+        System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
         System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     }

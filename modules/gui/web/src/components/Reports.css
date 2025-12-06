@@ -129,3 +129,29 @@
   border-left: 4px solid #f39c12;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .reports {
+    padding: 15px;
+  }
+
+  .report-filters {
+    padding: 15px;
+  }
+
+  .export-buttons {
+    flex-direction: column;
+  }
+
+  .btn-export {
+    width: 100%;
+  }
+
+  .filter-actions {
+    margin-top: 15px;
+  }
+
+  .btn-generate {
+    width: 100%;
+  }
+}

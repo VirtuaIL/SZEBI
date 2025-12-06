@@ -145,12 +145,43 @@
 }
 
 @media (max-width: 768px) {
+  .dashboard {
+    padding: 15px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .time-range-selector {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .time-range-selector button {
+    flex: 1;
+    min-width: 80px;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
   
   .chart-card {
     grid-column: span 1;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .energy-summary {
+    flex-direction: column;
+    gap: 10px;
   }
 }
 

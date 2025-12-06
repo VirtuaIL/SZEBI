@@ -1,6 +1,16 @@
 // Utility do obsługi API z globalną obsługą błędów
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// Automatyczne wykrywanie adresu API na podstawie hosta frontendu
+// Jeśli frontend działa na http://192.168.1.100:5173, to API będzie na http://192.168.1.100:8080
+// Jeśli frontend działa na localhost, to API będzie na localhost
+export const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  // Użyj tego samego hosta co frontend, ale port 8080 dla API
+  return `${protocol}//${hostname}:8080/api`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   constructor(message, status, response) {

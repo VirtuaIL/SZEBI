@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import './LoginPanel.css';
 
-const API_URL = 'http://localhost:8080/api/login';
+// Automatyczne wykrywanie adresu API
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  return `${protocol}//${hostname}:8080/api/login`;
+};
+const API_URL = getApiUrl();
 
 function Login({ onLogin }) {
   const [emailInput, setEmailInput] = useState('');

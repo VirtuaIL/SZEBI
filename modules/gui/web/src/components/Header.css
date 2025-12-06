@@ -18,12 +18,30 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 15px;
+}
+
+.menu-toggle-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  color: #333;
+  line-height: 1;
+}
+
+.menu-toggle-btn:hover {
+  background: #f0f0f0;
+  border-radius: 4px;
 }
 
 .header-user-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
 }
 
 .user-name {
@@ -45,10 +63,38 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .header-logout-btn:hover {
   background: #c0392b;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .app-header {
+    left: 0;
+  }
+
+  .menu-toggle-btn {
+    display: block;
+  }
+
+  .header-user-info {
+    font-size: 12px;
+  }
+
+  .user-name {
+    font-size: 13px;
+  }
+
+  .user-role {
+    font-size: 11px;
+  }
+
+  .header-logout-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
 

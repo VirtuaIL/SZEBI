@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Monitoring.css';
-import { handleApiError } from '../utils/api';
+import { handleApiError, getApiBaseUrl } from '../utils/api';
 import { showToast } from './ToastContainer';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = getApiBaseUrl();
 
 export default function Monitoring({ userRole }) {
   const [devices, setDevices] = useState([]);

@@ -8,6 +8,7 @@ import Reports from '../components/Reports';
 
 export default function UserPanel({ onLogout }) {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [menuOpen, setMenuOpen] = useState(false);
   const userRole = 'user';
   
   const userData = (() => {
@@ -42,8 +43,14 @@ export default function UserPanel({ onLogout }) {
         onViewChange={setCurrentView}
         userRole={userRole}
         onLogout={onLogout}
+        isOpen={menuOpen}
+        onToggle={() => setMenuOpen(!menuOpen)}
       />
-      <Header userData={userData} onLogout={onLogout} />
+      <Header 
+        userData={userData} 
+        onLogout={onLogout}
+        onMenuToggle={() => setMenuOpen(!menuOpen)}
+      />
       <main className="content">
         {renderView()}
       </main>

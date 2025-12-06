@@ -13,6 +13,7 @@ import Settings from '../components/Settings';
 
 export default function AdminPanel({ onLogout }) {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [menuOpen, setMenuOpen] = useState(false);
   const userRole = 'admin';
   
   // Pobierz dane użytkownika z localStorage
@@ -58,8 +59,14 @@ export default function AdminPanel({ onLogout }) {
         onViewChange={setCurrentView}
         userRole={userRole}
         onLogout={onLogout}
+        isOpen={menuOpen}
+        onToggle={() => setMenuOpen(!menuOpen)}
       />
-      <Header userData={userData} onLogout={onLogout} />
+      <Header 
+        userData={userData} 
+        onLogout={onLogout}
+        onMenuToggle={() => setMenuOpen(!menuOpen)}
+      />
       <main className="content">
         {renderView()}
       </main>

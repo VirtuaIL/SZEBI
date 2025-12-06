@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
-import { apiRequest, handleApiError } from '../utils/api';
+import { apiRequest, handleApiError, getApiBaseUrl } from '../utils/api';
 import { showToast } from './ToastContainer';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = getApiBaseUrl();
 
 export default function Dashboard({ userRole }) {
   const [energyData, setEnergyData] = useState([]);

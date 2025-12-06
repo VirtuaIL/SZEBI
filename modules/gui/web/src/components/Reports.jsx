@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Reports.css';
+import { getApiBaseUrl } from '../utils/api';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = getApiBaseUrl();
 
 export default function Reports({ userRole }) {
   const [dateFrom, setDateFrom] = useState('');

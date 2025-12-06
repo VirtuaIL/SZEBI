@@ -10,6 +10,7 @@ import Reports from '../components/Reports';
 
 export default function EngineerPanel({ onLogout }) {
   const [currentView, setCurrentView] = useState('alerts'); // Domyślnie pokazuj alarmy
+  const [menuOpen, setMenuOpen] = useState(false);
   const userRole = 'engineer';
   
   const userData = (() => {
@@ -48,8 +49,14 @@ export default function EngineerPanel({ onLogout }) {
         onViewChange={setCurrentView}
         userRole={userRole}
         onLogout={onLogout}
+        isOpen={menuOpen}
+        onToggle={() => setMenuOpen(!menuOpen)}
       />
-      <Header userData={userData} onLogout={onLogout} />
+      <Header 
+        userData={userData} 
+        onLogout={onLogout}
+        onMenuToggle={() => setMenuOpen(!menuOpen)}
+      />
       <main className="content">
         {renderView()}
       </main>

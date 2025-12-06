@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import './Navigation.css';
 
-export default function Navigation({ currentView, onViewChange, userRole, onLogout }) {
+export default function Navigation({ currentView, onViewChange, userRole, onLogout, isOpen, onToggle }) {
   const getMenuItems = () => {
     const baseItems = [
       { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -31,24 +32,38 @@ export default function Navigation({ currentView, onViewChange, userRole, onLogo
 
   const menuItems = getMenuItems();
 
+  const handleItemClick = (itemId) => {
+    onViewChange(itemId);
+    // Zamknij menu na mobile po kliknięciu
+    if (window.innerWidth <= 768 && onToggle) {
+      onToggle();
+    }
+  };
+
   return (
-    <nav className="navigation">
-      <div className="nav-header">
-        <h2>SZEBI</h2>
-      </div>
-      <ul className="nav-menu">
-        {menuItems.map(item => (
-          <li 
-            key={item.id}
-            className={currentView === item.id ? 'active' : ''}
-            onClick={() => onViewChange(item.id)}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            <span className="nav-label">{item.label}</span>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <>
+      {/* Overlay dla mobile */}
+      {isOpen && <div className="nav-overlay" onClick={onToggle}></div>}
+      
+      <nav className={`navigation ${isOpen ? 'nav-open' : ''}`}>
+        <div className="nav-header">
+          <h2>SZEBI</h2>
+          <button className="nav-close-btn" onClick={onToggle}>✕</button>
+        </div>
+        <ul className="nav-menu">
+          {menuItems.map(item => (
+            <li 
+              key={item.id}
+              className={currentView === item.id ? 'active' : ''}
+              onClick={() => handleItemClick(item.id)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }
 

@@ -227,3 +227,25 @@ input:disabled + .slider {
   color: #7f8c8d;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .control-panel {
+    padding: 15px;
+  }
+
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-card {
+    padding: 15px;
+  }
+
+  .ventilation-buttons {
+    flex-direction: column;
+  }
+
+  .ventilation-buttons button {
+    width: 100%;
+  }
+}

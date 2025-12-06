@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import './AlertsCenter.css';
 import { showToast } from './ToastContainer';
-import { handleApiError } from '../utils/api';
+import { handleApiError, getApiBaseUrl } from '../utils/api';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = getApiBaseUrl();
 
 export default function AlertsCenter({ userRole }) {
   const [alerts, setAlerts] = useState([]);

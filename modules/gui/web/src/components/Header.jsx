@@ -1,6 +1,6 @@
 import './Header.css';
 
-export default function Header({ userData, onLogout }) {
+export default function Header({ userData, onLogout, onMenuToggle }) {
   const getUserDisplayName = () => {
     if (userData) {
       if (userData.imie && userData.nazwisko) {
@@ -36,6 +36,9 @@ export default function Header({ userData, onLogout }) {
   return (
     <header className="app-header">
       <div className="header-content">
+        <button className="menu-toggle-btn" onClick={onMenuToggle}>
+          ☰
+        </button>
         <div className="header-user-info">
           <span className="user-name">{getUserDisplayName()}</span>
           <span className="user-role">{getRoleDisplayName()}</span>

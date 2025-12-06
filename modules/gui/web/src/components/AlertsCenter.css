@@ -235,3 +235,31 @@
   background: #229954;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .alerts-center {
+    padding: 15px;
+  }
+
+  .alerts-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .alert-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .alert-actions {
+    flex-direction: column;
+  }
+
+  .btn-acknowledge,
+  .btn-resolve {
+    width: 100%;
+  }
+
+  .sort-controls {
+    flex-wrap: wrap;
+  }
+}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import './UserManagement.css';
 
-const API_URL = 'http://localhost:8080/api';
+import { getApiBaseUrl } from '../utils/api';
+const API_URL = getApiBaseUrl();
 
 export default function UserManagement({ userRole }) {
   const [showAddForm, setShowAddForm] = useState(false);

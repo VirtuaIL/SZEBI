@@ -55,3 +55,12 @@
     color: red;
     font-size: 0.9em;
 }
+
+/* Mobile styles */
+@media (max-width: 768px) {
+    .login-box {
+        width: 90%;
+        max-width: 300px;
+        padding: 30px 20px;
+    }
+}

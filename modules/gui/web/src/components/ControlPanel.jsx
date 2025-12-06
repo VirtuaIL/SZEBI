@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import './ControlPanel.css';
-import { handleApiError } from '../utils/api';
+import { handleApiError, getApiBaseUrl } from '../utils/api';
 import { showToast } from './ToastContainer';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = getApiBaseUrl();
 
 export default function ControlPanel() {
   const [devices, setDevices] = useState([]);

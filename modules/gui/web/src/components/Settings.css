@@ -68,3 +68,37 @@
   background: #218838;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .settings {
+    padding: 15px;
+  }
+
+  .settings-form {
+    padding: 15px;
+    max-width: 100%;
+  }
+
+  .setting-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .setting-group label {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .setting-group input[type="number"],
+  .setting-group input[type="time"] {
+    width: 100%;
+  }
+
+  .range-input-group {
+    width: 100%;
+  }
+
+  .btn-save {
+    width: 100%;
+  }
+}
