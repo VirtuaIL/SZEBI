@@ -13,9 +13,11 @@ public class AnalysisReportAPI {
   private final List<IAlertNotifier> notifiers = new ArrayList<>();
   private final Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
   private final DataPersistence dataStorage;
+  private final AquisitionProxyService aquisitionService;
 
   public AnalysisReportAPI(IAnalyticsData datastorage) {
     this.dataStorage = new DataPersistence(datastorage);
+    this.aquisitionService = new AquisitionProxyService();
   }
 
   static public Report createReport(DocumentScheme scheme) {
