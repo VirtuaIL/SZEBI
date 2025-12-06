@@ -1,6 +1,7 @@
 package org.example;
 
-import java.time.Period;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.example.Documents.DocumentScheme;
@@ -9,39 +10,36 @@ import org.example.Generator.DocumentGenerator;
 import org.example.Generator.DocumentGeneratorID;
 
 public class AnalysisReportAPI {
+  private List<IAlertNotifier> notifiers = new ArrayList<>();
+  private HashMap<IDocumentGeneratorService, List<DocumentGenerator>> generators = new HashMap<>();
 
   // Generate a report based on a DocumentScheme
   public IDocument generateReport(DocumentScheme documentScheme) {
-    // TODO: Implement logic to generate a report from the DocumentScheme
     return null;
   }
 
   // Get all available reports
   public List<IDocument> getAvailableReports(DocumentGeneratorID id) {
-    // TODO: Implement logic to fetch all available reports
     return null;
   }
 
   // Create a new DocumentScheme
   public DocumentScheme newDocumentScheme() {
-    // TODO: Implement logic to create a new DocumentScheme
     return null;
   }
 
   // Create an AlertNotifier for a given DocumentGeneratorID
-  public AlertNotifier createAlertNotifier(DocumentGeneratorID id) {
-    // TODO: Implement logic to create an AlertNotifier
-    return null;
+  public void subscribeToAlertNotifier(IAlertNotifier notifier) {
+    notifiers.add(notifier);
   }
 
-  // Initialize a DocumentGenerator with a DocumentScheme and period
-  public DocumentGenerator initDocumentGenerator() {
-    // TODO: Implement logic to initialize a DocumentGenerator
-    return null;
+  public void bindDocumentGenerator(IDocumentGeneratorService generatorService) {
+    var documentGenerators = generatorService.build(DocumentGenerator.builder());
+    generators.put(generatorService, documentGenerators);
   }
 
-  // Stop a DocumentGenerator by ID
-  public void stopDocumentGenerator(DocumentGeneratorID id) {
-    // TODO: Implement logic to stop a running DocumentGenerator
+  public void unBindDocumentGenerator(IDocumentGeneratorService generatorService) {
+
   }
+
 }

@@ -1,20 +1,37 @@
 package org.example.Documents;
 
+import java.time.Period;
 import java.util.HashMap;
 
 public class DocumentScheme {
-  HashMap<Object, IDocument> configurations;
+  private HashMap<ConfigurationType, Number> configurations;
+  private Period period;
 
-  boolean configure(String optionName, Object option) {
+  // public void configure(ConfigurationType optionName, Number option) {
+  // configurations.put(optionName, option);
+  // }
+
+  public IDocument build() {
     throw new UnsupportedOperationException("Unimplemented method 'build'");
   }
 
-  IDocument build() {
-    throw new UnsupportedOperationException("Unimplemented method 'build'");
+  public void temperatureOff() {
+    configurations.remove(ConfigurationType.Temperature);
   }
 
-  HashMap<String, Object> getAvailableConfigurations() {
-    throw new UnsupportedOperationException("Unimplemented method 'build'");
+  public void temperatureOn(Number temperature) {
+  }
+
+  public void HumidityOn(Number humidity) {
+  }
+
+  public void HumidityOff() {
+  }
+
+  public void PressureOn(Number Pressure) {
+  }
+
+  public void PressureOff() {
   }
 
   // HashMap<Object, IDocument> getAvailableStrategies() {

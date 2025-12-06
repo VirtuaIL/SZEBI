@@ -1,6 +1,6 @@
 package org.example;
 
-public enum AlertEvent {
+public enum AlertEventType {
   TemperatureExceedsThreshold,
   HumidityExceedsThreshold,
   PressureExceedsThreshold

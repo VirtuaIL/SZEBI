@@ -7,8 +7,6 @@ public class Analysis implements IDocument {
 
   @Override
   public String generateJson() {
-    // TODO Auto-generated method stub
     throw new UnsupportedOperationException("Unimplemented method 'generateJson'");
   }
-
 }
