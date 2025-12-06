@@ -2,14 +2,45 @@
 .idea/
 *.iml
 *.iws
+.vscode/
+*.swp
+*.swo
+*~
 
 # Pliki generowane przez Maven
 target/
+**/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
 # Pliki logów i inne pliki binarne
 *.log
 *.jar
+*.war
+*.ear
+*.class
 
-# Pliki systemowe (macOS, Windows)
+# Pliki systemowe (macOS, Windows, Linux)
 .DS_Store
 Thumbs.db
+desktop.ini
+*.bak
+*.tmp
+
+# Pliki środowiskowe
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+*.pid
+*.seed
+*.pid.lock
