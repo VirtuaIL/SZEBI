@@ -2,6 +2,7 @@ package org.example;
 
 import java.util.List;
 
+import org.example.Documents.IDocument;
 import org.example.Generator.DocumentGenerator;
 
 public interface IDocumentGeneratorService {

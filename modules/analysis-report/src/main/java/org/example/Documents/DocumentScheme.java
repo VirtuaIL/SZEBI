@@ -15,11 +15,11 @@ public class DocumentScheme {
     throw new UnsupportedOperationException("Unimplemented method 'build'");
   }
 
-  public void temperatureOff() {
-    configurations.remove(ConfigurationType.Temperature);
+  public void temperatureOn(Number temperature) {
   }
 
-  public void temperatureOn(Number temperature) {
+  public void temperatureOff() {
+    configurations.remove(ConfigurationType.Temperature);
   }
 
   public void HumidityOn(Number humidity) {
