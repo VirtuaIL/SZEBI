@@ -48,6 +48,7 @@ public class AquisitionProxyService implements IAnalysisService {
 
   @Override
   public void sendSensorUpdate(String deviceId, double value, String metricLabel, double powerUsage) {
+    System.out.println(deviceId + value + metricLabel + powerUsage + "XXXXXXXDDDDDDDDDDDDDDDDDDDDDDd");
     sensors.add(new SealedSensor(deviceId, value, metricLabel, powerUsage));
   }
 

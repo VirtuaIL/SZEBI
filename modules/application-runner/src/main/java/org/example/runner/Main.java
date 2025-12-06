@@ -23,11 +23,20 @@ public class Main {
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
     DataCollector dataCollector = new DataCollector(databaseStorage);
     DeviceManager deviceManager = new DeviceManager();
-    ErrorReporter errorReporter = new ErrorReporter(analysisService);
+    // ErrorReporter errorReporter = new ErrorReporter(analysisService);
+    ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.aquisitionService);
 
     // 3. Wstrzykiwanie zależności
-    CollectionService service = new CollectionService(deviceManager, dataCollector, errorReporter, analysisService);
-    AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector, analysisService);
+    CollectionService service = new CollectionService(deviceManager,
+        dataCollector, errorReporter, AnalysisReportAPI.aquisitionService);
+    // CollectionService service = new CollectionService(deviceManager,
+    // dataCollector, errorReporter,
+    // analysisService);
+    AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector, AnalysisReportAPI.aquisitionService);
+    // AcquisitionAPI api = new AcquisitionAPI(service, deviceManager,
+    // dataCollector, analysisService);
+
+    AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
 
     // 4. Pobieranie konfiguracji z Bazy Danych
     System.out.println("[INFO] Pobieranie konfiguracji urządzeń z bazy danych...");
