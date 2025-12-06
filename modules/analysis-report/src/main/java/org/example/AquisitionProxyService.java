@@ -4,15 +4,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class AquisitionProxyService implements IAnalysisService {
-  List<SealedSensor> sensors = new ArrayList<>();
+  List<InternalSensors> sensors = new ArrayList<>();
 
-  private class SealedSensor {
+  private class InternalSensors {
     private final String id;
     private final double value;
     private final String label;
     private final double powerUsage;
 
-    SealedSensor(String id, double value, String label, double powerUsage) {
+    InternalSensors(String id, double value, String label, double powerUsage) {
       this.id = id;
       this.value = value;
       this.label = label;
@@ -40,16 +40,16 @@ public class AquisitionProxyService implements IAnalysisService {
     System.out.println(sensors);
     return sensors.stream()
         .collect(Collectors.groupingBy(
-            SealedSensor::getLabel,
+            InternalSensors::getLabel,
             HashMap::new,
             Collectors.mapping(
-                SealedSensor::getValue,
+                InternalSensors::getValue,
                 Collectors.toList())));
   }
 
   public Set<String> getLabels() {
     return sensors.stream()
-        .map(SealedSensor::getLabel)
+        .map(InternalSensors::getLabel)
         .collect(Collectors.toSet());
   }
 
@@ -57,16 +57,16 @@ public class AquisitionProxyService implements IAnalysisService {
     return sensors.stream()
         .filter(s -> labels.contains(s.getLabel()))
         .collect(Collectors.groupingBy(
-            SealedSensor::getLabel,
+            InternalSensors::getLabel,
             HashMap::new,
             Collectors.mapping(
-                SealedSensor::getValue,
+                InternalSensors::getValue,
                 Collectors.toList())));
   }
 
   @Override
   public void sendSensorUpdate(String deviceId, double value, String metricLabel, double powerUsage) {
-    sensors.add(new SealedSensor(deviceId, value, metricLabel, powerUsage));
+    sensors.add(new InternalSensors(deviceId, value, metricLabel, powerUsage));
   }
 
   @Override

@@ -10,10 +10,6 @@ public final class Report extends IDocument.Document {
     super(builder);
   }
 
-  public String generateJson() {
-    return getContent() != null ? getContent().toString() : "";
-  }
-
   @Override
   public String getDocumentType() {
     return "Raport";

@@ -5,10 +5,6 @@ public final class Analysis extends IDocument.Document {
     super(scheme);
   }
 
-  public String generateJson() {
-    throw new UnsupportedOperationException("Unimplemented method 'generateJson'");
-  }
-
   public String getDocumentType() {
     return "Analiza";
   }

@@ -69,9 +69,6 @@ public interface IDocument {
           '}';
     }
 
-    // ----------------------------------------------------
-    // NESTED BUILDER CLASS
-    // ----------------------------------------------------
   }
 
   public static class Builder {
