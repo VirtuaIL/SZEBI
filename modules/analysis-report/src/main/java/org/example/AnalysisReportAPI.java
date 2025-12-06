@@ -5,15 +5,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.example.Documents.Analysis;
 import org.example.Documents.DocumentScheme;
-import org.example.Generator.DocumentGenerator;
+import org.example.Documents.Report;
+import org.example.DocumentGenerator;
+import org.example.interfaces.IAnalyticsData;
 
 public class AnalysisReportAPI {
-  private List<IAlertNotifier> notifiers = new ArrayList<>();
-  private Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
+  private final List<IAlertNotifier> notifiers = new ArrayList<>();
+  private final Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
+  private final DataPersistence dataStorage;
+
+  public AnalysisReportAPI(IAnalyticsData datastorage) {
+    this.dataStorage = new DataPersistence(datastorage);
+  }
+
+  static public Report createReport(DocumentScheme scheme) {
+    return new Report(scheme);
+  }
 
   public void sendDocumentScheme(DocumentScheme scheme, IDataPersistenceService dataService) {
-    dataService.saveDocument(scheme);
+    var document = dataService.saveDocument(scheme);
+    this.dataStorage.addDocument(document);
   }
 
   public void subscribeToAlertNotifier(IAlertNotifier notifier) {
@@ -21,7 +34,7 @@ public class AnalysisReportAPI {
   }
 
   public void bindDocumentGenerator(IDocumentGeneratorService generatorService, IDataPersistenceService dataService) {
-    var documentGenerators = generatorService.build(DocumentGenerator.builder(dataService));
+    var documentGenerators = generatorService.build(DocumentGenerator.builder(dataService, this.dataStorage));
     serviceGeneratorsMap.put(generatorService, documentGenerators);
   }
 

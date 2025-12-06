@@ -1,12 +1,20 @@
 package org.example.Documents;
 
-public class Analysis implements IDocument {
-  public void generateReport() {
-    System.out.println("Generating Analysis Report...");
-  }
+import java.time.Period;
 
-  @Override
+public final class Analysis extends Document implements IDocument<Analysis> {
+
   public String generateJson() {
     throw new UnsupportedOperationException("Unimplemented method 'generateJson'");
   }
+
+  public String getDocumentType() {
+    return "Analiza";
+  }
+
+  @Override
+  public Analysis getThis() {
+    return this;
+  }
+
 }

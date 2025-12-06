@@ -1,5 +1,6 @@
-package org.example.Generator;
+package org.example;
 
+import org.example.DataPersistence;
 import org.example.IDataPersistenceService;
 import org.example.Documents.DocumentScheme;
 import java.time.Duration;
@@ -20,13 +21,15 @@ public class DocumentGenerator {
   private final String id;
   private final Map<DocumentScheme, List<Period>> documentsConfig;
   private final LocalDate creationTime;
-  private final IDataPersistenceService database;
+  private final IDataPersistenceService dataService;
+  private final DataPersistence database;
 
   private DocumentGenerator(Builder builder) {
     this.id = generateUniqueId();
     this.scheduler = builder.scheduler != null ? builder.scheduler : Executors.newScheduledThreadPool(1);
     this.documentsConfig = new HashMap<>(builder.documentsConfig);
     this.creationTime = LocalDate.now();
+    this.dataService = builder.dataService;
     this.database = builder.database;
   }
 
@@ -37,7 +40,8 @@ public class DocumentGenerator {
   public static class Builder {
     private ScheduledExecutorService scheduler;
     private final Map<DocumentScheme, List<Period>> documentsConfig = new HashMap<>();
-    private IDataPersistenceService database;
+    private IDataPersistenceService dataService;
+    private DataPersistence database;
 
     public Builder id(String id) {
       return this;
@@ -74,14 +78,19 @@ public class DocumentGenerator {
       return new DocumentGenerator(this);
     }
 
-    public Builder database(IDataPersistenceService dataService) {
-      this.database = dataService;
+    public Builder setDataService(IDataPersistenceService dataService) {
+      this.dataService = dataService;
+      return this;
+    }
+
+    public Builder setDatabase(DataPersistence database) {
+      this.database = database;
       return this;
     }
   }
 
-  public static Builder builder(IDataPersistenceService dataService) {
-    return new Builder().database(dataService);
+  public static Builder builder(IDataPersistenceService dataService, DataPersistence dataStorage) {
+    return new Builder().setDataService(dataService).setDatabase(dataStorage);
   }
 
   public static Builder builder(String customId) {
@@ -105,7 +114,9 @@ public class DocumentGenerator {
 
         scheduler.schedule(() -> {
           try {
-            scheme.build();
+            var document = this.dataService.saveDocument(scheme);
+            this.database.addDocument(document);
+
           } catch (Exception e) {
             System.err.println("Error building document scheme: " + scheme);
             e.printStackTrace();

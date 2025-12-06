@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.example.Documents.ConfigurationType;
-import org.example.Generator.DocumentGenerator;
-import org.example.Generator.DocumentGenerator.Builder;
+import org.example.DocumentGenerator;
+import org.example.DocumentGenerator.Builder;
 
 public class MockDocumentGeneratorService implements IDocumentGeneratorService {
 
