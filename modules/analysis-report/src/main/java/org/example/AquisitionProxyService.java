@@ -2,6 +2,8 @@ package org.example;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class AquisitionProxyService implements IAnalysisService {
   List<SealedSensor> sensors = new ArrayList<>();
@@ -18,6 +20,26 @@ public class AquisitionProxyService implements IAnalysisService {
     private double value;
     private String label;
     private double powerUsage;
+
+    String getLabel() {
+      return label;
+    }
+
+    String getId() {
+      return id;
+    }
+
+    double getValue() {
+      return value;
+    }
+
+    double getPowerUsage() {
+      return powerUsage;
+    }
+  }
+
+  public Map<String, Double> getLabelValue() {
+    return sensors.stream().collect(Collectors.toMap(SealedSensor::getLabel, SealedSensor::getValue));
   }
 
   @Override

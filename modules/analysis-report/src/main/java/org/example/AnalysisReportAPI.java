@@ -5,19 +5,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.example.Documents.Analysis;
 import org.example.Documents.DocumentScheme;
 import org.example.Documents.Report;
-import org.example.DocumentGenerator;
 import org.example.interfaces.IAnalyticsData;
 
 public class AnalysisReportAPI {
   private final List<IAlertNotifier> notifiers = new ArrayList<>();
   private final Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
   private final DataPersistence dataStorage;
+  private final AquisitionProxyService aquisitionService;
 
   public AnalysisReportAPI(IAnalyticsData datastorage) {
     this.dataStorage = new DataPersistence(datastorage);
+    this.aquisitionService = new AquisitionProxyService();
   }
 
   static public Report createReport(DocumentScheme scheme) {

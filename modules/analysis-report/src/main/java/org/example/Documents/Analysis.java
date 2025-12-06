@@ -1,8 +1,9 @@
 package org.example.Documents;
 
-import java.time.Period;
-
 public final class Analysis extends Document implements IDocument<Analysis> {
+  public Analysis(DocumentScheme scheme) {
+
+  }
 
   public String generateJson() {
     throw new UnsupportedOperationException("Unimplemented method 'generateJson'");
