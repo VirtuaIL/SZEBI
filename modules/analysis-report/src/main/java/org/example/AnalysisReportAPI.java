@@ -5,10 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.example.Documents.Analysis;
 import org.example.Documents.DocumentScheme;
 import org.example.Documents.Report;
-import org.example.DocumentGenerator;
 import org.example.interfaces.IAnalyticsData;
 
 public class AnalysisReportAPI {
