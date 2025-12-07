@@ -3,6 +3,7 @@ package org.example.alerts.temporary;
 import java.util.Date;
 
 public class Alert {
+    private int id;
     private String tresc;
     private AlertSeverity priorytet;
     private int deviceId;
@@ -10,15 +11,17 @@ public class Alert {
     private Date dataWystapienia;
     private AlertStatus status;
 
-    // Gettery i Settery (możesz wygenerować Alt+Insert)
+    public void setId(int id) { this.id = id; }
+    public int getId() { return id; }
+
     public void setTresc(String tresc) { this.tresc = tresc; }
     public String getTresc() { return tresc; }
 
     public void setPriorytet(AlertSeverity priorytet) { this.priorytet = priorytet; }
     public AlertSeverity getPriorytet() { return priorytet; }
 
-    public void setDeviceId(int deviceId) { this.deviceId = deviceId; }
-    public int getDeviceId() { return deviceId; }
+    public void setUrzadzenieId(int deviceId) { this.deviceId = deviceId; }
+    public int getUrzadzenieId() { return deviceId; }
 
     public void setZrodlo(String zrodlo) { this.zrodlo = zrodlo; }
     public String getZrodlo() { return zrodlo; }
