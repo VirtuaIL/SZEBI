@@ -59,3 +59,4 @@ docker-compose.override.yml
 *.seed
 *.pid.lock
 ANALIZA_IMPLEMENTACJI_GUI.md
+ARCHITEKTURA_KOMUNIKACJI.md
