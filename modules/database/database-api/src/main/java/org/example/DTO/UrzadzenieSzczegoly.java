@@ -1,7 +1,6 @@
 package org.example.DTO;
 
 public class UrzadzenieSzczegoly extends Urzadzenie{
-    // I dodaje nowe pola na nazwy, które pobierzemy za pomocą JOIN
     private String nazwaTypu;
     private String nazwaProducenta;
     private String nazwaModelu;
@@ -11,11 +10,10 @@ public class UrzadzenieSzczegoly extends Urzadzenie{
     private Double maxRange;
     private String metricLabel;
 
-    private Integer mocW;          // Odpowiada "moc_W"
-    private Boolean sciemnialna;   // Odpowiada "sciemnialna"
+    private Integer mocW;
+    private Boolean sciemnialna;
     private Integer barwaK;
 
-    // Gettery i Settery dla nowych pól...
     public String getNazwaTypu() { return nazwaTypu; }
     public void setNazwaTypu(String nazwaTypu) { this.nazwaTypu = nazwaTypu; }
     public String getNazwaProducenta() { return nazwaProducenta; }

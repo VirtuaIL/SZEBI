@@ -21,6 +21,6 @@ public class Odczyt {
     public Document toDocument() {
         return new Document("id_urzadzenia", this.urzadzenieId)
                 .append("czas_odczytu", this.czasOdczytu)
-                .append("pomiary", Document.parse(this.pomiary)); // Parsujemy JSON string na obiekt BSON
+                .append("pomiary", Document.parse(this.pomiary));
     }
 }

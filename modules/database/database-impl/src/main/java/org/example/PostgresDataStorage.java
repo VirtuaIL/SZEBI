@@ -22,43 +22,34 @@ import java.time.ZoneOffset;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData{
+public class PostgresDataStorage
+        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData {
 
-    //config postgres
+    // config postgres
     private final String DB_URL = "jdbc:postgresql://localhost:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
-    //config mongo
+    // config mongo
     private final String MONGO_URI = "mongodb://root:bazka@localhost:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
-
-
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASS);
     }
 
-
     @Override
     public void saveSensorReading(Odczyt reading) {
-        // Używamy try-with-resources, aby automatycznie zamknąć połączenie z MongoDB
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
 
-            // Krok 1: Wybierz bazę danych
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
 
-            // Krok 2: Wybierz kolekcję
             MongoCollection<Document> collection = database.getCollection(MONGO_COLLECTION);
 
-            // Krok 3: Użyj metody toDocument() z naszego DTO, aby przygotować dane
             Document docToInsert = reading.toDocument();
 
-            // Krok 4: Wstaw dokument do kolekcji
             collection.insertOne(docToInsert);
-
-            // System.out.println("Zapisano odczyt dla urządzenia " + reading.getUrzadzenieId() + " w MongoDB.");
 
         } catch (Exception e) {
             System.out.println("Błąd podczas zapisywania odczytu do MongoDB: " + e.getMessage());
@@ -68,7 +59,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void saveBatchSensorReadings(List<Odczyt> readings) {
-        // Sprawdzamy, czy lista odczytów nie jest pusta, aby uniknąć niepotrzebnego łączenia z bazą.
         if (readings == null || readings.isEmpty()) {
             System.out.println("Lista odczytów jest pusta, nic do zapisania.");
             return;
@@ -78,16 +68,12 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
             MongoCollection<Document> collection = database.getCollection(MONGO_COLLECTION);
 
-            // Krok 1: Przygotuj listę dokumentów BSON do wstawienia.
             List<Document> documentsToInsert = new ArrayList<>();
             for (Odczyt reading : readings) {
                 documentsToInsert.add(reading.toDocument());
             }
 
-            // Krok 2: Użyj metody insertMany, aby wstawić wszystkie dokumenty w jednej operacji.
             collection.insertMany(documentsToInsert);
-
-            // System.out.println("Zapisano " + readings.size() + " odczytów w MongoDB.");
 
         } catch (Exception e) {
             System.out.println("Błąd podczas hurtowego zapisywania odczytów do MongoDB: " + e.getMessage());
@@ -97,26 +83,22 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public List<Urzadzenie> getActiveDevices() {
-        // Proste zapytanie, które pobiera wszystkie aktywne urządzenia.
         String sql = "SELECT * FROM Urzadzenia WHERE aktywny = true";
 
         List<Urzadzenie> activeDevices = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Urzadzenie device = new Urzadzenie();
 
-                // Mapujemy dane bezpośrednio na nasz istniejący obiekt DTO Urzadzenie
                 device.setId(rs.getInt("ID_urzadzenia"));
                 device.setPokojId(rs.getInt("ID_pokoju"));
                 device.setModelId(rs.getInt("ID_modelu"));
                 device.setParametryPracy(rs.getString("Parametry_pracy"));
                 device.setAktywny(rs.getBoolean("aktywny"));
-                // (Jeśli w DTO Urzadzenie masz pole 'aktywny', też je ustaw)
-                // device.setAktywny(rs.getBoolean("aktywny"));
 
                 activeDevices.add(device);
             }
@@ -130,7 +112,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public List<UrzadzenieSzczegoly> getActiveDevicesWithDetails() {
-        // SQL pozostaje bez zmian - pobieramy całą kolumnę JSON
         String sql = "SELECT u.*, p.numer_pokoju, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, pu.nazwa_producenta " +
                 "FROM Urzadzenia u " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
@@ -143,13 +124,12 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         ObjectMapper objectMapper = new ObjectMapper();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 UrzadzenieSzczegoly device = new UrzadzenieSzczegoly();
 
-                // Mapowanie standardowe
                 device.setId(rs.getInt("ID_urzadzenia"));
                 device.setPokojId(rs.getInt("ID_pokoju"));
                 device.setModelId(rs.getInt("ID_modelu"));
@@ -160,22 +140,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 device.setNazwaTypu(rs.getString("nazwa_typu_urzadzenia"));
                 device.setNazwaProducenta(rs.getString("nazwa_producenta"));
 
-                // Parsowanie JSON
                 String paramsJson = rs.getString("Parametry_pracy");
                 if (paramsJson != null && !paramsJson.isEmpty()) {
                     try {
                         JsonNode rootNode = objectMapper.readTree(paramsJson);
 
-                        // ==========================================
-                        // 1. MOC (Dla każdego urządzenia)
-                        // ==========================================
-                        // Używamy .path() zamiast .get() - to bezpieczniejsze.
-                        // Jeśli "moc_W" nie istnieje, .asInt(0) wstawi 0.
                         device.setMocW(rootNode.path("moc_W").asInt(0));
 
-                        // ==========================================
-                        // 2. Parametry specyficzne (Oświetlenie)
-                        // ==========================================
                         if (rootNode.has("sciemnialna")) {
                             device.setSciemnialna(rootNode.get("sciemnialna").asBoolean());
                         }
@@ -183,9 +154,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                             device.setBarwaK(rootNode.get("barwa_K").asInt());
                         }
 
-                        // ==========================================
-                        // 3. Parametry specyficzne (Czujniki)
-                        // ==========================================
                         if (rootNode.has("etykieta_metryki")) {
                             device.setMetricLabel(rootNode.get("etykieta_metryki").asText());
                         }
@@ -204,7 +172,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                         System.err.println("Błąd JSON ID " + device.getId() + ": " + e.getMessage());
                     }
                 } else {
-                    // Jeśli JSON jest pusty/null, ustawiamy moc na 0
                     device.setMocW(0);
                 }
 
@@ -221,7 +188,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     public boolean isDatabaseConnected() {
         String sql = "SELECT 1";
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.executeQuery();
             return true;
         } catch (SQLException e) {
@@ -234,7 +201,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         String sql = "INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc, czas_alertu) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, alert.getUrzadzenieId());
-            // Konwertujemy enum na String przed zapisem do bazy
             pstmt.setString(2, alert.getPriorytet().name());
             pstmt.setString(3, alert.getStatus().name());
             pstmt.setString(4, alert.getTresc());
@@ -251,14 +217,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Alert> alerts = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, deviceId);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                // Używamy naszej nowej, centralnej metody do mapowania.
-                // Cała logika mapowania jest teraz w jednym miejscu.
+
                 alerts.add(mapResultSetToAlert(rs));
             }
 
@@ -274,7 +239,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     public void updateAlertStatus(int alertId, Alert.AlertStatus newStatus) {
         String sql = "UPDATE Alerty SET status = ? WHERE ID_alertu = ?";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            // Konwertujemy enum na String
             pstmt.setString(1, newStatus.name());
             pstmt.setInt(2, alertId);
             pstmt.executeUpdate();
@@ -331,7 +295,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     @Override
     public AlertSzczegoly getAlertDetailsById(int alertId) {
         List<AlertSzczegoly> result = getAlertDetailsWithFilter("WHERE a.ID_alertu = ?", alertId);
-        // Zwróć pierwszy element z listy lub null, jeśli lista jest pusta
         return result.isEmpty() ? null : result.get(0);
     }
 
@@ -343,7 +306,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         if (rs.getTimestamp("czas_alertu") != null) {
             alert.setCzasAlertu(rs.getTimestamp("czas_alertu").toLocalDateTime());
         }
-        // Konwertujemy String z bazy na Enum w Javie
         alert.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         alert.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
         return alert;
@@ -357,26 +319,20 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
             MongoCollection<Document> collection = database.getCollection(MONGO_COLLECTION);
 
-            // Krok 1: Zbuduj filtr zapytania dla MongoDB
             Bson filter = Filters.and(
                     Filters.eq("id_urzadzenia", deviceId),
                     Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)), // gte = greater than or equal
-                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))      // lt = less than
+                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC)) // lt = less than
             );
 
-            // Krok 2: Wykonaj zapytanie find() z naszym filtrem
             FindIterable<Document> documents = collection.find(filter);
 
-            // Krok 3: Przejdź przez wszystkie znalezione dokumenty i zmapuj je na obiekty Odczyt
             for (Document doc : documents) {
                 Odczyt reading = new Odczyt();
 
-                // Mapujemy dane z dokumentu BSON na nasz obiekt DTO
                 reading.setUrzadzenieId(doc.getInteger("id_urzadzenia"));
-                // Konwertujemy datę z formatu MongoDB na Instant w Javie
                 reading.setCzasOdczytu(doc.getDate("czas_odczytu").toInstant());
 
-                // Konwertujemy zagnieżdżony dokument 'pomiary' z powrotem na String JSON
                 if (doc.get("pomiary") != null) {
                     reading.setPomiary(doc.get("pomiary", Document.class).toJson());
                 }
@@ -389,7 +345,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             e.printStackTrace();
         }
 
-        // Zwracamy listę odczytów (może być pusta)
         return readings;
     }
 
@@ -399,7 +354,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Uzytkownik user = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -413,7 +368,17 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 user.setTelefon(rs.getString("Telefon"));
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
-                user.setPreferencje(rs.getString("preferencje"));
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        System.err
+                                .println("Błąd deserializacji preferencji ID " + user.getId() + ": " + e.getMessage());
+                    }
+                }
             }
         } catch (SQLException e) {
             System.out.println("Błąd podczas pobierania użytkownika o ID " + userId + ": " + e.getMessage());
@@ -424,12 +389,11 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public Umowa getActiveContractForBuilding(int buildingId) {
-        // Zapytanie, które znajduje aktywną umowę (data końca jest w przyszłości lub jest pusta/NULL)
         String sql = "SELECT * FROM Umowa WHERE ID_budynku = ? AND (data_konca IS NULL OR data_konca > CURRENT_DATE) ORDER BY data_poczatku DESC LIMIT 1";
         Umowa contract = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, buildingId);
             ResultSet rs = pstmt.executeQuery();
@@ -440,7 +404,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 contract.setBudynekId(rs.getInt("ID_budynku"));
                 contract.setDostawcaId(rs.getInt("ID_dostawcy"));
 
-                // Konwersja z java.sql.Date na java.time.LocalDate
                 Date dataPoczatkuSql = rs.getDate("data_poczatku");
                 if (dataPoczatkuSql != null) {
                     contract.setDataPoczatku(dataPoczatkuSql.toLocalDate());
@@ -454,7 +417,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 contract.setSzczegolyTaryfy(rs.getString("szczegoly_taryfy"));
             }
         } catch (SQLException e) {
-            System.out.println("Błąd podczas pobierania aktywnej umowy dla budynku o ID " + buildingId + ": " + e.getMessage());
+            System.out.println(
+                    "Błąd podczas pobierania aktywnej umowy dla budynku o ID " + buildingId + ": " + e.getMessage());
             e.printStackTrace();
         }
         return contract;
@@ -484,8 +448,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             Bson filter = Filters.and(
                     Filters.in("id_urzadzenia", deviceIdsInBuilding),
                     Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)),
-                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))
-            );
+                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC)));
             FindIterable<Document> documents = collection.find(filter);
             for (Document doc : documents) {
                 Odczyt reading = new Odczyt();
@@ -527,7 +490,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return alertDetails;
     }
 
-
     @Override
     public List<Prognoza> getForecastsForDevice(int deviceId, LocalDateTime from, LocalDateTime to) {
         String sql = "SELECT * FROM Prognozy WHERE ID_urzadzenia = ? AND czas_prognozy >= ? AND czas_prognozy < ? ORDER BY czas_prognozy";
@@ -545,7 +507,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         }
         return forecasts;
     }
-
 
     @Override
     public List<Prognoza> getForecastsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
@@ -567,13 +528,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void storeForecastResult(Prognoza forecast) {
-        String sql = "INSERT INTO Prognozy (ID_urzadzenia, ID_budynku, czas_wygenerowania, czas_prognozy, prognozowana_wartosc, metryka) " +
+        String sql = "INSERT INTO Prognozy (ID_urzadzenia, ID_budynku, czas_wygenerowania, czas_prognozy, prognozowana_wartosc, metryka) "
+                +
                 "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // Używamy setObject, aby poprawnie obsłużyć wartości null
             pstmt.setObject(1, forecast.getUrzadzenieId());
             pstmt.setObject(2, forecast.getBudynekId());
 
@@ -613,7 +574,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     @Override
     public Raport saveReport(Raport report) {
         String sql = "INSERT INTO Raporty (ID_uzytkownika, czas_wygenerowania, typ_raportu, opis, zakres_od, zakres_do, zawartosc) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
-        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setObject(1, report.getUzytkownikId());
             pstmt.setTimestamp(2, Timestamp.valueOf(report.getCzasWygenerowania()));
             pstmt.setString(3, report.getTypRaportu());
@@ -668,7 +630,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return report;
     }
 
-    // PRYWATNA METODA POMOCNICZA DO MAPOWANIA
     private Raport mapResultSetToRaport(ResultSet rs) throws SQLException {
         Raport report = new Raport();
         report.setId(rs.getInt("ID_raportu"));
@@ -694,15 +655,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return forecast;
     }
 
-
-
     @Override
     public Urzadzenie getDeviceById(int deviceId) {
         String sql = "SELECT * FROM Urzadzenia WHERE ID_urzadzenia = ?";
         Urzadzenie device = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, deviceId);
             ResultSet rs = pstmt.executeQuery();
@@ -728,7 +687,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Urzadzenie> devices = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, roomId);
             ResultSet rs = pstmt.executeQuery();
@@ -756,7 +715,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Pokoj> rooms = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, buildingId);
             ResultSet rs = pstmt.executeQuery();
@@ -779,13 +738,11 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void updateDevice(Urzadzenie device) {
-        // Nowe zapytanie SQL, które aktualizuje wiele kolumn.
         String sql = "UPDATE Urzadzenia SET ID_pokoju = ?, Parametry_pracy = ?::jsonb, aktywny = ? WHERE ID_urzadzenia = ?";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // Ustawiamy wartości dla wszystkich placeholderów (?)
             pstmt.setInt(1, device.getPokojId());
             pstmt.setString(2, device.getParametryPracy());
             pstmt.setBoolean(3, device.isAktywny());
@@ -798,7 +755,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             if (affectedRows > 0) {
                 System.out.println("Pomyślnie zaktualizowano urządzenie o ID: " + device.getId());
             } else {
-                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID " + device.getId() + " istnieje.");
+                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID "
+                        + device.getId() + " istnieje.");
             }
 
         } catch (SQLException e) {
@@ -813,14 +771,12 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Uzytkownik user = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            // Sprawdzamy, czy znaleziono jakikolwiek rekord
             if (rs.next()) {
-                // Jeśli tak, tworzymy nowy obiekt Uzytkownik i mapujemy dane
                 user = new Uzytkownik();
                 user.setId(rs.getInt("ID_uzytkownika"));
                 user.setRolaId(rs.getInt("ID_roli"));
@@ -829,14 +785,23 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 user.setTelefon(rs.getString("Telefon"));
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
-                // (Możesz dodać obsługę reszty pól, jak preferencje)
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        System.err
+                                .println("Błąd deserializacji preferencji dla email " + email + ": " + e.getMessage());
+                    }
+                }
             }
 
         } catch (SQLException e) {
             System.out.println("Błąd podczas pobierania użytkownika: " + e.getMessage());
             e.printStackTrace();
         }
-        // Zwracamy obiekt użytkownika lub null, jeśli nie znaleziono
         return user;
     }
 
@@ -846,7 +811,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Rola rola = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, rolaId);
             ResultSet rs = pstmt.executeQuery();
@@ -867,12 +832,10 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public Uzytkownik saveUser(Uzytkownik user) {
-        // Zapytanie do wstawienia nowego użytkownika.
-        // Statement.RETURN_GENERATED_KEYS poprosi bazę o zwrot wygenerowanego ID.
         String sql = "INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setInt(1, user.getRolaId());
             pstmt.setString(2, user.getImie());
@@ -880,15 +843,22 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             pstmt.setString(4, user.getTelefon());
             pstmt.setString(5, user.getEmail());
             pstmt.setString(6, user.getHasloHash());
-            pstmt.setString(7, user.getPreferencje());
+            String prefJson = null;
+            if (user.getPreferencje() != null) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    prefJson = mapper.writeValueAsString(user.getPreferencje());
+                } catch (Exception e) {
+                    System.err.println("Błąd serializacji preferencji: " + e.getMessage());
+                }
+            }
+            pstmt.setString(7, prefJson);
 
             int affectedRows = pstmt.executeUpdate();
 
-            // Jeśli wiersz został dodany, pobieramy wygenerowane ID
             if (affectedRows > 0) {
                 try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
-                        // Ustawiamy ID w obiekcie, który zwrócimy
                         user.setId(generatedKeys.getInt(1));
                     } else {
                         throw new SQLException("Tworzenie użytkownika nie powiodło się, brak wygenerowanego ID.");
@@ -898,9 +868,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         } catch (SQLException e) {
             System.out.println("Błąd podczas zapisywania użytkownika: " + e.getMessage());
             e.printStackTrace();
-            return null; // Zwracamy null w razie błędu
+            return null;
         }
-        // Zwracamy obiekt użytkownika z nowym ID
         return user;
     }
 
@@ -917,17 +886,15 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<AlertSzczegoly> alertDetails = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(finalSql)) {
+                PreparedStatement pstmt = conn.prepareStatement(finalSql)) {
 
-            // Ustawiamy parametry dla klauzuli WHERE
             for (int i = 0; i < params.length; i++) {
                 pstmt.setObject(i + 1, params[i]);
             }
 
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                // Używamy naszej istniejącej metody pomocniczej do mapowania
-                // (Musimy ją lekko zmodyfikować, aby zwracała AlertDetails)
+
                 alertDetails.add(mapResultSetToAlertDetails(rs));
             }
         } catch (SQLException e) {
@@ -936,10 +903,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return alertDetails;
     }
 
-    // Zaktualizuj lub stwórz tę metodę pomocniczą do mapowania
     private AlertSzczegoly mapResultSetToAlertDetails(ResultSet rs) throws SQLException {
         AlertSzczegoly details = new AlertSzczegoly();
-        // Mapowanie pól z klasy bazowej Alert
         details.setId(rs.getInt("ID_alertu"));
         details.setUrzadzenieId(rs.getInt("ID_urzadzenia"));
         details.setTresc(rs.getString("tresc"));
@@ -948,7 +913,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         }
         details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
-        // Mapowanie nowych, dodatkowych pól
         details.setNazwaUrzadzenia(rs.getString("nazwa_wlasna"));
         details.setNazwaModelu(rs.getString("nazwa_modelu"));
         details.setNazwaPokoju(rs.getString("numer_pokoju"));
