@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './AlertsCenter.css';
 import { showToast } from './ToastContainer';
-import { handleApiError, getApiBaseUrl } from '../utils/api';
+import { apiRequest, handleApiError, getApiBaseUrl } from '../utils/api';
 
 const API_URL = getApiBaseUrl();
 
@@ -21,37 +21,20 @@ export default function AlertsCenter({ userRole }) {
 
   const loadAlerts = async () => {
     try {
-      // TODO: Implementować endpoint API
-      // Na razie mock data
-      const newAlerts = [
-        {
-          id: 1,
-          device: 'Czujnik temperatury - Pokój 101',
-          message: 'Temperatura przekroczyła próg alarmowy!',
-          priority: 'CRITICAL',
-          status: 'NOWY',
-          location: 'Pokój 101, Piętro 1',
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: 2,
-          device: 'Oświetlenie - Pokój 102',
-          message: 'Wysoki poziom wilgotności',
-          priority: 'WARNING',
-          status: 'NOWY',
-          location: 'Pokój 102, Piętro 1',
-          timestamp: new Date(Date.now() - 120000).toISOString()
-        },
-        {
-          id: 3,
-          device: 'Klimatyzator - Serwerownia',
-          message: 'Utracono i odzyskano komunikację',
-          priority: 'INFO',
-          status: 'ROZWIAZANY',
-          location: 'Serwerownia, Piętro 0',
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ];
+      // Pobierz wszystkie alarmy z API (w tym rozwiązane)
+      // Nie podajemy buildingId, aby otrzymać wszystkie alarmy z wszystkich budynków
+      const response = await apiRequest('/alerts');
+      
+      // Mapuj odpowiedź z API na format używany przez GUI
+      const newAlerts = response.map(alert => ({
+        id: alert.id,
+        device: alert.device || `Urządzenie #${alert.deviceId}`,
+        message: alert.message || 'Brak opisu',
+        priority: alert.priority || 'INFO',
+        status: alert.status || 'NOWY',
+        location: alert.location || 'Nieznana lokalizacja',
+        timestamp: alert.timestamp || new Date().toISOString()
+      }));
 
       // Wykryj nowe alarmy i pokaż toast
       if (previousAlertsRef.current.length > 0) {
@@ -77,10 +60,18 @@ export default function AlertsCenter({ userRole }) {
 
   const handleAcknowledge = async (alertId) => {
     try {
-      // TODO: Implementować endpoint API
+      const response = await apiRequest(`/alerts/${alertId}/acknowledge`, {
+        method: 'POST'
+      });
+      
+      // Zaktualizuj lokalny stan alarmów
       setAlerts(alerts.map(alert =>
-        alert.id === alertId ? { ...alert, status: 'W TRAKCIE' } : alert
+        alert.id === alertId ? { 
+          ...alert, 
+          status: response.alert?.status || 'POTWIERDZONY' 
+        } : alert
       ));
+      
       showToast('Alarm został potwierdzony', 'success', 3000);
     } catch (error) {
       console.error('Błąd potwierdzania alarmu:', error);
@@ -90,10 +81,18 @@ export default function AlertsCenter({ userRole }) {
 
   const handleResolve = async (alertId) => {
     try {
-      // TODO: Implementować endpoint API
+      const response = await apiRequest(`/alerts/${alertId}/resolve`, {
+        method: 'POST'
+      });
+      
+      // Zaktualizuj lokalny stan alarmów
       setAlerts(alerts.map(alert =>
-        alert.id === alertId ? { ...alert, status: 'ROZWIAZANY' } : alert
+        alert.id === alertId ? { 
+          ...alert, 
+          status: response.alert?.status || 'ROZWIAZANY' 
+        } : alert
       ));
+      
       showToast('Alarm został rozwiązany', 'success', 3000);
     } catch (error) {
       console.error('Błąd rozwiązywania alarmu:', error);
@@ -113,8 +112,8 @@ export default function AlertsCenter({ userRole }) {
   const getStatusClass = (status) => {
     switch (status) {
       case 'NOWY': return 'status-new';
-      case 'POTWIERDZONY':
-      case 'W TRAKCIE': return 'status-acknowledged';
+      case 'POTWIERDZONY': return 'status-acknowledged';
+      case 'WYSLANY': return 'status-acknowledged';
       case 'ROZWIAZANY': return 'status-resolved';
       default: return '';
     }
@@ -158,8 +157,16 @@ export default function AlertsCenter({ userRole }) {
     return <div className="alerts-center">Ładowanie alarmów...</div>;
   }
 
-  const activeAlerts = sortedAlerts.filter(a => a.status !== 'ROZWIAZANY');
-  const resolvedAlerts = sortedAlerts.filter(a => a.status === 'ROZWIAZANY');
+  // Filtruj aktywne i rozwiązane alarmy (oba z posortowanej listy)
+  // Używamy toUpperCase() aby uniknąć problemów z wielkością liter
+  const activeAlerts = sortedAlerts.filter(a => {
+    const status = (a.status || '').toUpperCase();
+    return status !== 'ROZWIAZANY';
+  });
+  const resolvedAlerts = sortedAlerts.filter(a => {
+    const status = (a.status || '').toUpperCase();
+    return status === 'ROZWIAZANY';
+  });
 
   return (
     <div className="alerts-center">
@@ -209,7 +216,7 @@ export default function AlertsCenter({ userRole }) {
           <p className="no-alerts">Brak aktywnych alarmów</p>
         ) : (
           <div className="alerts-list">
-            {sortedAlerts.filter(a => a.status !== 'ROZWIAZANY').map(alert => (
+            {activeAlerts.map(alert => (
               <div key={alert.id} className={`alert-card ${getPriorityClass(alert.priority)}`}>
                 <div className="alert-header">
                   <div className="alert-info">
@@ -233,12 +240,12 @@ export default function AlertsCenter({ userRole }) {
                 </div>
                 {userRole === 'engineer' || userRole === 'admin' ? (
                   <div className="alert-actions">
-                    {alert.status === 'NOWY' && (
+                    {(alert.status === 'NOWY' || alert.status === 'WYSLANY') && (
                       <button 
                         className="btn-acknowledge"
                         onClick={() => handleAcknowledge(alert.id)}
                       >
-                        Potwierdź (W trakcie)
+                        Potwierdź
                       </button>
                     )}
                     {alert.status !== 'ROZWIAZANY' && (
@@ -257,9 +264,11 @@ export default function AlertsCenter({ userRole }) {
         )}
       </div>
 
-      {resolvedAlerts.length > 0 && (
-        <div className="alerts-section">
-          <h3>Rozwiązane Alarmy</h3>
+      <div className="alerts-section">
+        <h3>Rozwiązane Alarmy</h3>
+        {resolvedAlerts.length === 0 ? (
+          <p className="no-alerts">Brak rozwiązanych alarmów</p>
+        ) : (
           <div className="alerts-list">
             {resolvedAlerts.map(alert => (
               <div key={alert.id} className={`alert-card resolved ${getPriorityClass(alert.priority)}`}>
@@ -281,8 +290,8 @@ export default function AlertsCenter({ userRole }) {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

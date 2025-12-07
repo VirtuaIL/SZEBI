@@ -58,3 +58,4 @@ docker-compose.override.yml
 *.pid
 *.seed
 *.pid.lock
+ANALIZA_IMPLEMENTACJI_GUI.md
