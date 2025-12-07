@@ -35,6 +35,11 @@
       <artifactId>optimization</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>org.example</groupId>
+      <artifactId>forecast-module</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
     <!-- Javalin - lekki framework webowy dla REST API -->
     <dependency>
       <groupId>io.javalin</groupId>

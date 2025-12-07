@@ -1,6 +1,6 @@
 package org.example.alerts.dto;
 
-import org.example.alerts.temporary.AlertSeverity; // Import tymczasowego Enuma
+import org.example.alerts.temporary.AlertSeverity;
 
 public class ZgloszenieDTO {
     private String tresc;
@@ -8,7 +8,6 @@ public class ZgloszenieDTO {
     private AlertSeverity priorytet;
     private String zrodlo;
 
-    // Konstruktor
     public ZgloszenieDTO(String tresc, int deviceId, AlertSeverity priorytet, String zrodlo) {
         this.tresc = tresc;
         this.deviceId = deviceId;
@@ -16,7 +15,6 @@ public class ZgloszenieDTO {
         this.zrodlo = zrodlo;
     }
 
-    // Gettery
     public String getTresc() { return tresc; }
     public int getDeviceId() { return deviceId; }
     public AlertSeverity getPriorytet() { return priorytet; }
