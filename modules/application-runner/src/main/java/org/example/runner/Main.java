@@ -1,7 +1,9 @@
 package org.example.runner;
 
 import org.example.*;
-import org.example.DTO.UrzadzenieSzczegoly;
+import org.example.DTO.*;
+import org.example.interfaces.*;
+import java.util.Collections;
 import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
@@ -67,7 +69,7 @@ public class Main {
     AdministratorPreferences adminPrefs = new AdministratorPreferences();
     adminPrefs.setPreferredMinTemp(18.0);
     adminPrefs.setPreferredMaxTemp(24.0);
-    adminPrefs.setMaxEnergyUsage(1500.0); // 1.5 kW
+    adminPrefs.setMaxEnergyUsage(1500.0);
     adminPrefs.setTimeOpen("08:00");
     adminPrefs.setTimeClose("20:00");
     adminPrefs.setPriorityComfort(7);
@@ -88,6 +90,84 @@ public class Main {
     optimizationController.setAnalyticsService(databaseStorage);
 
     System.out.println("[INFO] Kontroler optymalizacji skonfigurowany.");
+    optimizationController.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
+
+    // START DEMO SCENARIUSZ
+    System.out.println("\n========== DEMONSTRACJA: Preferencje Użytkownika ==========");
+    System.out.println("Scenariusz: Admin chce 18-24°C. Użytkownik w pokoju 999 chce poziom komfortu 5 (Najcieplej).");
+
+    // Tworzymy anonimową klasę Symulatora Danych
+    class DemoDataSimulator implements IControlData, IUserData {
+      public Uzytkownik getUserById(int id) {
+        Uzytkownik u = new Uzytkownik();
+        u.setId(id);
+        u.setImie("Test");
+        org.example.DTO.UserPreferences prefs = new org.example.DTO.UserPreferences();
+        prefs.setComfortLevel(5);
+        u.setPreferencje(prefs);
+        return u;
+      }
+
+      public Uzytkownik getUserByEmail(String email) {
+        return null;
+      }
+
+      public org.example.DTO.Rola getRoleById(int id) {
+        return null;
+      }
+
+      public Uzytkownik saveUser(Uzytkownik u) {
+        return u;
+      }
+
+      public List<org.example.DTO.Pokoj> getRoomsInBuilding(int bid) {
+        org.example.DTO.Pokoj p = new org.example.DTO.Pokoj();
+        p.setId(999);
+        p.setNumerPokoju("DEMO-ROOM");
+        p.setBudynekId(bid);
+        p.getUzytkownicyIds().add(100);
+        return java.util.Collections.singletonList(p);
+      }
+
+      public List<org.example.DTO.Urzadzenie> getDevicesInRoom(int rid) {
+        org.example.DTO.Urzadzenie u = new org.example.DTO.Urzadzenie();
+        u.setId(555);
+        u.setPokojId(rid);
+        u.setParametryPracy("{\"temperatura_C\": 20.0, \"set_temp\": 20.0}");
+        return java.util.Collections.singletonList(u);
+      }
+
+      public org.example.DTO.Urzadzenie getDeviceById(int id) {
+        return null;
+      }
+
+      public void updateDevice(org.example.DTO.Urzadzenie d) {
+        System.out.println("   [DEMO DB] Zaktualizowano urządzenie " + d.getId() + ": " + d.getParametryPracy());
+      }
+
+      public boolean isDatabaseConnected() {
+        return true;
+      }
+
+      public Umowa getActiveContractForBuilding(int buildingId) {
+        return null;
+      }
+
+      public List<Odczyt> getReadingsForDevice(int deviceId, LocalDateTime from, LocalDateTime to) {
+        return Collections.emptyList();
+      }
+    }
+
+    DemoDataSimulator demoSim = new DemoDataSimulator();
+
+    optimizationController.setControlService(demoSim);
+    optimizationController.setUserService(demoSim);
+
+    optimizationController.optimizeBuildingByRooms(1);
+
+    optimizationController.setControlService(databaseStorage);
+    optimizationController.setUserService(databaseStorage);
+    System.out.println("===========================================================\n");
 
     optimizationController.optimizeBuildingByRooms(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");

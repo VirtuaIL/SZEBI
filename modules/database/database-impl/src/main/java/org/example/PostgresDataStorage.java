@@ -22,24 +22,22 @@ import java.time.ZoneOffset;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData{
+public class PostgresDataStorage
+        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData {
 
-    //config postgres
+    // config postgres
     private final String DB_URL = "jdbc:postgresql://localhost:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
-    //config mongo
+    // config mongo
     private final String MONGO_URI = "mongodb://root:bazka@localhost:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 
-
-
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASS);
     }
-
 
     @Override
     public void saveSensorReading(Odczyt reading) {
@@ -52,7 +50,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             Document docToInsert = reading.toDocument();
 
             collection.insertOne(docToInsert);
-
 
         } catch (Exception e) {
             System.out.println("Błąd podczas zapisywania odczytu do MongoDB: " + e.getMessage());
@@ -78,7 +75,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
             collection.insertMany(documentsToInsert);
 
-
         } catch (Exception e) {
             System.out.println("Błąd podczas hurtowego zapisywania odczytów do MongoDB: " + e.getMessage());
             e.printStackTrace();
@@ -92,8 +88,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Urzadzenie> activeDevices = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 Urzadzenie device = new Urzadzenie();
@@ -128,8 +124,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         ObjectMapper objectMapper = new ObjectMapper();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 UrzadzenieSzczegoly device = new UrzadzenieSzczegoly();
@@ -192,7 +188,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     public boolean isDatabaseConnected() {
         String sql = "SELECT 1";
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.executeQuery();
             return true;
         } catch (SQLException e) {
@@ -221,13 +217,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Alert> alerts = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, deviceId);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-               
+
                 alerts.add(mapResultSetToAlert(rs));
             }
 
@@ -326,7 +322,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             Bson filter = Filters.and(
                     Filters.eq("id_urzadzenia", deviceId),
                     Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)), // gte = greater than or equal
-                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))      // lt = less than
+                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC)) // lt = less than
             );
 
             FindIterable<Document> documents = collection.find(filter);
@@ -358,7 +354,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Uzytkownik user = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
@@ -372,7 +368,17 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 user.setTelefon(rs.getString("Telefon"));
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
-                user.setPreferencje(rs.getString("preferencje"));
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        System.err
+                                .println("Błąd deserializacji preferencji ID " + user.getId() + ": " + e.getMessage());
+                    }
+                }
             }
         } catch (SQLException e) {
             System.out.println("Błąd podczas pobierania użytkownika o ID " + userId + ": " + e.getMessage());
@@ -387,7 +393,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Umowa contract = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, buildingId);
             ResultSet rs = pstmt.executeQuery();
@@ -411,7 +417,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 contract.setSzczegolyTaryfy(rs.getString("szczegoly_taryfy"));
             }
         } catch (SQLException e) {
-            System.out.println("Błąd podczas pobierania aktywnej umowy dla budynku o ID " + buildingId + ": " + e.getMessage());
+            System.out.println(
+                    "Błąd podczas pobierania aktywnej umowy dla budynku o ID " + buildingId + ": " + e.getMessage());
             e.printStackTrace();
         }
         return contract;
@@ -441,8 +448,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             Bson filter = Filters.and(
                     Filters.in("id_urzadzenia", deviceIdsInBuilding),
                     Filters.gte("czas_odczytu", from.toInstant(ZoneOffset.UTC)),
-                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC))
-            );
+                    Filters.lt("czas_odczytu", to.toInstant(ZoneOffset.UTC)));
             FindIterable<Document> documents = collection.find(filter);
             for (Document doc : documents) {
                 Odczyt reading = new Odczyt();
@@ -484,7 +490,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return alertDetails;
     }
 
-
     @Override
     public List<Prognoza> getForecastsForDevice(int deviceId, LocalDateTime from, LocalDateTime to) {
         String sql = "SELECT * FROM Prognozy WHERE ID_urzadzenia = ? AND czas_prognozy >= ? AND czas_prognozy < ? ORDER BY czas_prognozy";
@@ -502,7 +507,6 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         }
         return forecasts;
     }
-
 
     @Override
     public List<Prognoza> getForecastsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
@@ -524,11 +528,12 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
 
     @Override
     public void storeForecastResult(Prognoza forecast) {
-        String sql = "INSERT INTO Prognozy (ID_urzadzenia, ID_budynku, czas_wygenerowania, czas_prognozy, prognozowana_wartosc, metryka) " +
+        String sql = "INSERT INTO Prognozy (ID_urzadzenia, ID_budynku, czas_wygenerowania, czas_prognozy, prognozowana_wartosc, metryka) "
+                +
                 "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setObject(1, forecast.getUrzadzenieId());
             pstmt.setObject(2, forecast.getBudynekId());
@@ -569,7 +574,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
     @Override
     public Raport saveReport(Raport report) {
         String sql = "INSERT INTO Raporty (ID_uzytkownika, czas_wygenerowania, typ_raportu, opis, zakres_od, zakres_do, zawartosc) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
-        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setObject(1, report.getUzytkownikId());
             pstmt.setTimestamp(2, Timestamp.valueOf(report.getCzasWygenerowania()));
             pstmt.setString(3, report.getTypRaportu());
@@ -649,15 +655,13 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         return forecast;
     }
 
-
-
     @Override
     public Urzadzenie getDeviceById(int deviceId) {
         String sql = "SELECT * FROM Urzadzenia WHERE ID_urzadzenia = ?";
         Urzadzenie device = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, deviceId);
             ResultSet rs = pstmt.executeQuery();
@@ -683,7 +687,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Urzadzenie> devices = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, roomId);
             ResultSet rs = pstmt.executeQuery();
@@ -711,7 +715,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<Pokoj> rooms = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, buildingId);
             ResultSet rs = pstmt.executeQuery();
@@ -737,7 +741,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         String sql = "UPDATE Urzadzenia SET ID_pokoju = ?, Parametry_pracy = ?::jsonb, aktywny = ? WHERE ID_urzadzenia = ?";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, device.getPokojId());
             pstmt.setString(2, device.getParametryPracy());
@@ -751,7 +755,8 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             if (affectedRows > 0) {
                 System.out.println("Pomyślnie zaktualizowano urządzenie o ID: " + device.getId());
             } else {
-                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID " + device.getId() + " istnieje.");
+                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego urządzenia. Sprawdź, czy urządzenie o ID "
+                        + device.getId() + " istnieje.");
             }
 
         } catch (SQLException e) {
@@ -766,7 +771,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Uzytkownik user = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
@@ -780,6 +785,17 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
                 user.setTelefon(rs.getString("Telefon"));
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        System.err
+                                .println("Błąd deserializacji preferencji dla email " + email + ": " + e.getMessage());
+                    }
+                }
             }
 
         } catch (SQLException e) {
@@ -795,7 +811,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         Rola rola = null;
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, rolaId);
             ResultSet rs = pstmt.executeQuery();
@@ -819,7 +835,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         String sql = "INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)";
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setInt(1, user.getRolaId());
             pstmt.setString(2, user.getImie());
@@ -827,7 +843,16 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
             pstmt.setString(4, user.getTelefon());
             pstmt.setString(5, user.getEmail());
             pstmt.setString(6, user.getHasloHash());
-            pstmt.setString(7, user.getPreferencje());
+            String prefJson = null;
+            if (user.getPreferencje() != null) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    prefJson = mapper.writeValueAsString(user.getPreferencje());
+                } catch (Exception e) {
+                    System.err.println("Błąd serializacji preferencji: " + e.getMessage());
+                }
+            }
+            pstmt.setString(7, prefJson);
 
             int affectedRows = pstmt.executeUpdate();
 
@@ -861,7 +886,7 @@ public class PostgresDataStorage implements IUserData, IAcquisitionData, IAlertD
         List<AlertSzczegoly> alertDetails = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(finalSql)) {
+                PreparedStatement pstmt = conn.prepareStatement(finalSql)) {
 
             for (int i = 0; i < params.length; i++) {
                 pstmt.setObject(i + 1, params[i]);

@@ -8,6 +8,8 @@ import java.util.List;
 public interface IUserData {
     Uzytkownik getUserByEmail(String email);
 
+    Uzytkownik getUserById(int userId);
+
     Rola getRoleById(int rolaId);
 
     Uzytkownik saveUser(Uzytkownik user);

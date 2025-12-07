@@ -4,9 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.DTO.*;
 import org.example.interfaces.*;
-import org.example.AdministratorPreferences;
-import org.example.UserPreferences;
-import org.example.OZEResource;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -22,7 +19,7 @@ public class OptimizationController {
     private IAlertData alertService;
     private IAcquisitionData acquisitionService;
     private IForecastingData forecastService;
-    private IControlData controlService; // Tu jest dostęp do pokoi
+    private IControlData controlService;
     private IAnalyticsData analyticsService;
 
     private AcquisitionAPI acquisitionAPI;
@@ -35,7 +32,6 @@ public class OptimizationController {
     public void setAcquisitionAPI(AcquisitionAPI acquisitionAPI) {
         this.acquisitionAPI = acquisitionAPI;
     }
-
 
     /**
      * Główna funkcja uruchamiająca optymalizację per pokój.
@@ -57,13 +53,15 @@ public class OptimizationController {
         System.out.println("[Optymalizacja] Rozpoczynam optymalizację budynku ID: " + buildingId);
 
         // 1. Sprawdź czy budynek jest otwarty wg preferencji admina
-//      boolean isBuildingOpen = isWithinWorkingHours();
-        boolean isBuildingOpen = true; // Tymczasowo zawsze otwarty dla testów
+        // boolean isBuildingOpen = isWithinWorkingHours();
+
+        // Tymczasowo zawsze otwarty dla testów
+        boolean isBuildingOpen = true;
         System.out.println("[Optymalizacja] Status budynku: " + (isBuildingOpen ? "OTWARTY" : "ZAMKNIĘTY") +
                 " (Godziny: " + adminPref.getTimeOpen() + " - " + adminPref.getTimeClose() + ")");
 
         // 2. Pobierz listę pokoi
-        List<Pokoj> rooms = controlService.getRoomsInBuilding(buildingId); // Zakładam, że ta metoda jest w interfejsie IControlData
+        List<Pokoj> rooms = controlService.getRoomsInBuilding(buildingId);
 
         if (rooms.isEmpty()) {
             System.out.println("[Optymalizacja] Brak pokoi w budynku.");
@@ -91,31 +89,72 @@ public class OptimizationController {
         }
 
         for (Urzadzenie device : devices) {
-            applyAdminRulesToDevice(device, isBuildingOpen);
+            applyAdminRulesToDevice(device, isBuildingOpen, room);
         }
     }
 
-    private void applyAdminRulesToDevice(Urzadzenie device, boolean isBuildingOpen) {
+    private IUserData userService;
+
+    public void setUserService(IUserData userService) {
+        this.userService = userService;
+    }
+
+    private void applyAdminRulesToDevice(Urzadzenie device, boolean isBuildingOpen, Pokoj room) {
         String deviceId = String.valueOf(device.getId());
         Double currentVal = requestSensorReading(deviceId);
 
+        // Obliczanie preferencji użytkowników
+        double targetMinTemp = adminPref.getPreferredMinTemp();
+        double targetMaxTemp = adminPref.getPreferredMaxTemp();
+        boolean userOverride = false;
+
+        List<Integer> userIds = room.getUzytkownicyIds();
+        if (userIds != null && !userIds.isEmpty() && userService != null) {
+            double sumComfort = 0;
+            int count = 0;
+
+            for (Integer uid : userIds) {
+                Uzytkownik u = userService.getUserById(uid);
+                if (u != null && u.getPreferencje() != null) {
+                    sumComfort += u.getPreferencje().getComfortLevel();
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                double avgComfort = sumComfort / count;
+                System.out.println("   [PREFERENCJE] Wyliczono średni poziom komfortu: " + avgComfort + " (skala 1-5)");
+
+                // Mapowanie: scale 1-5 to Admin Range
+                double range = targetMaxTemp - targetMinTemp;
+                double normalized = (avgComfort - 1.0) / 4.0;
+                double calculatedTemp = targetMinTemp + (normalized * range);
+
+                System.out.println("      -> Zmapowano na temperaturę: " + calculatedTemp + "°C");
+
+                targetMinTemp = calculatedTemp - 0.5;
+                targetMaxTemp = calculatedTemp + 0.5;
+                userOverride = true;
+            }
+        }
+
         // Obsługa Klimatu (Grzanie/Chłodzenie)
         if (doesDeviceMeasureTemperature(device) && currentVal != null) {
-            double minTemp = adminPref.getPreferredMinTemp();
-            double maxTemp = adminPref.getPreferredMaxTemp();
 
-            if (!isBuildingOpen) {
+            if (!isBuildingOpen && !userOverride) {
                 System.out.println("   [CLIMATE] Urządzenie " + deviceId + ": Budynek zamknięty -> Tryb Eco (16°C).");
                 controlDevice(device.getId(), "set_temp", 16.0);
-            }
-            else {
-                // Tryb dzienny
-                if (currentVal < minTemp) {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal + "°C) -> Za zimno! Grzanie.");
-                    controlDevice(device.getId(), "set_temp", minTemp + 1.0);
-                } else if (currentVal > maxTemp) {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal + "°C) -> Za ciepło! Chłodzenie.");
-                    controlDevice(device.getId(), "set_temp", maxTemp - 1.0);
+            } else {
+                // Tryb dzienny lub wymuszony przez obecność/preferencje użytkowników
+                if (currentVal < targetMinTemp) {
+                    System.out.println(
+                            "   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
+                                    + "°C) -> Za zimno! Grzanie (Cel: " + targetMinTemp + ").");
+                    controlDevice(device.getId(), "set_temp", targetMinTemp + 1.0);
+                } else if (currentVal > targetMaxTemp) {
+                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
+                            + "°C) -> Za ciepło! Chłodzenie (Cel: " + targetMaxTemp + ").");
+                    controlDevice(device.getId(), "set_temp", targetMaxTemp - 1.0);
                 } else {
                     System.out.println("   [CLIMATE] Urządzenie " + deviceId + " -> Temperatura w normie.");
                 }
@@ -125,13 +164,11 @@ public class OptimizationController {
 
         // Obsługa Oświetlenia
         if (isLightingDevice(device) && currentVal != null) {
-            if (!isBuildingOpen) {
+            // Można tu dodać analogiczną logikę dla oświetlenia
+            if (!isBuildingOpen && !userOverride) {
                 System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło.");
                 controlDevice(device.getId(), "active", 0.0);
-            }
-            else {
-                // Tu dodamy logikę: jeśli jest bardzo jasno (sensor > 80%), przygaś światło
-                // Ale na razie tylko logujemy
+            } else {
                 System.out.println("   [LIGHT] Urządzenie " + deviceId + " (Jasność: " + currentVal + "%) -> OK.");
             }
             return;
@@ -139,8 +176,6 @@ public class OptimizationController {
 
         checkEnergyLimit(device);
     }
-
-    // === Metody pomocnicze do logiki biznesowej ===
 
     private boolean isWithinWorkingHours() {
         LocalTime now = LocalTime.now();
@@ -157,9 +192,9 @@ public class OptimizationController {
 
     private boolean doesDeviceMeasureTemperature(Urzadzenie device) {
         String params = device.getParametryPracy();
-        if (params == null) return false;
+        if (params == null)
+            return false;
 
-        // Szukamy konkretnych kluczy wskazujących na temperaturę powietrza
         // "temperatura_C" - zazwyczaj odczyt z czujnika
         // "set_temp" lub "docelowa_temperatura" - nastawy grzejników
         return params.contains("temperatura_C") ||
@@ -168,7 +203,6 @@ public class OptimizationController {
     }
 
     private void checkEnergyLimit(Urzadzenie device) {
-        // Pobieramy historię z ostatnich 24h
         LocalDateTime from = LocalDateTime.now().minusHours(24);
         LocalDateTime to = LocalDateTime.now();
         List<Odczyt> readings = forecastService.getReadingsForDevice(device.getId(), from, to);
@@ -176,25 +210,29 @@ public class OptimizationController {
         double avgUsage = calculateAverageFromReadings(readings);
 
         if (avgUsage > adminPref.getMaxEnergyUsage()) {
-            System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > " + adminPref.getMaxEnergyUsage() + "). Ograniczam.");
-            controlDevice(device.getId(), "limit_power", 50.0); // Przykładowa akcja
+            System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
+                    + adminPref.getMaxEnergyUsage() + "). Ograniczam.");
+            controlDevice(device.getId(), "limit_power", 50.0);
         }
     }
 
     private List<Urzadzenie> getActiveDevices() {
-        if (acquisitionService != null) return acquisitionService.getActiveDevices();
+        if (acquisitionService != null)
+            return acquisitionService.getActiveDevices();
         System.err.println("[Optymalizacja] Brak połączenia z serwisem akwizycji!");
         return new ArrayList<>();
     }
 
     private List<Urzadzenie> getDevicesFromRoom(int roomId) {
-        if (controlService != null) return controlService.getDevicesInRoom(roomId);
+        if (controlService != null)
+            return controlService.getDevicesInRoom(roomId);
         System.err.println("[Optymalizacja] Brak połączenia z serwisem kontroli!");
         return new ArrayList<>();
     }
 
     public Double requestSensorReading(String deviceId) {
-        if (acquisitionAPI == null) return null;
+        if (acquisitionAPI == null)
+            return null;
         return acquisitionAPI.requestSensorRead(deviceId);
     }
 
@@ -208,39 +246,51 @@ public class OptimizationController {
         }
 
         System.out.println("      -> WYSYŁANIE KOMENDY: " + attribute + " = " + setting);
-        if (controlService != null) controlService.updateDevice(device);
+        if (controlService != null)
+            controlService.updateDevice(device);
 
-        // Symulacja odświeżenia
-        if (acquisitionAPI != null) requestSensorReading(String.valueOf(deviceId));
+        if (acquisitionAPI != null)
+            requestSensorReading(String.valueOf(deviceId));
     }
 
-    // Twoja poprawiona metoda liczenia średniej (z parsowaniem JSON)
     private double calculateAverageFromReadings(List<Odczyt> readings) {
-        if (readings == null || readings.isEmpty()) return 0.0;
+        if (readings == null || readings.isEmpty())
+            return 0.0;
         double sum = 0.0;
         int count = 0;
         for (Odczyt reading : readings) {
             String jsonPomiary = reading.getPomiary();
-            if (jsonPomiary == null || jsonPomiary.isEmpty()) continue;
+            if (jsonPomiary == null || jsonPomiary.isEmpty())
+                continue;
             try {
                 JsonNode rootNode = objectMapper.readTree(jsonPomiary);
                 double value = 0.0;
                 boolean found = false;
-                if (rootNode.has("zuzycie_kwh")) { value = rootNode.get("zuzycie_kwh").asDouble(); found = true; }
-                else if (rootNode.has("wartosc")) { value = rootNode.get("wartosc").asDouble(); found = true; }
-                else if (rootNode.has("value")) { value = rootNode.get("value").asDouble(); found = true; }
+                if (rootNode.has("zuzycie_kwh")) {
+                    value = rootNode.get("zuzycie_kwh").asDouble();
+                    found = true;
+                } else if (rootNode.has("wartosc")) {
+                    value = rootNode.get("wartosc").asDouble();
+                    found = true;
+                } else if (rootNode.has("value")) {
+                    value = rootNode.get("value").asDouble();
+                    found = true;
+                }
 
-                if (found) { sum += value; count++; }
-            } catch (Exception e) { /* ignore */ }
+                if (found) {
+                    sum += value;
+                    count++;
+                }
+            } catch (Exception e) {
+                /* ignore */ }
         }
         return count == 0 ? 0.0 : sum / count;
     }
 
-    // === METODY CHECKERÓW, ALERTÓW I SETTERY (Standardowe) ===
-
     public void checkForAnomalies() {
         List<Urzadzenie> devices = getActiveDevices();
-        if (devices.isEmpty()) return;
+        if (devices.isEmpty())
+            return;
 
         LocalDateTime from = LocalDateTime.now().minusHours(1);
         LocalDateTime to = LocalDateTime.now();
@@ -248,8 +298,9 @@ public class OptimizationController {
         for (Urzadzenie device : devices) {
             List<Odczyt> readings = forecastService.getReadingsForDevice(device.getId(), from, to);
             if (readings != null) {
-                for(Odczyt r : readings) {
-                    if(isAnomalousReading(r)) System.out.println("ANOMALIA: " + device.getId());
+                for (Odczyt r : readings) {
+                    if (isAnomalousReading(r))
+                        System.out.println("ANOMALIA: " + device.getId());
                 }
             }
         }
@@ -260,13 +311,32 @@ public class OptimizationController {
             JsonNode root = objectMapper.readTree(reading.getPomiary());
             double val = root.path("wartosc").asDouble(0);
             return val < 0 || val > 10000;
-        } catch (Exception e) { return false; }
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    public void setAlertService(IAlertData s) { this.alertService = s; }
-    public void setAcquisitionService(IAcquisitionData s) { this.acquisitionService = s; }
-    public void setForecastService(IForecastingData s) { this.forecastService = s; }
-    public void setControlService(IControlData s) { this.controlService = s; }
-    public void setAnalyticsService(IAnalyticsData s) { this.analyticsService = s; }
-    public void setAdminPreferences(AdministratorPreferences p) { this.adminPref = p; }
+    public void setAlertService(IAlertData s) {
+        this.alertService = s;
+    }
+
+    public void setAcquisitionService(IAcquisitionData s) {
+        this.acquisitionService = s;
+    }
+
+    public void setForecastService(IForecastingData s) {
+        this.forecastService = s;
+    }
+
+    public void setControlService(IControlData s) {
+        this.controlService = s;
+    }
+
+    public void setAnalyticsService(IAnalyticsData s) {
+        this.analyticsService = s;
+    }
+
+    public void setAdminPreferences(AdministratorPreferences p) {
+        this.adminPref = p;
+    }
 }
