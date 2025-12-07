@@ -22,7 +22,7 @@ interface IDocument {
 
   public String getDocumentType();
 
-  public abstract sealed class Document implements IDocument permits Report, Analysis {
+  abstract sealed class Document implements IDocument permits Report, Analysis {
 
     private String id;
     private String content;
@@ -31,7 +31,7 @@ interface IDocument {
     private LocalDateTime dateFrom;
     private LocalDateTime dateTo;
 
-    protected Document(Builder builder) {
+    protected Document(Scheme builder) {
       this.id = builder.id;
       this.content = generateContent(
           AnalysisReportAPI.getAquisitionProxy().getLabelAndValuesFor(builder.metrics));
@@ -75,29 +75,29 @@ interface IDocument {
 
   }
 
-  public static Builder<Report> reportBuilder() {
-    return new IDocument.Builder<>(Report::new);
+  public static Scheme<Report> reportBuilder() {
+    return new IDocument.Scheme<>(Report::new);
   }
 
-  public static Builder<Analysis> analysisBuilder() {
-    return new IDocument.Builder<>(Analysis::new);
+  public static Scheme<Analysis> analysisBuilder() {
+    return new IDocument.Scheme<>(Analysis::new);
   }
 
-  public static class Builder<T extends Document> {
-    private Function<Builder<?>, ? extends Document> constructor;
+  public static class Scheme<T extends Document> {
+    private Function<Scheme<?>, ? extends Document> constructor;
 
     private String generateUniqueId() {
       return UUID.randomUUID().toString();
     }
 
-    public Builder<Report> withReport() {
+    public Scheme<Report> withReport() {
       this.constructor = Report::new;
-      return (Builder<Report>) this;
+      return (Scheme<Report>) this;
     }
 
-    public Builder<Analysis> withAnalysis() {
+    public Scheme<Analysis> withAnalysis() {
       this.constructor = Analysis::new;
-      return (Builder<Analysis>) this;
+      return (Scheme<Analysis>) this;
     }
 
     private String id;
@@ -106,42 +106,42 @@ interface IDocument {
     private LocalDateTime from = LocalDateTime.MIN;
     private LocalDateTime to = LocalDateTime.MAX;
 
-    public Builder(Function<Builder<?>, ? extends Document> constructor) {
+    public Scheme(Function<Scheme<?>, ? extends Document> constructor) {
       this.id = generateUniqueId();
       this.constructor = constructor;
     }
 
-    public Builder includeMetrics(String... confs) {
+    public Scheme includeMetrics(String... confs) {
       this.metrics.addAll(List.of(confs));
       return this;
     }
 
-    public Builder includeMetrics(Collection<String> confs) {
+    public Scheme includeMetrics(Collection<String> confs) {
       this.metrics.addAll(confs);
       return this;
     }
 
-    public Builder excludeMetrics(String... confs) {
+    public Scheme excludeMetrics(String... confs) {
       this.metrics.removeAll(List.of(confs));
       return this;
     }
 
-    public Builder excludeMetrics(Collection<String> confs) {
+    public Scheme excludeMetrics(Collection<String> confs) {
       this.metrics.removeAll(confs);
       return this;
     }
 
-    public Builder setFrom(LocalDateTime from) {
+    public Scheme setFrom(LocalDateTime from) {
       this.from = from;
       return this;
     }
 
-    public Builder setTo(LocalDateTime to) {
+    public Scheme setTo(LocalDateTime to) {
       this.to = to;
       return this;
     }
 
-    public Document build() {
+    Document build() {
       if (constructor == null) {
         throw new IllegalStateException("No document type specified");
       }

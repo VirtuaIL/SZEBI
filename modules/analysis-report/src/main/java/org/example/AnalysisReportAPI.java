@@ -31,16 +31,16 @@ public class AnalysisReportAPI {
   }
 
   public void sendDocumentScheme(
-      Function<IDocument.Builder, IDocument.Builder> documentBuilderFunc,
+      Function<IDocument.Scheme, IDocument.Scheme> documentBuilderFunc,
       IDocumentFactoryService dataService) {
 
-    IDocument.Builder documentBuilder = documentBuilderFunc.apply(IDocument.reportBuilder());
+    IDocument.Scheme documentBuilder = documentBuilderFunc.apply(IDocument.reportBuilder());
     var document = dataService.enqueueDocument(documentBuilder.build());
 
     this.dataStorage.addDocument(document);
   }
 
-  public void sendDocumentScheme(IDocument.Builder documentBuilder) {
+  public void sendDocumentScheme(IDocument.Scheme documentBuilder) {
     var document = defaultDocumentFactory.enqueueDocument(documentBuilder.build());
     this.dataStorage.addDocument(document);
   }
@@ -91,11 +91,11 @@ public class AnalysisReportAPI {
     return false;
   }
 
-  public static IDocument.Builder<Report> newReportBuilder() {
+  public static IDocument.Scheme<Report> newReportBuilder() {
     return IDocument.reportBuilder();
   }
 
-  public static IDocument.Builder<Analysis> newAnalysisBuilder() {
+  public static IDocument.Scheme<Analysis> newAnalysisBuilder() {
     return IDocument.analysisBuilder();
   }
 

@@ -16,7 +16,7 @@ public class DocumentGenerator {
 
   private final ScheduledExecutorService scheduler;
   private final String id;
-  private final Map<IDocument.Builder, List<Period>> documentsConfig;
+  private final Map<IDocument.Scheme, List<Period>> documentsConfig;
   private final LocalDate creationTime;
   private final IDocumentFactoryService dataService;
   private final DataPersistence database;
@@ -35,7 +35,7 @@ public class DocumentGenerator {
   }
 
   public static class Builder {
-    private final Map<IDocument.Builder, List<Period>> documentsConfig = new HashMap<>();
+    private final Map<IDocument.Scheme, List<Period>> documentsConfig = new HashMap<>();
     private IDocumentFactoryService dataService;
     private DataPersistence database;
 
@@ -43,26 +43,26 @@ public class DocumentGenerator {
       return this;
     }
 
-    public Builder addDocumentConfig(IDocument.Builder scheme, Period period) {
+    public Builder addDocumentConfig(IDocument.Scheme scheme, Period period) {
       this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).add(period);
       return this;
     }
 
-    public Builder addDocumentConfigs(IDocument.Builder scheme, List<Period> periods) {
+    public Builder addDocumentConfigs(IDocument.Scheme scheme, List<Period> periods) {
       this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).addAll(periods);
       return this;
     }
 
-    public Builder addDocumentConfigs(IDocument.Builder scheme, Period... periods) {
+    public Builder addDocumentConfigs(IDocument.Scheme scheme, Period... periods) {
       if (periods != null && periods.length > 0) {
         this.documentsConfig.computeIfAbsent(scheme, k -> new ArrayList<>()).addAll(Arrays.asList(periods));
       }
       return this;
     }
 
-    public Builder addDocumentConfigs(Map<IDocument.Builder, List<Period>> configs) {
+    public Builder addDocumentConfigs(Map<IDocument.Scheme, List<Period>> configs) {
       if (configs != null) {
-        for (Map.Entry<IDocument.Builder, List<Period>> entry : configs.entrySet()) {
+        for (Map.Entry<IDocument.Scheme, List<Period>> entry : configs.entrySet()) {
           this.documentsConfig.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
               .addAll(entry.getValue());
         }
@@ -104,7 +104,7 @@ public class DocumentGenerator {
     };
 
     for (var entry : documentsConfig.entrySet()) {
-      IDocument.Builder scheme = entry.getKey();
+      IDocument.Scheme scheme = entry.getKey();
 
       for (Period period : entry.getValue()) {
         long delayMs = periodToMillis.run(period);
@@ -125,11 +125,11 @@ public class DocumentGenerator {
     return true;
   }
 
-  List<IDocument.Builder> getDocumentSchemes() {
+  List<IDocument.Scheme> getDocumentSchemes() {
     return Collections.unmodifiableList(new ArrayList<>(this.documentsConfig.keySet()));
   }
 
-  public Map<IDocument.Builder, List<Period>> getDocumentConfigs() {
+  public Map<IDocument.Scheme, List<Period>> getDocumentConfigs() {
     return Collections.unmodifiableMap(documentsConfig);
   }
 
@@ -177,25 +177,5 @@ public class DocumentGenerator {
   @Override
   public int hashCode() {
     return id.hashCode();
-  }
-
-  // Inner Pair class
-  public static class Pair<K, V> {
-    public final K first;
-    public final V second;
-
-    public Pair(K first, V second) {
-      this.first = first;
-      this.second = second;
-    }
-
-    @Override
-    public String toString() {
-      return "Pair{" + first + "=" + second + "}";
-    }
-
-    public static <K, V> Pair<K, V> of(K first, V second) {
-      return new Pair<>(first, second);
-    }
   }
 }

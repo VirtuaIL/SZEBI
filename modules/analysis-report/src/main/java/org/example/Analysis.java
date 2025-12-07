@@ -13,7 +13,7 @@ final class Analysis extends IDocument.Document {
   private IAnalysisStrategy strategy = new IAnalysisStrategy.DefaultStrategy();
   private List<AlertEventType> alerts = new ArrayList<>();
 
-  public Analysis(IDocument.Builder scheme) {
+  public Analysis(IDocument.Scheme scheme) {
     super(scheme);
     strategy.analyze(this.getContent());
   }
