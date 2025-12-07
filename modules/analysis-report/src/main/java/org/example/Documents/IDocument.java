@@ -2,11 +2,23 @@
 package org.example.Documents;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import org.example.AnalysisReportAPI;
+import org.example.AquisitionProxy;
 
 public interface IDocument {
+  public static Set<String> getAvailableMetrics() {
+    return AquisitionProxy.singleton.getLabelsSet();
+  }
+
   public LocalDateTime getCreationDate();
 
   public String getId();
@@ -30,7 +42,8 @@ public interface IDocument {
 
     protected Document(Builder builder) {
       this.id = builder.id;
-      this.content = generateContent(builder.configurations.toString());
+      this.content = generateContent(
+          AquisitionProxy.singleton.getLabelAndValuesFor(builder.metrics).toString());
       this.creationDate = LocalDateTime.now();
       this.dateFrom = builder.from;
       this.dateTo = builder.to;
@@ -71,25 +84,56 @@ public interface IDocument {
 
   }
 
-  public static class Builder {
-    private static String generateUniqueId() {
+  public static Builder<Report> buildReport() {
+    return new IDocument.Builder<>(Report::new);
+  }
+
+  public static Builder<Analysis> buildAnalysis() {
+    return new IDocument.Builder<>(Analysis::new);
+  }
+
+  public static class Builder<T extends Document> {
+    private Function<Builder<?>, ? extends Document> constructor;
+
+    private String generateUniqueId() {
       return UUID.randomUUID().toString();
+    }
+
+    public Builder<Report> withReport() {
+      this.constructor = Report::new;
+      return (Builder<Report>) this;
+    }
+
+    public Builder<Analysis> withAnalysis() {
+      this.constructor = Analysis::new;
+      return (Builder<Analysis>) this;
     }
 
     private String id;
 
-    private Map<String, List<Double>> configurations;
+    private Set<String> metrics = new HashSet<>();
     private LocalDateTime from = LocalDateTime.MIN;
     private LocalDateTime to = LocalDateTime.MAX;
 
-    public Builder(Map<String, List<Double>> configurations) {
+    public Builder(Function<Builder<?>, ? extends Document> constructor) {
       this.id = generateUniqueId();
-      this.configurations = configurations;
+      this.constructor = constructor;
     }
 
-    public Builder setConfigurations(Map<String, List<Double>> configurations) {
-      this.configurations = configurations;
-      return this;
+    public void includeMetrics(String... confs) {
+      this.metrics.addAll(List.of(confs));
+    }
+
+    public void includeMetrics(Collection<String> confs) {
+      this.metrics.addAll(confs);
+    }
+
+    public void excludeMetrics(String... confs) {
+      this.metrics.removeAll(List.of(confs));
+    }
+
+    public void exludeMetrics(Collection<String> confs) {
+      this.metrics.removeAll(confs);
     }
 
     public Builder setFrom(LocalDateTime from) {
@@ -102,12 +146,11 @@ public interface IDocument {
       return this;
     }
 
-    public Report buildReport() {
-      return new Report(this);
-    }
-
-    public Analysis buildAnalysis() {
-      return new Analysis(this);
+    public Document build() {
+      if (constructor == null) {
+        throw new IllegalStateException("No document type specified");
+      }
+      return constructor.apply(this);
     }
   }
 }

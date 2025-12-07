@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 public final class Report extends IDocument.Document {
-  protected Report(Builder builder) {
+  public Report(IDocument.Builder builder) {
     super(builder);
   }
 

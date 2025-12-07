@@ -3,7 +3,9 @@ package org.example;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class AquisitionProxyService implements IAnalysisService {
+public class AquisitionProxy implements IAnalysisService {
+  public static AquisitionProxy singleton = new AquisitionProxy();
+
   List<InternalSensors> sensors = new ArrayList<>();
 
   private class InternalSensors {
@@ -36,18 +38,20 @@ public class AquisitionProxyService implements IAnalysisService {
     }
   }
 
-  public HashMap<String, List<Double>> getLabelValues() {
-    System.out.println(sensors);
+  public Map<String, List<Double>> getLabelValues() {
     return sensors.stream()
         .collect(Collectors.groupingBy(
             InternalSensors::getLabel,
-            HashMap::new,
             Collectors.mapping(
                 InternalSensors::getValue,
-                Collectors.toList())));
+                Collectors.toUnmodifiableList())))
+        .entrySet().stream()
+        .collect(Collectors.toUnmodifiableMap(
+            Map.Entry::getKey,
+            Map.Entry::getValue));
   }
 
-  public Set<String> getLabels() {
+  public Set<String> getLabelsSet() {
     return sensors.stream()
         .map(InternalSensors::getLabel)
         .collect(Collectors.toSet());

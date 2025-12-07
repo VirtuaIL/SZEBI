@@ -2,7 +2,7 @@ package org.example.runner;
 
 import org.example.*;
 import org.example.DTO.UrzadzenieSzczegoly;
-
+import org.example.Documents.IDocument;
 import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
@@ -22,12 +22,13 @@ public class Main {
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
     DataCollector dataCollector = new DataCollector(databaseStorage);
     DeviceManager deviceManager = new DeviceManager();
-    ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.aquisitionService);
+    ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.getAquisitionProxy());
 
     // 3. Wstrzykiwanie zależności
     CollectionService service = new CollectionService(deviceManager,
-        dataCollector, errorReporter, AnalysisReportAPI.aquisitionService);
-    AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector, AnalysisReportAPI.aquisitionService);
+        dataCollector, errorReporter, AnalysisReportAPI.getAquisitionProxy());
+    AcquisitionAPI api = new AcquisitionAPI(service, deviceManager, dataCollector,
+        AnalysisReportAPI.getAquisitionProxy());
 
     // 3.5. Inicjalizacja modułu Analizy i raportowania
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
@@ -95,17 +96,18 @@ public class Main {
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
-    
+
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
-        config.bundledPlugins.enableCors(cors -> {
-            cors.addRule(it -> it.anyHost());
-        });
+      config.bundledPlugins.enableCors(cors -> {
+        cors.addRule(it -> it.anyHost());
+      });
     });
-    
+
     authController.setupRoutes(app);
-    
+
     int apiPort = 8080;
-    // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych urządzeń w sieci
+    // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych
+    // urządzeń w sieci
     app.start("0.0.0.0", apiPort);
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
@@ -113,9 +115,12 @@ public class Main {
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     // Dalsza część modułu analizy i raportowania
-    anal.sendDocumentScheme((t -> {
+    anal.sendDocumentScheme(t -> {
+      var confs = IDocument.getAvailableMetrics();
+      t.withReport();
+      t.includeMetrics(confs);
       return t;
-    }));
+    });
   }
 
 }

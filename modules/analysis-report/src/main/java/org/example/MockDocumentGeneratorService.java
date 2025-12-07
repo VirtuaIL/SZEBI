@@ -4,23 +4,17 @@ import java.time.Period;
 import java.util.List;
 
 import org.example.Documents.IDocument;
-import org.example.DocumentGenerator.Builder;
 
 public class MockDocumentGeneratorService implements IDocumentGeneratorService {
 
   // TUTAJ JAKIES POLE CO BEDZIE PRZECHOWYWAŁO LABELE ETC
 
   @Override
-  public List<DocumentGenerator> build(Builder builder) {
-    // Można też tak
-    var allAvailableConf = AnalysisReportAPI.aquisitionService.getLabelValues();
+  public List<DocumentGenerator> build(DocumentGenerator.Builder builder) {
+    var documentBuilder = IDocument.buildReport();
+    var metrics = IDocument.getAvailableMetrics();
 
-    // a można tak
-    var allMetrics = AnalysisReportAPI.aquisitionService.getLabels();
-    allMetrics.remove("GÓWNO");
-    var allConfForSomeMetrics = AnalysisReportAPI.aquisitionService.getLabelAndValuesFor(allMetrics);
-
-    var documentBuilder = new IDocument.Builder(allConfForSomeMetrics);
+    documentBuilder.includeMetrics(metrics);
     builder.addDocumentConfig(documentBuilder, Period.ofDays(1));
 
     return List.of(builder.build());

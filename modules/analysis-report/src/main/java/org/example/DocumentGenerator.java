@@ -25,7 +25,7 @@ public class DocumentGenerator {
 
   private DocumentGenerator(Builder builder) {
     this.id = generateUniqueId();
-    this.scheduler = builder.scheduler != null ? builder.scheduler : Executors.newScheduledThreadPool(1);
+    this.scheduler = Executors.newScheduledThreadPool(1);
     this.documentsConfig = new HashMap<>(builder.documentsConfig);
     this.creationTime = LocalDate.now();
     this.dataService = builder.dataService;
@@ -37,7 +37,6 @@ public class DocumentGenerator {
   }
 
   public static class Builder {
-    private ScheduledExecutorService scheduler;
     private final Map<IDocument.Builder, List<Period>> documentsConfig = new HashMap<>();
     private IDocumentFactoryService dataService;
     private DataPersistence database;
@@ -77,15 +76,16 @@ public class DocumentGenerator {
       return new DocumentGenerator(this);
     }
 
-    public Builder setDataService(IDocumentFactoryService dataService) {
+    private Builder setDataService(IDocumentFactoryService dataService) {
       this.dataService = dataService;
       return this;
     }
 
-    public Builder setDatabase(DataPersistence database) {
+    private Builder setDatabase(DataPersistence database) {
       this.database = database;
       return this;
     }
+
   }
 
   public static Builder builder(IDocumentFactoryService dataService, DataPersistence dataStorage) {
@@ -101,8 +101,8 @@ public class DocumentGenerator {
       LocalDate now = LocalDate.now();
       LocalDate then = now.plus(p);
 
-      long days = ChronoUnit.DAYS.between(now, then);
-      return Duration.ofDays(days).toMillis();
+      long minutes = ChronoUnit.MINUTES.between(now, then);
+      return Duration.ofMinutes(minutes).toMillis();
     };
 
     for (var entry : documentsConfig.entrySet()) {
@@ -113,8 +113,7 @@ public class DocumentGenerator {
 
         scheduler.schedule(() -> {
           try {
-            var document = this.dataService.createDocument(scheme,
-                AnalysisReportAPI.aquisitionService.getLabelValues());
+            var document = this.dataService.enqueueDocument(scheme.build());
             this.database.addDocument(document);
 
           } catch (Exception e) {
