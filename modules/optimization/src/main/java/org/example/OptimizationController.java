@@ -39,7 +39,7 @@ public class OptimizationController {
      * 2. Sprawdza godziny otwarcia z preferencji Admina.
      * 3. Dostosowuje urządzenia w każdym pokoju.
      */
-    public void optimizeBuildingByRooms(int buildingId) {
+    public void optimizeEnergyConsumption(int buildingId) {
         if (overrideAutomatization) {
             System.out.println("[Optymalizacja] Automatyzacja wyłączona.");
             return;
