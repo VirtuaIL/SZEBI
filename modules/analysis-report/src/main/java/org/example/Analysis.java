@@ -15,24 +15,20 @@ final class Analysis extends IDocument.Document {
 
   public Analysis(IDocument.Scheme scheme) {
     super(scheme);
-    strategy.analyze(this.getContent());
+    strategy.analyze(this);
   }
 
-  void getAlerts(List<IAlertNotifier> notifiers) {
+  void notifyNotifiers(List<IAlertNotifier> notifiers) {
     if (alerts.isEmpty())
       return;
 
     for (var notifier : notifiers) {
       for (var alert : alerts) {
-        notifier.notify(this, alert);
+        notifier.notify(this.getId(), alert);
       }
     }
 
     this.alerts.clear();
-  }
-
-  public String getDocumentType() {
-    return "Analiza";
   }
 
   @Override
@@ -52,6 +48,11 @@ final class Analysis extends IDocument.Document {
     }
 
     return content;
+  }
+
+  @Override
+  public String getDocumentType() {
+    return "Analiza";
   }
 
 }

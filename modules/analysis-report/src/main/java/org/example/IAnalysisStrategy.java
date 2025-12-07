@@ -3,12 +3,12 @@ package org.example;
 import java.util.List;
 
 interface IAnalysisStrategy {
-  List<AlertEventType> analyze(String content);
+  List<AlertEventType> analyze(Analysis content);
 
   class DefaultStrategy implements IAnalysisStrategy {
     @Override
-    public List<AlertEventType> analyze(String content) {
-      System.out.println(">>> [ANALIZA MOCK] Analiza: " + content);
+    public List<AlertEventType> analyze(Analysis analysis) {
+      System.out.println(">>> [ANALIZA MOCK] Analiza: " + analysis.getContent());
 
       return List.of(AlertEventType.TemperatureExceedsThreshold,
           AlertEventType.PressureExceedsThreshold);

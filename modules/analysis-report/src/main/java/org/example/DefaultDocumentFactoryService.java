@@ -7,7 +7,7 @@ public class DefaultDocumentFactoryService implements IDocumentFactoryService {
     System.out.println("[MOCK] Zapisano dokument: " + document.toString());
 
     if (document instanceof Analysis analysis) {
-      analysis.getAlerts(AnalysisReportAPI.getAlertNotifiers());
+      analysis.notifyNotifiers(AnalysisReportAPI.getAlertNotifiers());
     }
 
     return document;

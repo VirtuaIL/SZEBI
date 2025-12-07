@@ -7,6 +7,7 @@ import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class Main {
@@ -114,7 +115,9 @@ public class Main {
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     // Dalsza część modułu analizy i raportowania
-    anal.sendDocumentScheme(AnalysisReportAPI.newReportBuilder()
+    anal.sendDocumentScheme(AnalysisReportAPI.newReportScheme()
+        .setFrom(LocalDateTime.now().minusDays(1))
+        .setTo(LocalDateTime.now())
         .includeMetrics(AnalysisReportAPI.getAvailableMetrics()));
   }
 

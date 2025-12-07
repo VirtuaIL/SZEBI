@@ -3,8 +3,8 @@ package org.example;
 public class MockAlertNotifier implements IAlertNotifier {
 
   @Override
-  public void notify(Analysis analysis, AlertEventType alertEventType) {
-    System.out.println(analysis.toString() + alertEventType.getDate().toString() + alertEventType.getMessage());
+  public void notify(String analysisUUID, AlertEventType alertEventType) {
+    System.out.println(analysisUUID + alertEventType.getDate().toString() + alertEventType.getMessage());
   }
 
 }

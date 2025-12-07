@@ -9,7 +9,7 @@ public class MockDocumentGeneratorService implements IDocumentGeneratorService {
 
   @Override
   public List<DocumentGenerator> build(DocumentGenerator.Builder documentGeneratorBuilder) {
-    var documentBuilder = AnalysisReportAPI.newReportBuilder();
+    var documentBuilder = AnalysisReportAPI.newReportScheme();
     var metrics = AnalysisReportAPI.getAvailableMetrics();
 
     documentBuilder.includeMetrics(metrics);

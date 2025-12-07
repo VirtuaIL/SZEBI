@@ -86,12 +86,8 @@ public class DocumentGenerator {
 
   }
 
-  public static Builder builder(IDocumentFactoryService dataService, DataPersistence dataStorage) {
+  static Builder builder(IDocumentFactoryService dataService, DataPersistence dataStorage) {
     return new Builder().setDataService(dataService).setDatabase(dataStorage);
-  }
-
-  public static Builder builder(String customId) {
-    return new Builder().id(customId);
   }
 
   boolean initDocumentGenerator() {

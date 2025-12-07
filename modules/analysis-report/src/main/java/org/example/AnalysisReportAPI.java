@@ -91,11 +91,11 @@ public class AnalysisReportAPI {
     return false;
   }
 
-  public static IDocument.Scheme<Report> newReportBuilder() {
+  public static IDocument.Scheme<Report> newReportScheme() {
     return IDocument.reportBuilder();
   }
 
-  public static IDocument.Scheme<Analysis> newAnalysisBuilder() {
+  public static IDocument.Scheme<Analysis> newAnalysisAnalysis() {
     return IDocument.analysisBuilder();
   }
 

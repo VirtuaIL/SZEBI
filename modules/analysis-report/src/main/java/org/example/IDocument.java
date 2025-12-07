@@ -22,7 +22,7 @@ interface IDocument {
 
   public String getDocumentType();
 
-  abstract sealed class Document implements IDocument permits Report, Analysis {
+  abstract class Document implements IDocument {
 
     private String id;
     private String content;
@@ -116,10 +116,20 @@ interface IDocument {
       return this;
     }
 
-    public Scheme includeMetrics(Collection<String> confs) {
+    public Scheme includeMetrics(List<String> confs) {
       this.metrics.addAll(confs);
       return this;
     }
+
+    public Scheme includeMetrics(Set<String> confs) {
+      this.metrics.addAll(confs);
+      return this;
+    }
+
+    // public Scheme includeMetrics(Collection<String> confs) {
+    // this.metrics.addAll(confs);
+    // return this;
+    // }
 
     public Scheme excludeMetrics(String... confs) {
       this.metrics.removeAll(List.of(confs));
