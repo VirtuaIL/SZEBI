@@ -163,13 +163,13 @@ public class Main {
     optimizationController.setControlService(demoSim);
     optimizationController.setUserService(demoSim);
 
-    optimizationController.optimizeBuildingByRooms(1);
+    optimizationController.optimizeEnergyConsumption(1);
 
     optimizationController.setControlService(databaseStorage);
     optimizationController.setUserService(databaseStorage);
     System.out.println("===========================================================\n");
 
-    optimizationController.optimizeBuildingByRooms(1);
+    optimizationController.optimizeEnergyConsumption(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
     // === 6. Uruchomienie REST API dla GUI ===
