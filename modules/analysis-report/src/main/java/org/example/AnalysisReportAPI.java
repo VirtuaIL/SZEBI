@@ -6,22 +6,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 import org.example.interfaces.IAnalyticsData;
 
 public class AnalysisReportAPI {
-  private static final List<IAlertNotifier> notifiers = new ArrayList<>();
+  private static final List<IAlertNotifier> notifiers = new CopyOnWriteArrayList<>();
   private final Map<IDocumentGeneratorService, List<DocumentGenerator>> serviceGeneratorsMap = new HashMap<>();
   private final DataPersistence dataStorage;
   private static final IDocumentFactoryService defaultDocumentFactory = new DefaultDocumentFactoryService();
+  private static final AquisitionProxy aquisitionProxy = new AquisitionProxy();
 
   static List<IAlertNotifier> getAlertNotifiers() {
     return Collections.unmodifiableList(notifiers);
   }
 
   public static final AquisitionProxy getAquisitionProxy() {
-    return AquisitionProxy.singleton;
+    return aquisitionProxy;
   }
 
   public AnalysisReportAPI(IAnalyticsData datastorage) {
@@ -98,7 +100,7 @@ public class AnalysisReportAPI {
   }
 
   public static Set<String> getAvailableMetrics() {
-    return AquisitionProxy.singleton.getLabelsSet();
+    return aquisitionProxy.getLabelsSet();
   }
 
 }

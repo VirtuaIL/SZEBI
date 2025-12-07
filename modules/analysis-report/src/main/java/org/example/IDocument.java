@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -33,7 +34,7 @@ interface IDocument {
     protected Document(Builder builder) {
       this.id = builder.id;
       this.content = generateContent(
-          AquisitionProxy.singleton.getLabelAndValuesFor(builder.metrics).toString());
+          AnalysisReportAPI.getAquisitionProxy().getLabelAndValuesFor(builder.metrics));
       this.creationDate = LocalDateTime.now();
       this.dateFrom = builder.from;
       this.dateTo = builder.to;
@@ -59,7 +60,7 @@ interface IDocument {
       return dateTo;
     }
 
-    abstract protected String generateContent(String data);
+    abstract protected String generateContent(Map<String, Double> data);
 
     @Override
     public String toString() {
@@ -101,7 +102,7 @@ interface IDocument {
 
     private String id;
 
-    private Set<String> metrics = new HashSet<>();
+    private HashSet<String> metrics = new HashSet<>();
     private LocalDateTime from = LocalDateTime.MIN;
     private LocalDateTime to = LocalDateTime.MAX;
 
@@ -125,7 +126,7 @@ interface IDocument {
       return this;
     }
 
-    public Builder exludeMetrics(Collection<String> confs) {
+    public Builder excludeMetrics(Collection<String> confs) {
       this.metrics.removeAll(confs);
       return this;
     }

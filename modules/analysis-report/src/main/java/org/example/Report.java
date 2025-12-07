@@ -1,5 +1,7 @@
 package org.example;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -22,7 +24,7 @@ final class Report extends IDocument.Document {
    * @return [TODO:return]
    */
   @Override
-  protected String generateContent(String data) {
+  protected String generateContent(Map<String, Double> data) {
     ObjectMapper mapper = new ObjectMapper();
 
     mapper.registerModule(new JavaTimeModule());

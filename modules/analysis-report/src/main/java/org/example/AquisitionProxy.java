@@ -4,8 +4,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class AquisitionProxy implements IAnalysisService {
-  public static AquisitionProxy singleton = new AquisitionProxy();
-
   List<InternalSensors> sensors = new ArrayList<>();
 
   private class InternalSensors {
@@ -57,7 +55,7 @@ public class AquisitionProxy implements IAnalysisService {
         .collect(Collectors.toSet());
   }
 
-  public Map<String, List<Double>> getLabelAndValuesFor(Set<String> labels) {
+  public Map<String, List<Double>> getLabelAndValuesFor(HashSet<String> labels) {
     return sensors.stream()
         .filter(s -> labels.contains(s.getLabel()))
         .collect(Collectors.groupingBy(

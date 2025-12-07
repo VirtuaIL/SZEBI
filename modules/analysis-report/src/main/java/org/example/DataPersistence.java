@@ -16,6 +16,7 @@ public class DataPersistence {
 
   public void addDocument(IDocument document) {
     buffer.add(document);
+    processBuffer();
   }
 
   private Raport toRaport(IDocument document) {
