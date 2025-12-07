@@ -83,7 +83,7 @@ function Login({ onLogin }) {
             Przykładowe konta:<br/>
             admin@szebi.com / admin123<br/>
             inzynier@szebi.com / inzynier123<br/>
-            natalia.nowak@szebi.com / natalia123
+            natalia.nowak@szebi.com / natalia.nowak123
           </p>
         </form>
       </div>
