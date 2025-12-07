@@ -28,4 +28,5 @@ public class Alert {
 
     public void setDataWystapienia(Date date) { this.dataWystapienia = date; }
     public void setStatus(AlertStatus status) { this.status = status; }
+    public AlertStatus getStatus() { return status; }
 }
