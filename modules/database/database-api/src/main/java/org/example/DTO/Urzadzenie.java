@@ -16,7 +16,7 @@ public class Urzadzenie {
     public void setModelId(int modelId) { this.modelId = modelId; }
     public String getParametryPracy() { return parametryPracy; }
     public void setParametryPracy(String parametryPracy) { this.parametryPracy = parametryPracy; }
-    public boolean isAktywny() { // Dla typów boolean, konwencja to 'is' zamiast 'get'
+    public boolean isAktywny() { 
         return aktywny;
     }
 

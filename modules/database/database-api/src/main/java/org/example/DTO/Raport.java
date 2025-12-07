@@ -10,7 +10,7 @@ public class Raport {
     private String opis;
     private LocalDateTime zakresOd;
     private LocalDateTime zakresDo;
-    private String zawartosc; // Zawartość raportu w formacie JSON jako String
+    private String zawartosc; 
 
     // Gettery i Settery
     public int getId() { return id; }

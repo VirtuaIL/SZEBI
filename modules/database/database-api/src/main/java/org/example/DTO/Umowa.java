@@ -8,7 +8,7 @@ public class Umowa {
     private int dostawcaId;
     private LocalDate dataPoczatku;
     private LocalDate dataKonca;
-    private String szczegolyTaryfy; // JSON jako String
+    private String szczegolyTaryfy;
 
     // Gettery i Settery
     public int getId() { return id; }

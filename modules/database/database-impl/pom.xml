@@ -24,7 +24,6 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
 
-        <!-- 2. Zależność do sterownika PostgreSQL -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -43,7 +42,6 @@
             <version>2.0.12</version>
         </dependency>
 
-        <!-- Prosta implementacja SLF4J, która wypisuje logi na konsolę -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
@@ -53,7 +51,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.17.1</version> <!-- Użyj najnowszej stabilnej wersji -->
+            <version>2.17.1</version>
         </dependency>
 
     </dependencies>
