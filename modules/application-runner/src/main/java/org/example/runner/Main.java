@@ -9,6 +9,7 @@ import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 import org.example.runner.AlertsController;
+import org.example.runner.DevicesController;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -179,6 +180,8 @@ public class Main {
     AuthController authController = new AuthController(authService);
     
     AlertsController alertsController = new AlertsController(databaseStorage);
+    
+    DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
@@ -188,6 +191,7 @@ public class Main {
 
     authController.setupRoutes(app);
     alertsController.setupRoutes(app);
+    devicesController.setupRoutes(app);
 
     int apiPort = 8080;
     // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych
@@ -196,6 +200,7 @@ public class Main {
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
+    System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
