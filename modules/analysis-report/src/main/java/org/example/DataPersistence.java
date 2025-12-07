@@ -4,7 +4,6 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 import org.example.DTO.Raport;
-import org.example.Documents.IDocument;
 import org.example.interfaces.IAnalyticsData;
 
 public class DataPersistence {
@@ -19,13 +18,13 @@ public class DataPersistence {
     buffer.add(document);
   }
 
-  Raport toRaport(IDocument document) {
+  private Raport toRaport(IDocument document) {
     Raport raport = new Raport();
 
     raport.setCzasWygenerowania(document.getDateFrom());
     raport.setId(document.getId().hashCode());
     raport.setTypRaportu(document.getDocumentType());
-    raport.setOpis("DUPA");
+    raport.setOpis("-----    OPISU BRAK    ------");
     raport.setZakresDo(document.getCreationDate());
     raport.setZawartosc(document.getContent());
 

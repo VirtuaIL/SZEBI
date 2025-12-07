@@ -2,7 +2,6 @@ package org.example.runner;
 
 import org.example.*;
 import org.example.DTO.UrzadzenieSzczegoly;
-import org.example.Documents.IDocument;
 import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
@@ -115,12 +114,8 @@ public class Main {
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     // Dalsza część modułu analizy i raportowania
-    anal.sendDocumentScheme(t -> {
-      var confs = IDocument.getAvailableMetrics();
-      t.withReport();
-      t.includeMetrics(confs);
-      return t;
-    });
+    anal.sendDocumentScheme(AnalysisReportAPI.newReportBuilder()
+        .includeMetrics(AnalysisReportAPI.getAvailableMetrics()));
   }
 
 }

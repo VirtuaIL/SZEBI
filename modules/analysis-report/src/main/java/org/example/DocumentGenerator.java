@@ -9,8 +9,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.example.Documents.IDocument;
-
 public class DocumentGenerator {
   interface PeriodFunc {
     long run(Period p);

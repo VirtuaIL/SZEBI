@@ -1,24 +1,14 @@
-
-package org.example.Documents;
+package org.example;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-import org.example.AnalysisReportAPI;
-import org.example.AquisitionProxy;
-
-public interface IDocument {
-  public static Set<String> getAvailableMetrics() {
-    return AquisitionProxy.singleton.getLabelsSet();
-  }
-
+interface IDocument {
   public LocalDateTime getCreationDate();
 
   public String getId();
@@ -84,11 +74,11 @@ public interface IDocument {
 
   }
 
-  public static Builder<Report> buildReport() {
+  public static Builder<Report> reportBuilder() {
     return new IDocument.Builder<>(Report::new);
   }
 
-  public static Builder<Analysis> buildAnalysis() {
+  public static Builder<Analysis> analysisBuilder() {
     return new IDocument.Builder<>(Analysis::new);
   }
 
@@ -120,20 +110,24 @@ public interface IDocument {
       this.constructor = constructor;
     }
 
-    public void includeMetrics(String... confs) {
+    public Builder includeMetrics(String... confs) {
       this.metrics.addAll(List.of(confs));
+      return this;
     }
 
-    public void includeMetrics(Collection<String> confs) {
+    public Builder includeMetrics(Collection<String> confs) {
       this.metrics.addAll(confs);
+      return this;
     }
 
-    public void excludeMetrics(String... confs) {
+    public Builder excludeMetrics(String... confs) {
       this.metrics.removeAll(List.of(confs));
+      return this;
     }
 
-    public void exludeMetrics(Collection<String> confs) {
+    public Builder exludeMetrics(Collection<String> confs) {
       this.metrics.removeAll(confs);
+      return this;
     }
 
     public Builder setFrom(LocalDateTime from) {

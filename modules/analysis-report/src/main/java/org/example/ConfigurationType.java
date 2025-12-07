@@ -1,4 +1,4 @@
-package org.example.Documents;
+package org.example;
 
 public enum ConfigurationType {
   Temperature, Humidity, Pressure

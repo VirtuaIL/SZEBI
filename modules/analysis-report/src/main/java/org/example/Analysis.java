@@ -1,26 +1,36 @@
-package org.example.Documents;
+package org.example;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-public final class Report extends IDocument.Document {
-  public Report(IDocument.Builder builder) {
-    super(builder);
+final class Analysis extends IDocument.Document {
+  private List<AlertEventType> alerts = new ArrayList<>();
+
+  public Analysis(IDocument.Builder scheme) {
+    super(scheme);
   }
 
-  @Override
+  void sendAlert(List<IAlertNotifier> notifiers) {
+    if (alerts.isEmpty()) {
+      return;
+    }
+
+    for (var notifier : notifiers) {
+      for (var alert : alerts) {
+        notifier.notify(this, alert);
+      }
+    }
+  }
+
   public String getDocumentType() {
-    return "Raport";
+    return "Analiza";
   }
 
-  /**
-   * Funckja używana w constructorze
-   *
-   * @param data String
-   * @return [TODO:return]
-   */
   @Override
   protected String generateContent(String data) {
     ObjectMapper mapper = new ObjectMapper();
@@ -39,4 +49,5 @@ public final class Report extends IDocument.Document {
 
     return content;
   }
+
 }
