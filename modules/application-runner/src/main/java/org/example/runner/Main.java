@@ -31,6 +31,7 @@ public class Main {
         AnalysisReportAPI.getAquisitionProxy());
 
     // 3.5. Inicjalizacja modułu Analizy i raportowania
+    System.out.println("[INFO] Inicjalizacja modułu analizy i raportowania...");
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
 
     // 4. Pobieranie konfiguracji z Bazy Danych
