@@ -11,6 +11,9 @@ import org.example.runner.AuthController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
 
+
+
+import javax.swing.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -24,8 +27,10 @@ public class Main {
 
     // 2. Inicjalizacja komponentów wewnętrznych - Moduł Akwizycji
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
+
+    //AcquisitionController acquisitionController = new AcquisitionController();
     DataCollector dataCollector = new DataCollector(databaseStorage);
-    DeviceManager deviceManager = new DeviceManager();
+    DeviceManager deviceManager = new DeviceManager(databaseStorage);
     ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.getAquisitionProxy());
 
     // 3. Wstrzykiwanie zależności
@@ -62,6 +67,8 @@ public class Main {
           dbDevice.getMocW());
     }
     System.out.println("[INFO] Zarejestrowano " + api.getAvailableDevices().size() + " urządzeń w module akwizycji.\n");
+
+    //api.createNewDevice("name",1,1,10,50,"temperatura_C",25);
 
     // === 5. Inicjalizacja Modułu Optymalizacji ===
     System.out.println("=== Inicjalizacja modułu optymalizacji ===");
@@ -182,6 +189,7 @@ public class Main {
     AlertsController alertsController = new AlertsController(databaseStorage);
     
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
+    AcquisitionControllerJavalin acquisitionController = new AcquisitionControllerJavalin(databaseStorage, databaseStorage, api);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
@@ -192,6 +200,7 @@ public class Main {
     authController.setupRoutes(app);
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
+    acquisitionController.setupRoutes(app);
 
     int apiPort = 8080;
     // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych

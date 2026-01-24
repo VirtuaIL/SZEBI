@@ -4,6 +4,7 @@
 // Jeśli frontend działa na http://192.168.1.100:5173, to API będzie na http://192.168.1.100:8080
 // Jeśli frontend działa na localhost, to API będzie na localhost
 export const getApiBaseUrl = () => {
+  //FIXME
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   // Użyj tego samego hosta co frontend, ale port 8080 dla API
