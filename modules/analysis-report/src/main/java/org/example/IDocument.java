@@ -102,7 +102,7 @@ public interface IDocument {
 
     private String id;
 
-    private HashSet<String> metrics = new HashSet<>();
+    private HashSet<ConfigurationType> metrics = new HashSet<>();
     private LocalDateTime from = LocalDateTime.MIN;
     private LocalDateTime to = LocalDateTime.MAX;
 
@@ -111,17 +111,17 @@ public interface IDocument {
       this.constructor = constructor;
     }
 
-    public Scheme includeMetrics(String... confs) {
+    public Scheme includeMetrics(ConfigurationType... confs) {
       this.metrics.addAll(List.of(confs));
       return this;
     }
 
-    public Scheme includeMetrics(List<String> confs) {
+    public Scheme includeMetrics(List<ConfigurationType> confs) {
       this.metrics.addAll(confs);
       return this;
     }
 
-    public Scheme includeMetrics(Set<String> confs) {
+    public Scheme includeMetrics(Set<ConfigurationType> confs) {
       this.metrics.addAll(confs);
       return this;
     }
@@ -131,12 +131,12 @@ public interface IDocument {
     // return this;
     // }
 
-    public Scheme excludeMetrics(String... confs) {
+    public Scheme excludeMetrics(ConfigurationType... confs) {
       this.metrics.removeAll(List.of(confs));
       return this;
     }
 
-    public Scheme excludeMetrics(Collection<String> confs) {
+    public Scheme excludeMetrics(Collection<ConfigurationType> confs) {
       this.metrics.removeAll(confs);
       return this;
     }

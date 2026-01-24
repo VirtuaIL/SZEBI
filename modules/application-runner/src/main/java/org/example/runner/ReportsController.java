@@ -424,11 +424,10 @@ public class ReportsController {
       }
 
       // NOWE: Filtrowanie metryk na podstawie wybranego medium
-      Set<String> allAvailableMetrics = AnalysisReportAPI.getAvailableMetrics();
+      Set<ConfigurationType> allAvailableMetrics = AnalysisReportAPI.getAvailableMetrics();
       System.out.println("[INFO] Metrics Count " + allAvailableMetrics.stream().count());
 
-      Set<String> filteredMetrics = allAvailableMetrics.stream()
-          .filter(m -> "all".equalsIgnoreCase(medium) || m.toLowerCase().contains(medium.toLowerCase()))
+      Set<ConfigurationType> filteredMetrics = allAvailableMetrics.stream()
           .collect(Collectors.toSet());
 
       if (filteredMetrics.isEmpty()) {
@@ -575,8 +574,8 @@ public class ReportsController {
       ArrayNode metricsArray = objectMapper.createArrayNode();
 
       // Pobierz dostepne metryki z AnalysisReportAPI
-      for (String metric : AnalysisReportAPI.getAvailableMetrics()) {
-        metricsArray.add(metric);
+      for (ConfigurationType metric : AnalysisReportAPI.getAvailableMetrics()) {
+        metricsArray.add(metric.toString());
       }
 
       ctx.status(200);

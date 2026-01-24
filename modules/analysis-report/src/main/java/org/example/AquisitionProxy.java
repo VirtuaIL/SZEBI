@@ -20,7 +20,7 @@ public class AquisitionProxy implements IAnalysisService {
     }
 
     ConfigurationType getLabel() {
-      return label;
+      return ConfigurationType.fromDeviceType(label);
     }
 
     String getId() {
@@ -36,7 +36,7 @@ public class AquisitionProxy implements IAnalysisService {
     }
   }
 
-  public Map<String, List<Double>> getLabelValues() {
+  public Map<ConfigurationType, List<Double>> getLabelValues() {
     return sensors.stream()
         .collect(Collectors.groupingBy(
             InternalSensors::getLabel,
