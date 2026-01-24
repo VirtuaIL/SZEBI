@@ -2,7 +2,7 @@
   inputs =
     let
       vars = {
-  version = "1.11.1";
+  version = "1.11.2";
   system = "x86_64-linux";
   devenv_root = "/home/kuba/Documents/studia/IO/SZEBI";
   project_input_ref = "path:/home/kuba/Documents/studia/IO/SZEBI";
@@ -39,7 +39,7 @@
     { nixpkgs, ... }@inputs:
     let
       vars = {
-  version = "1.11.1";
+  version = "1.11.2";
   system = "x86_64-linux";
   devenv_root = "/home/kuba/Documents/studia/IO/SZEBI";
   project_input_ref = "path:/home/kuba/Documents/studia/IO/SZEBI";
