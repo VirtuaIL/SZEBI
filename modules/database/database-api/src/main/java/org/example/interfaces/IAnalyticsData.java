@@ -28,4 +28,6 @@ public interface IAnalyticsData {
     List<Raport> getReportsByType(String reportType);
 
     Raport getReportById(int reportId);
+
+    List<Raport> getAllReports();
 }

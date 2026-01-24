@@ -9,18 +9,18 @@ public class AquisitionProxy implements IAnalysisService {
   private class InternalSensors {
     private final String id;
     private final double value;
-    private final String label;
+    private final DeviceType label;
     private final double powerUsage;
 
-    InternalSensors(String id, double value, String label, double powerUsage) {
+    InternalSensors(String id, double value, DeviceType label, double powerUsage) {
       this.id = id;
       this.value = value;
       this.label = label;
       this.powerUsage = powerUsage;
     }
 
-    String getLabel() {
-      return label;
+    ConfigurationType getLabel() {
+      return ConfigurationType.fromDeviceType(label);
     }
 
     String getId() {
@@ -36,7 +36,7 @@ public class AquisitionProxy implements IAnalysisService {
     }
   }
 
-  public Map<String, List<Double>> getLabelValues() {
+  public Map<ConfigurationType, List<Double>> getLabelValues() {
     return sensors.stream()
         .collect(Collectors.groupingBy(
             InternalSensors::getLabel,
@@ -49,13 +49,16 @@ public class AquisitionProxy implements IAnalysisService {
             Map.Entry::getValue));
   }
 
-  public Set<String> getLabelsSet() {
+  public Set<ConfigurationType> getLabelsSet() {
+    System.out.println(">>> [ANALIZA MOCK] getLabelsSet"
+        + sensors.stream().map(InternalSensors::getLabel).collect(Collectors.toSet()));
     return sensors.stream()
         .map(InternalSensors::getLabel)
+        .filter(Objects::nonNull) // Filtrujemy nule
         .collect(Collectors.toSet());
   }
 
-  public Map<String, List<Double>> getLabelAndValuesFor(HashSet<String> labels) {
+  public Map<ConfigurationType, List<Double>> getLabelAndValuesFor(HashSet<ConfigurationType> labels) {
     return sensors.stream()
         .filter(s -> labels.contains(s.getLabel()))
         .collect(Collectors.groupingBy(
@@ -67,7 +70,7 @@ public class AquisitionProxy implements IAnalysisService {
   }
 
   @Override
-  public void sendSensorUpdate(String deviceId, double value, String metricLabel, double powerUsage) {
+  public void sendSensorUpdate(String deviceId, double value, DeviceType metricLabel, double powerUsage) {
     sensors.add(new InternalSensors(deviceId, value, metricLabel, powerUsage));
   }
 

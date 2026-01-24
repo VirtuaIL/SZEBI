@@ -5,10 +5,11 @@ public class Device {
     private String name;
     private double minRange;
     private double maxRange;
-    private String metricLabel;
+    private DeviceType metricLabel;
     private IDeviceConnector connector;
 
-    public Device(String id, String name, double minRange, double maxRange, String metricLabel, IDeviceConnector connector) {
+    public Device(String id, String name, double minRange, double maxRange, DeviceType metricLabel,
+                  IDeviceConnector connector) {
         this.id = id;
         this.name = name;
         this.minRange = minRange;
@@ -25,7 +26,7 @@ public class Device {
         return name;
     }
 
-    public String getMetricLabel() {
+    public DeviceType getMetricLabel() {
         return metricLabel;
     }
 
@@ -47,5 +48,9 @@ public class Device {
         if (value < minRange || value > maxRange) {
             throw new Exception("Błąd walidacji: Wartość " + value + " poza zakresem dla " + name);
         }
+    }
+
+    public void simulateStateChange(double value) {
+        connector.setValue(value);
     }
 }

@@ -98,7 +98,14 @@ INSERT INTO Producent_urzadzenia (nazwa_producenta) VALUES ('Siemens'), ('Samsun
 
 -- 2. Stwórz byty nadrzędne
 INSERT INTO Budynek (Nazwa, Adres, Powierzchnia, Liczba_pieter) VALUES ('Biurowiec Alfa', 'Warszawa, ul. Główna 1', 2500, 5), ('Biurowiec Beta', 'Kraków, ul. Boczna 2', 4500, 8), ('Magazyn Gamma', 'Poznań, ul. Logistyczna 3', 12000, 1);
-INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (1, 'Adam', 'Adminowski', '100100100', 'admin@szebi.com', '...hash...', '{ "preferowana_temperatura": 19.0 }'), (2, 'Ignacy', 'Inżynierski', '200200200', 'inzynier@szebi.com', '...hash...', '{ "preferowana_temperatura": 25.0 }'), (3, 'Natalia', 'Nowak', '300300300', 'natalia.nowak@szebi.com', '...hash...', '{ "preferowana_temperatura": 22.0 }');
+INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (1, 'Adam', 'Adminowski', '100100100', 'admin@szebi.com', '...hash...', '{
+  "preferredMinTemp": 20.0,
+  "preferredMaxTemp": 24.0,
+  "timeOpen": "07:00",
+  "timeClose": "21:00",
+  "maxEnergyUsage": 2000.0,
+  "priorityComfort": 5
+}'), (2, 'Ignacy', 'Inżynierski', '200200200', 'inzynier@szebi.com', '...hash...', '{ "preferowana_temperatura": 25.0 }'), (3, 'Natalia', 'Nowak', '300300300', 'natalia.nowak@szebi.com', '...hash...', '{ "preferowana_temperatura": 22.0 }');
 
 -- 3. Stwórz byty zależne (dzieci)
 INSERT INTO Pokoje (ID_budynku, numer_pokoju, pietro) VALUES (1, '101', 1), (1, '102', 1), (2, 'Serwerownia', 0), (3, 'Hala Główna', 1);
@@ -106,7 +113,7 @@ INSERT INTO Umowa (ID_budynku, ID_dostawcy, data_poczatku, data_konca, szczegoly
 INSERT INTO Model_urzadzenia (ID_typu_urzadzenia, ID_producenta, nazwa_modelu) VALUES (1, 1, 'Climatix T1'), (2, 2, 'WindFree Avant'), (3, 3, 'Hue White E27');
 INSERT INTO Urzadzenia (ID_pokoju, ID_modelu, Parametry_pracy) VALUES 
 (1, 1, '{ "moc_W": 9, "zakres_pomiaru": { "min": -20.0, "max": 50.0 }, "etykieta_metryki": "temperatura_C" }'), 
-(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700 }'), 
+(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700, "zakres_pomiaru": { "min": 0.0, "max": 105.0 }, "etykieta_metryki": "jasnosc_procent" }'),
 (3, 2, '{ "moc_W": 11, "zakres_pomiaru": { "min": 16.0, "max": 30.0 }, "etykieta_metryki": "temperatura_C" }'), 
 (4, 1, '{ "moc_W": 12, "zakres_pomiaru": { "min": -40.0, "max": 60.0 }, "etykieta_metryki": "temperatura_C" }');
 INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc) VALUES

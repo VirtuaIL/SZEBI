@@ -62,10 +62,10 @@ public class DocumentGenerator {
 
     public Builder addDocumentConfigs(Map<IDocument.Scheme, List<Period>> configs) {
       if (configs != null) {
-        for (Map.Entry<IDocument.Scheme, List<Period>> entry : configs.entrySet()) {
+        configs.entrySet().forEach(entry -> {
           this.documentsConfig.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
               .addAll(entry.getValue());
-        }
+        });
       }
       return this;
     }
@@ -95,8 +95,9 @@ public class DocumentGenerator {
       LocalDate now = LocalDate.now();
       LocalDate then = now.plus(p);
 
-      long minutes = ChronoUnit.MINUTES.between(now, then);
-      return Duration.ofMinutes(minutes).toMillis();
+      // Użyj dni zamiast minut, bo LocalDate nie obsługuje jednostek mniejszych niż dzień
+      long days = ChronoUnit.DAYS.between(now, then);
+      return Duration.ofDays(days).toMillis();
     };
 
     for (var entry : documentsConfig.entrySet()) {
@@ -121,7 +122,7 @@ public class DocumentGenerator {
     return true;
   }
 
-  List<IDocument.Scheme> getDocumentSchemes() {
+  public List<IDocument.Scheme> getDocumentSchemes() {
     return Collections.unmodifiableList(new ArrayList<>(this.documentsConfig.keySet()));
   }
 

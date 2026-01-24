@@ -15,6 +15,11 @@ public class DataPersistence {
   }
 
   public void addDocument(IDocument document) {
+    // Jeśli to analiza, powiadom notifiers o alertach
+    if (document instanceof Analysis) {
+      ((Analysis) document).notifyNotifiers(AnalysisReportAPI.getAlertNotifiers());
+    }
+
     buffer.add(document);
     processBuffer();
   }
@@ -22,11 +27,12 @@ public class DataPersistence {
   private Raport toRaport(IDocument document) {
     Raport raport = new Raport();
 
-    raport.setCzasWygenerowania(document.getDateFrom());
+    raport.setCzasWygenerowania(document.getCreationDate());
     raport.setId(document.getId().hashCode());
     raport.setTypRaportu(document.getDocumentType());
     raport.setOpis("-----    OPISU BRAK    ------");
-    raport.setZakresDo(document.getCreationDate());
+    raport.setZakresOd(document.getDateFrom());
+    raport.setZakresDo(document.getDateTo());
     raport.setZawartosc(document.getContent());
 
     return raport;

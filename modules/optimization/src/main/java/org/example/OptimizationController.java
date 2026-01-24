@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.DTO.*;
 import org.example.interfaces.*;
+import org.example.alerts.AlertService;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -12,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OptimizationController {
-    private AdministratorPreferences adminPref;
+    private AdministratorPreferencesDTO adminPref;
     private boolean overrideAutomatization;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private IAlertData alertService;
+    private AlertService alertService;
     private IAcquisitionData acquisitionService;
     private IForecastingData forecastService;
     private IControlData controlService;
@@ -26,7 +27,19 @@ public class OptimizationController {
 
     public OptimizationController() {
         this.overrideAutomatization = false;
-        this.adminPref = new AdministratorPreferences();
+        this.adminPref = new AdministratorPreferencesDTO();
+    }
+
+    public boolean isOverrideAutomatization() {
+        return overrideAutomatization;
+    }
+
+    public void setOverrideAutomatization(boolean overrideAutomatization) {
+        this.overrideAutomatization = overrideAutomatization;
+    }
+
+    public AdministratorPreferencesDTO getAdminPref() {
+        return adminPref;
     }
 
     public void setAcquisitionAPI(AcquisitionAPI acquisitionAPI) {
@@ -52,15 +65,19 @@ public class OptimizationController {
 
         System.out.println("[Optymalizacja] Rozpoczynam optymalizację budynku ID: " + buildingId);
 
-        // 1. Sprawdź czy budynek jest otwarty wg preferencji admina
-        // boolean isBuildingOpen = isWithinWorkingHours();
-
         // Tymczasowo zawsze otwarty dla testów
+        if (userService != null) {
+            loadAdminPreferences();
+        }
+
+        // Odkomentuj poniżej, aby używać godzin pracy
+        // boolean isBuildingOpen = isWithinWorkingHours();
         boolean isBuildingOpen = true;
+
         System.out.println("[Optymalizacja] Status budynku: " + (isBuildingOpen ? "OTWARTY" : "ZAMKNIĘTY") +
                 " (Godziny: " + adminPref.getTimeOpen() + " - " + adminPref.getTimeClose() + ")");
 
-        // 2. Pobierz listę pokoi
+        // Pobierz listę pokoi
         List<Pokoj> rooms = controlService.getRoomsInBuilding(buildingId);
 
         if (rooms.isEmpty()) {
@@ -68,7 +85,7 @@ public class OptimizationController {
             return;
         }
 
-        // 3. Iteruj po pokojach
+        // Iteruj po pokojach
         for (Pokoj room : rooms) {
             optimizeRoomBasedOnPreferences(room, isBuildingOpen);
         }
@@ -80,11 +97,14 @@ public class OptimizationController {
      * Logika optymalizacji dla konkretnego pokoju.
      */
     private void optimizeRoomBasedOnPreferences(Pokoj room, boolean isBuildingOpen) {
-        System.out.println("--- Optymalizacja Pokoju: " + room.getNumerPokoju() + " (ID: " + room.getId() + ") ---");
+        System.out.println("\n╔════════════════════════════════════════════════════╗");
+        System.out.println(String.format("║ %-50s ║",
+                "Optymalizacja Pokoju: " + room.getNumerPokoju() + " (ID: " + room.getId() + ")"));
+        System.out.println("╚════════════════════════════════════════════════════╝");
 
         List<Urzadzenie> devices = getDevicesFromRoom(room.getId());
         if (devices.isEmpty()) {
-            System.out.println("   Brak urządzeń w tym pokoju.");
+            System.out.println("   [INFO] Brak urządzeń w tym pokoju.");
             return;
         }
 
@@ -103,7 +123,6 @@ public class OptimizationController {
         String deviceId = String.valueOf(device.getId());
         Double currentVal = requestSensorReading(deviceId);
 
-        // Obliczanie preferencji użytkowników
         double targetMinTemp = adminPref.getPreferredMinTemp();
         double targetMaxTemp = adminPref.getPreferredMaxTemp();
         boolean userOverride = false;
@@ -142,21 +161,21 @@ public class OptimizationController {
         if (doesDeviceMeasureTemperature(device) && currentVal != null) {
 
             if (!isBuildingOpen && !userOverride) {
-                System.out.println("   [CLIMATE] Urządzenie " + deviceId + ": Budynek zamknięty -> Tryb Eco (16°C).");
+                System.out.println(String.format("   %-10s [ID:%s] | Budynek ZAMKNIĘTY -> Tryb Eco (16°C)", "[CLIMATE]",
+                        deviceId));
                 controlDevice(device.getId(), "set_temp", 16.0);
             } else {
-                // Tryb dzienny lub wymuszony przez obecność/preferencje użytkowników
                 if (currentVal < targetMinTemp) {
-                    System.out.println(
-                            "   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
-                                    + "°C) -> Za zimno! Grzanie (Cel: " + targetMinTemp + ").");
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Za zimno! Grzanie (Cel: %.1f)",
+                            "[CLIMATE]", deviceId, currentVal, targetMinTemp));
                     controlDevice(device.getId(), "set_temp", targetMinTemp + 1.0);
                 } else if (currentVal > targetMaxTemp) {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
-                            + "°C) -> Za ciepło! Chłodzenie (Cel: " + targetMaxTemp + ").");
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Za ciepło! Chłodzenie (Cel: %.1f)",
+                            "[CLIMATE]", deviceId, currentVal, targetMaxTemp));
                     controlDevice(device.getId(), "set_temp", targetMaxTemp - 1.0);
                 } else {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " -> Temperatura w normie.");
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Temperatura OK", "[CLIMATE]",
+                            deviceId, currentVal));
                 }
             }
             return;
@@ -164,12 +183,66 @@ public class OptimizationController {
 
         // Obsługa Oświetlenia
         if (isLightingDevice(device) && currentVal != null) {
-            // Można tu dodać analogiczną logikę dla oświetlenia
+            String params = device.getParametryPracy();
+            // Sprawdź czy urządzenie w ogóle obsługuje tę metrykę
+            boolean supportsDimming = params != null && params.contains("jasnosc_procent");
+
             if (!isBuildingOpen && !userOverride) {
-                System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło.");
-                controlDevice(device.getId(), "active", 0.0);
+                System.out.println(String.format("   %-10s [ID:%s] | Budynek ZAMKNIĘTY -> Wyłączam światło (0%%)",
+                        "[LIGHT]", deviceId));
+                // Ustawiamy 0% jasności
+                controlDevice(device.getId(), "jasnosc_procent", 0.0);
             } else {
-                System.out.println("   [LIGHT] Urządzenie " + deviceId + " (Jasność: " + currentVal + "%) -> OK.");
+                double targetBrightness = 3.0;
+
+                List<Integer> roomUserIds = room.getUzytkownicyIds();
+                if (roomUserIds != null && !roomUserIds.isEmpty() && userService != null) {
+                    double sumBright = 0;
+                    int count = 0;
+                    for (Integer uid : roomUserIds) {
+                        Uzytkownik u = userService.getUserById(uid);
+                        if (u != null && u.getPreferencje() != null) {
+                            sumBright += u.getPreferencje().getPreferredLighting(); // 1-5
+                            count++;
+                        }
+                    }
+                    if (count > 0) {
+                        targetBrightness = sumBright / count;
+                        System.out.println(String.format("   %-10s [ID:%s] | Średnie preferencje: %.2f (1-5)",
+                                "[LIGHT]", deviceId, targetBrightness));
+                    }
+                }
+
+                // Konwersja 1-5 na 0-100 (tak jak chciał user)
+                // 1 -> 20.0, 5 -> 100.0
+                double targetScaled = Math.min(100.0, targetBrightness * 20.0);
+
+                // Sprawdzenie, czy aktualna wartość jest już poprawna (tolerancja 1.0 dla szumu
+                // +/- 0.5)
+                if (Math.abs(currentVal - targetScaled) < 1.0) {
+                    System.out.println(String.format("   %-10s [ID:%s] | Jasność OK (%.1f%%). Brak akcji.", "[LIGHT]",
+                            deviceId, currentVal));
+                    return;
+                }
+
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
+                // jasności
+                if (supportsDimming) {
+                    System.out.println(String.format("      -> Ustawiam jasność: %.1f%%", targetScaled));
+                    controlDevice(device.getId(), "jasnosc_procent", targetScaled);
+                } else {
+                    // Fallback dla on/off
+                    double binaryState = (targetScaled >= 50.0) ? 100.0 : 0.0;
+
+                    if (Math.abs(currentVal - binaryState) < 1.0) {
+                        System.out.println(String.format("   %-10s [ID:%s] | Stan OK (%.1f%%). Brak akcji.", "[LIGHT]",
+                                deviceId, currentVal));
+                        return;
+                    }
+
+                    System.out.println(String.format("      -> Przełączam (On/Off): %.0f%%", binaryState));
+                    controlDevice(device.getId(), "jasnosc_procent", binaryState);
+                }
             }
             return;
         }
@@ -197,9 +270,25 @@ public class OptimizationController {
 
         // "temperatura_C" - zazwyczaj odczyt z czujnika
         // "set_temp" lub "docelowa_temperatura" - nastawy grzejników
-        return params.contains("temperatura_C") ||
-                params.contains("set_temp") ||
-                params.contains("docelowa_temperatura");
+        return params.contains("temperatura_C");
+    }
+
+    private double calculateSolarProduction() {
+        LocalTime now = LocalTime.now();
+        int hour = now.getHour();
+        if (hour < 6 || hour > 20) {
+            return 0.0;
+        }
+
+        double maxPower = 5000.0;
+
+        double timeFromNoon = (hour - 13.0) / 7.0;
+        double productionFactor = Math.cos(timeFromNoon * Math.PI / 2.0);
+
+        if (productionFactor < 0)
+            productionFactor = 0;
+
+        return maxPower * productionFactor;
     }
 
     private void checkEnergyLimit(Urzadzenie device) {
@@ -209,10 +298,27 @@ public class OptimizationController {
 
         double avgUsage = calculateAverageFromReadings(readings);
 
-        if (avgUsage > adminPref.getMaxEnergyUsage()) {
+        double solarProduction = calculateSolarProduction();
+        double baseLimit = adminPref.getMaxEnergyUsage();
+
+        List<Urzadzenie> activeDevices = getActiveDevices();
+        double activeCount = Math.max(1.0, activeDevices.size());
+        double perDeviceBonus = solarProduction / activeCount;
+
+        double effectiveLimit = baseLimit + perDeviceBonus;
+
+        if (solarProduction > 100) {
+            System.out.println("   [OZE] Symulowana produkcja: " + String.format("%.2f", solarProduction)
+                    + " W. Bonus na urządzenie: " + String.format("%.2f", perDeviceBonus) + " W");
+        }
+
+        if (avgUsage > effectiveLimit) {
             System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
-                    + adminPref.getMaxEnergyUsage() + "). Ograniczam.");
+                    + String.format("%.2f", effectiveLimit) + "). Ograniczam.");
             controlDevice(device.getId(), "limit_power", 50.0);
+        } else {
+            System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
+                    + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
     }
 
@@ -246,11 +352,29 @@ public class OptimizationController {
         }
 
         System.out.println("      -> WYSYŁANIE KOMENDY: " + attribute + " = " + setting);
-        if (controlService != null)
-            controlService.updateDevice(device);
+
+        if (acquisitionAPI != null) {
+            Double currentVal = acquisitionAPI.requestSensorRead(String.valueOf(deviceId));
+
+            double nextValue = setting;
+
+            if (currentVal != null && (attribute.equals("set_temp") || attribute.equals("temperatura_C"))) {
+                double diff = setting - currentVal;
+                double maxStep = 0.5;
+
+                if (Math.abs(diff) > maxStep) {
+                    nextValue = currentVal + Math.signum(diff) * maxStep;
+                    System.out.println(
+                            "      [GRADUAL] Zmiana z " + currentVal + " na " + nextValue + " (Cel: " + setting + ")");
+                }
+            }
+
+            acquisitionAPI.updateDeviceSimulation(String.valueOf(deviceId), nextValue);
+        }
 
         if (acquisitionAPI != null)
             requestSensorReading(String.valueOf(deviceId));
+
     }
 
     private double calculateAverageFromReadings(List<Odczyt> readings) {
@@ -299,8 +423,20 @@ public class OptimizationController {
             List<Odczyt> readings = forecastService.getReadingsForDevice(device.getId(), from, to);
             if (readings != null) {
                 for (Odczyt r : readings) {
-                    if (isAnomalousReading(r))
+                    if (isAnomalousReading(r)) {
                         System.out.println("ANOMALIA: " + device.getId());
+
+                        if (alertService != null) {
+                            org.example.alerts.dto.ZgloszenieDTO zgloszenie = new org.example.alerts.dto.ZgloszenieDTO(
+                                    "Wykryto anomalię w odczytach urządzenia (wartość poza zakresem).",
+                                    device.getId(),
+                                    org.example.DTO.Alert.AlertSeverity.WARNING,
+                                    "OPTIMIZATION_MODULE");
+                            alertService.zglosAnomalie(zgloszenie);
+                            System.out.println(
+                                    "   -> Zgłoszono anomalię przez AlertService dla urządzenia " + device.getId());
+                        }
+                    }
                 }
             }
         }
@@ -316,7 +452,7 @@ public class OptimizationController {
         }
     }
 
-    public void setAlertService(IAlertData s) {
+    public void setAlertService(AlertService s) {
         this.alertService = s;
     }
 
@@ -336,7 +472,71 @@ public class OptimizationController {
         this.analyticsService = s;
     }
 
-    public void setAdminPreferences(AdministratorPreferences p) {
+    private java.util.concurrent.ScheduledExecutorService scheduler;
+    private java.util.concurrent.ScheduledFuture<?> scheduledTask;
+    private IOptimizationData optimizationData;
+    private ForecastServiceAPI forecastServiceAPI;
+
+    public void setOptimizationData(IOptimizationData data) {
+        this.optimizationData = data;
+    }
+
+    public void setForecastServiceAPI(ForecastServiceAPI api) {
+        this.forecastServiceAPI = api;
+    }
+
+    public void startAutoCycle(int buildingId, int intervalSeconds) {
+        if (scheduler == null) {
+            scheduler = java.util.concurrent.Executors.newScheduledThreadPool(1);
+        }
+        if (scheduledTask != null && !scheduledTask.isCancelled()) {
+            System.out.println("[Optymalizacja] Cykl już jest uruchomiony.");
+            return;
+        }
+
+        Runnable task = () -> {
+            try {
+                optimizeEnergyConsumption(buildingId);
+                checkForAnomalies();
+            } catch (Exception e) {
+                System.err.println("[Optymalizacja] Błąd w cyklu: " + e.getMessage());
+                e.printStackTrace();
+            }
+        };
+
+        scheduledTask = scheduler.scheduleAtFixedRate(task, 0, intervalSeconds, java.util.concurrent.TimeUnit.SECONDS);
+        System.out.println("[Optymalizacja] Uruchomiono automatyczny cykl co " + intervalSeconds + " sekund.");
+    }
+
+    public void stopAutoCycle() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel(false);
+            System.out.println("[Optymalizacja] Zatrzymano automatyczny cykl.");
+        }
+    }
+
+    public void setAdminPreferences(AdministratorPreferencesDTO p) {
         this.adminPref = p;
     }
+
+    private void loadAdminPreferences() {
+        try {
+            List<Uzytkownik> admins = userService.getUsersByRole(1); // 1 = Administrator
+            if (!admins.isEmpty()) {
+                Uzytkownik admin = admins.get(0);
+                String rawJson = admin.getRawPreferences();
+                if (rawJson != null && !rawJson.isEmpty()) {
+                    // Deserializacja do DTO
+                    this.adminPref = objectMapper.readValue(rawJson, AdministratorPreferencesDTO.class);
+                    System.out
+                            .println("[Optymalizacja] Załadowano preferencje administratora z DB ID: " + admin.getId());
+                }
+            } else {
+                System.out.println("[Optymalizacja] Nie znaleziono administratora w DB. Używam domyślnych.");
+            }
+        } catch (Exception e) {
+            System.err.println("[Optymalizacja] Błąd ładowania preferencji admina: " + e.getMessage());
+        }
+    }
+
 }

@@ -1,13 +1,12 @@
 package org.example.interfaces;
 
-import org.example.DTO.Odczyt;
-import org.example.DTO.Urzadzenie;
+import org.example.DTO.*;
+
 import java.util.List;
-import org.example.DTO.UrzadzenieSzczegoly;
 
 public interface IAcquisitionData {
 
-    void saveSensorReading(Odczyt reading);
+    boolean saveSensorReading(Odczyt reading);
 
     void saveBatchSensorReadings(List<Odczyt> readings);
 
@@ -15,6 +14,11 @@ public interface IAcquisitionData {
 
     List<UrzadzenieSzczegoly> getActiveDevicesWithDetails();
 
+    List<ProducentUrzadzenia> getAvailableManufacturers();
+
+    List<ModelUrzadzenia> getAvailableModels();
+
+    Boolean addDevice(Urzadzenie device);
 
     boolean isDatabaseConnected();
 }

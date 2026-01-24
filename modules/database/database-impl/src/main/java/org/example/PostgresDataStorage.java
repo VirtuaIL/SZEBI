@@ -21,17 +21,21 @@ import java.time.ZoneOffset;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.postgresql.util.PGobject;
 
 public class PostgresDataStorage
-        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData {
+        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData,
+        IOptimizationData {
 
     // config postgres
-    private final String DB_URL = "jdbc:postgresql://localhost:5433/szebi_db_nowa";
+    //FIXME
+    private final String DB_URL = "jdbc:postgresql://192.168.1.13:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
-    private final String MONGO_URI = "mongodb://root:bazka@localhost:27018/";
+    //FIXME
+    private final String MONGO_URI = "mongodb://root:bazka@192.168.1.13:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 
@@ -40,7 +44,8 @@ public class PostgresDataStorage
     }
 
     @Override
-    public void saveSensorReading(Odczyt reading) {
+    public boolean saveSensorReading(Odczyt reading) {
+        boolean status = false;
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
 
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
@@ -51,10 +56,12 @@ public class PostgresDataStorage
 
             collection.insertOne(docToInsert);
 
+            status = true;
+
         } catch (Exception e) {
-            System.out.println("Błąd podczas zapisywania odczytu do MongoDB: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+        return status;
     }
 
     @Override
@@ -185,6 +192,79 @@ public class PostgresDataStorage
     }
 
     @Override
+    public List<ProducentUrzadzenia> getAvailableManufacturers() {
+
+        String sql = "SELECT * FROM producent_urzadzenia";
+
+        List<ProducentUrzadzenia> availableManufacturers = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                ProducentUrzadzenia producent = new ProducentUrzadzenia();
+
+                producent.setId(rs.getInt("ID_producenta"));
+                producent.setNazwa(rs.getString("nazwa_producenta"));
+
+                availableManufacturers.add(producent);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania dostępnych producentów: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return availableManufacturers;
+    }
+
+    @Override
+    public List<ModelUrzadzenia> getAvailableModels() {
+
+        String sql = "SELECT * FROM model_urzadzenia";
+
+        List<ModelUrzadzenia> availableModels = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                ModelUrzadzenia producent = new ModelUrzadzenia();
+
+                producent.setId(rs.getInt("ID_modelu"));
+                producent.setNazwaModelu(rs.getString("nazwa_modelu"));
+
+                availableModels.add(producent);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania dostępnych modeli: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return availableModels;
+    }
+
+    @Override
+    public Boolean addDevice(Urzadzenie device) {
+        System.out.println("ADDING DEVICE");
+        String sql = "INSERT INTO urzadzenia (ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, device.getPokojId());
+            pstmt.setInt(2, device.getModelId());
+            PGobject jsonObject = new PGobject();
+            jsonObject.setType("json");
+            jsonObject.setValue(device.getParametryPracy());
+            pstmt.setObject(3, jsonObject);
+            pstmt.setBoolean(4, true);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+    @Override
     public boolean isDatabaseConnected() {
         String sql = "SELECT 1";
         try (Connection conn = getConnection();
@@ -285,7 +365,8 @@ public class PostgresDataStorage
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId) {
         // Zwracamy wszystkie alarmy, które są powiązane z budynkiem przez urządzenie
-        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy alarm
+        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy
+        // alarm
         // ale z NULL-ami w polach urządzenia
         // Filtrujemy po budynku - jeśli urządzenie jest w budynku, to pokazujemy alarm
         return getAlertDetailsWithFilter("WHERE (p.ID_budynku = ? OR (u.ID_urzadzenia IS NULL))", buildingId);
@@ -373,9 +454,14 @@ public class PostgresDataStorage
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
                 String prefJson = rs.getString("preferencje");
+                user.setRawPreferences(prefJson);
                 if (prefJson != null && !prefJson.isEmpty()) {
                     try {
                         ObjectMapper mapper = new ObjectMapper();
+                        // Ignorujemy błędy mapowania dla Administratora, który ma inną strukturę JSON
+                        mapper.configure(
+                                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                                false);
                         UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
                         user.setPreferencje(prefs);
                     } catch (Exception e) {
@@ -471,7 +557,8 @@ public class PostgresDataStorage
 
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku "
+                +
                 "FROM Alerty a " +
                 "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
@@ -634,6 +721,22 @@ public class PostgresDataStorage
             e.printStackTrace();
         }
         return report;
+    }
+
+    @Override
+    public List<Raport> getAllReports() {
+        String sql = "SELECT * FROM Raporty ORDER BY czas_wygenerowania DESC";
+        List<Raport> reports = new ArrayList<>();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                reports.add(mapResultSetToRaport(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return reports;
     }
 
     private Raport mapResultSetToRaport(ResultSet rs) throws SQLException {
@@ -812,6 +915,45 @@ public class PostgresDataStorage
     }
 
     @Override
+    public List<Uzytkownik> getAllUsers() {
+        String sql = "SELECT * FROM Uzytkownik ORDER BY ID_uzytkownika";
+        List<Uzytkownik> users = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Uzytkownik user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                // Hasło (hash) nie jest konieczne do wyświetlania listy, ale DTO je ma
+                user.setHasloHash(rs.getString("Haslo_hash"));
+
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        // Ignoruj błędy deserializacji przy liście
+                    }
+                }
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania listy użytkowników: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return users;
+    }
+
+    @Override
     public Rola getRoleById(int rolaId) {
         String sql = "SELECT * FROM Rola WHERE ID_roli = ?";
         Rola rola = null;
@@ -834,6 +976,50 @@ public class PostgresDataStorage
             e.printStackTrace();
         }
         return rola;
+    }
+
+    @Override
+    public List<Uzytkownik> getUsersByRole(int roleId) {
+        List<Uzytkownik> users = new ArrayList<>();
+        String sql = "SELECT * FROM Uzytkownik WHERE ID_roli = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, roleId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Uzytkownik user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                user.setHasloHash(rs.getString("Haslo_hash"));
+
+                String prefJson = rs.getString("preferencje");
+                user.setRawPreferences(prefJson);
+
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        mapper.configure(
+                                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                                false);
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd pobierania użytkowników roli " + roleId + ": " + e.getMessage());
+        }
+        return users;
     }
 
     @Override
@@ -880,7 +1066,8 @@ public class PostgresDataStorage
     }
 
     private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
-        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub nie jest powiązane
+        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub
+        // nie jest powiązane
         String baseSql = "SELECT a.*, " +
                 "COALESCE(pu.nazwa_producenta, 'Nieznany') AS nazwa_producenta, " +
                 "COALESCE(m.nazwa_modelu, 'Nieznany') AS nazwa_modelu, " +
@@ -928,14 +1115,16 @@ public class PostgresDataStorage
         }
         details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
-        
+
         // Utwórz nazwę urządzenia z producenta i typu/modelu
-        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie istnieje
+        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie
+        // istnieje
         String nazwaProducenta = rs.getString("nazwa_producenta");
         String nazwaModelu = rs.getString("nazwa_modelu");
         String nazwaTypu = rs.getString("nazwa_typu_urzadzenia");
-        
-        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest dostępny)
+
+        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest
+        // dostępny)
         String nazwaUrzadzenia = "";
         if (nazwaProducenta != null && !nazwaProducenta.equals("Nieznany")) {
             nazwaUrzadzenia = nazwaProducenta;
@@ -948,16 +1137,17 @@ public class PostgresDataStorage
         if (nazwaUrzadzenia.isEmpty() || nazwaUrzadzenia.equals("Nieznany")) {
             nazwaUrzadzenia = "Urządzenie #" + details.getUrzadzenieId();
         }
-        
+
         details.setNazwaUrzadzenia(nazwaUrzadzenia);
         details.setNazwaModelu(nazwaModelu != null && !nazwaModelu.equals("Nieznany") ? nazwaModelu : null);
-        
+
         String numerPokoju = rs.getString("numer_pokoju");
         details.setNazwaPokoju(numerPokoju != null && !numerPokoju.equals("Nieznany") ? numerPokoju : null);
-        
+
         String nazwaBudynku = rs.getString("nazwa_budynku");
         details.setNazwaBudynku(nazwaBudynku != null && !nazwaBudynku.equals("Nieznany") ? nazwaBudynku : null);
-        
+
         return details;
     }
+
 }

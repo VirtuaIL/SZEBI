@@ -48,41 +48,18 @@ public class ForecastServiceAPI {
         }
     }
 
-    /**
-     * Pobiera prognozy dla urządzenia na zadany okres.
-     * Metoda ta może być używana przez inne moduły (np. Optymalizację) do planowania.
-     * @param deviceId ID urządzenia
-     * @param from Data początkowa
-     * @param to Data końcowa
-     * @return Lista prognoz dla danego okresu
-     */
     public List<Prognoza> getForecasts(int deviceId, LocalDateTime from, LocalDateTime to) {
         return analyticsData.getForecastsForDevice(deviceId, from, to);
     }
 
-    /**
-     * Pobiera prognozy dla budynku na zadany okres.
-     * @param buildingId ID budynku
-     * @param from Data początkowa
-     * @param to Data końcowa
-     * @return Lista prognoz dla danego okresu
-     */
     public List<Prognoza> getForecastsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
         return analyticsData.getForecastsForBuilding(buildingId, from, to);
     }
 
-    /**
-     * Zwraca aktualny wytrenowany model.
-     * @return Wytrenowany model lub null jeśli nie jest wytrenowany
-     */
     public ForecastModel getCurrentModel() {
         return forecastingModule.getCurrentModel();
     }
 
-    /**
-     * Wymusza retrening modelu dla urządzenia.
-     * @param deviceId ID urządzenia
-     */
     public void retrainModel(int deviceId) throws IncompleteDataException {
         forecastingModule.retrainModel(deviceId);
     }

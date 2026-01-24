@@ -5,14 +5,18 @@ import org.example.DTO.*;
 import org.example.interfaces.*;
 import java.util.Collections;
 import org.example.OptimizationController;
-import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
+import org.example.runner.UserController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
+import org.example.runner.ReportsController;
 import org.example.ForecastServiceAPI;
 import org.example.ForecastController;
 
+
+
+import javax.swing.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,8 +30,10 @@ public class Main {
 
     // 2. Inicjalizacja komponentów wewnętrznych - Moduł Akwizycji
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
+
+    //AcquisitionController acquisitionController = new AcquisitionController();
     DataCollector dataCollector = new DataCollector(databaseStorage);
-    DeviceManager deviceManager = new DeviceManager();
+    DeviceManager deviceManager = new DeviceManager(databaseStorage);
     ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.getAquisitionProxy());
 
     // 3. Wstrzykiwanie zależności
@@ -37,6 +43,7 @@ public class Main {
         AnalysisReportAPI.getAquisitionProxy());
 
     // 3.5. Inicjalizacja modułu Analizy i raportowania
+    System.out.println("[INFO] Inicjalizacja modułu analizy i raportowania...");
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
 
     // 4. Pobieranie konfiguracji z Bazy Danych
@@ -65,29 +72,23 @@ public class Main {
     }
     System.out.println("[INFO] Zarejestrowano " + api.getAvailableDevices().size() + " urządzeń w module akwizycji.\n");
 
+    //api.createNewDevice("name",1,1,10,50,"temperatura_C",25);
+
     // === 5. Inicjalizacja Modułu Optymalizacji ===
     System.out.println("=== Inicjalizacja modułu optymalizacji ===");
     OptimizationController optimizationController = new OptimizationController();
 
-    // 5a. Konfiguracja preferencji administratora
-    AdministratorPreferences adminPrefs = new AdministratorPreferences();
-    adminPrefs.setPreferredMinTemp(18.0);
-    adminPrefs.setPreferredMaxTemp(24.0);
-    adminPrefs.setMaxEnergyUsage(1500.0);
-    adminPrefs.setTimeOpen("08:00");
-    adminPrefs.setTimeClose("20:00");
-    adminPrefs.setPriorityComfort(7);
-    optimizationController.setAdminPreferences(adminPrefs);
-
-    System.out.println("[INFO] Preferencje administratora:");
-    System.out.println(
-        "  - Temperatura: " + adminPrefs.getPreferredMinTemp() + "°C - " + adminPrefs.getPreferredMaxTemp() + "°C");
-    System.out.println("  - Max zużycie energii: " + adminPrefs.getMaxEnergyUsage() + " W");
-    System.out.println("  - Priorytet komfortu: " + adminPrefs.getPriorityComfort() + "/10");
+    // 5a. Preferencje administratora są teraz ładowane dynamicznie z bazy danych
+    // (Rola ID 1)
+    System.out.println("[INFO] Preferencje administratora będą ładowane z bazy danych.");
 
     // 5b. Podłączenie serwisów do kontrolera optymalizacji
     optimizationController.setAcquisitionAPI(api);
-    optimizationController.setAlertService(databaseStorage);
+
+    // Użycie AlertService zamiast bezpośredniego IAlertData
+    org.example.alerts.AlertService alertServiceRef = new org.example.alerts.AlertService(databaseStorage);
+    optimizationController.setAlertService(alertServiceRef);
+
     optimizationController.setAcquisitionService(databaseStorage);
     optimizationController.setForecastService(databaseStorage);
     optimizationController.setControlService(databaseStorage);
@@ -95,95 +96,28 @@ public class Main {
 
     System.out.println("[INFO] Kontroler optymalizacji skonfigurowany.");
     optimizationController.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
+    optimizationController.setOptimizationData(databaseStorage);
 
-    // START DEMO SCENARIUSZ
-    System.out.println("\n========== DEMONSTRACJA: Preferencje Użytkownika ==========");
-    System.out.println("Scenariusz: Admin chce 18-24°C. Użytkownik w pokoju 999 chce poziom komfortu 5 (Najcieplej).");
+    ForecastServiceAPI forecastServiceAPI = new ForecastServiceAPI(databaseStorage, databaseStorage);
+    optimizationController.setForecastServiceAPI(forecastServiceAPI);
 
-    // Tworzymy anonimową klasę Symulatora Danych
-    class DemoDataSimulator implements IControlData, IUserData {
-      public Uzytkownik getUserById(int id) {
-        Uzytkownik u = new Uzytkownik();
-        u.setId(id);
-        u.setImie("Test");
-        org.example.DTO.UserPreferences prefs = new org.example.DTO.UserPreferences();
-        prefs.setComfortLevel(5);
-        u.setPreferencje(prefs);
-        return u;
-      }
+    // Uruchomienie automatycznego cyklu
+    optimizationController.startAutoCycle(1, 10);
 
-      public Uzytkownik getUserByEmail(String email) {
-        return null;
-      }
-
-      public org.example.DTO.Rola getRoleById(int id) {
-        return null;
-      }
-
-      public Uzytkownik saveUser(Uzytkownik u) {
-        return u;
-      }
-
-      public List<org.example.DTO.Pokoj> getRoomsInBuilding(int bid) {
-        org.example.DTO.Pokoj p = new org.example.DTO.Pokoj();
-        p.setId(999);
-        p.setNumerPokoju("DEMO-ROOM");
-        p.setBudynekId(bid);
-        p.getUzytkownicyIds().add(100);
-        return java.util.Collections.singletonList(p);
-      }
-
-      public List<org.example.DTO.Urzadzenie> getDevicesInRoom(int rid) {
-        org.example.DTO.Urzadzenie u = new org.example.DTO.Urzadzenie();
-        u.setId(555);
-        u.setPokojId(rid);
-        u.setParametryPracy("{\"temperatura_C\": 20.0, \"set_temp\": 20.0}");
-        return java.util.Collections.singletonList(u);
-      }
-
-      public org.example.DTO.Urzadzenie getDeviceById(int id) {
-        return null;
-      }
-
-      public void updateDevice(org.example.DTO.Urzadzenie d) {
-        System.out.println("   [DEMO DB] Zaktualizowano urządzenie " + d.getId() + ": " + d.getParametryPracy());
-      }
-
-      public boolean isDatabaseConnected() {
-        return true;
-      }
-
-      public Umowa getActiveContractForBuilding(int buildingId) {
-        return null;
-      }
-
-      public List<Odczyt> getReadingsForDevice(int deviceId, LocalDateTime from, LocalDateTime to) {
-        return Collections.emptyList();
-      }
-    }
-
-    DemoDataSimulator demoSim = new DemoDataSimulator();
-
-    optimizationController.setControlService(demoSim);
-    optimizationController.setUserService(demoSim);
-
-    optimizationController.optimizeEnergyConsumption(1);
-
-    optimizationController.setControlService(databaseStorage);
-    optimizationController.setUserService(databaseStorage);
-    System.out.println("===========================================================\n");
-
-    optimizationController.optimizeEnergyConsumption(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
     // === 6. Uruchomienie REST API dla GUI ===
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
-    
+    UserController userController = new UserController(authService); // Injalizacja UserController
+
     AlertsController alertsController = new AlertsController(databaseStorage);
-    
+
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
+    AcquisitionControllerJavalin acquisitionController = new AcquisitionControllerJavalin(databaseStorage, databaseStorage, api);
+
+    ReportsController reportsController = new ReportsController(databaseStorage, databaseStorage, anal);
 
     ForecastServiceAPI forecastService = new ForecastServiceAPI(databaseStorage, databaseStorage);
     forecastService.initializeScheduler(databaseStorage);
@@ -196,9 +130,16 @@ public class Main {
     });
 
     authController.setupRoutes(app);
+    userController.setupRoutes(app);
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
+    acquisitionController.setupRoutes(app);
+    reportsController.setupRoutes(app);
     forecastController.setupRoutes(app);
+
+    OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationController,
+        databaseStorage);
+    optimizationRestController.setupRoutes(app);
 
     int apiPort = 8080;
     // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych
@@ -211,11 +152,12 @@ public class Main {
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
     System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
     System.out.println("[INFO] Endpoint prognoz: http://localhost:" + apiPort + "/api/forecasts");
+    System.out.println("[INFO] Endpoint raportów: http://localhost:" + apiPort + "/api/reports");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     // Dalsza część modułu analizy i raportowania
-    anal.sendDocumentScheme(AnalysisReportAPI.newReportScheme()
+    anal.sendDocumentScheme(AnalysisReportAPI.newAnalysisScheme()
         .setFrom(LocalDateTime.now().minusDays(1))
         .setTo(LocalDateTime.now())
         .includeMetrics(AnalysisReportAPI.getAvailableMetrics()));

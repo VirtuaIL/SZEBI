@@ -74,4 +74,14 @@ public class Uzytkownik {
     public void setPreferencje(UserPreferences preferencje) {
         this.preferencje = preferencje;
     }
+
+    private String rawPreferences;
+
+    public String getRawPreferences() {
+        return rawPreferences;
+    }
+
+    public void setRawPreferences(String rawPreferences) {
+        this.rawPreferences = rawPreferences;
+    }
 }
