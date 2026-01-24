@@ -32,34 +32,21 @@ public class AcquisitionControllerJavalin {
     }
 
     public void setupRoutes(Javalin app) {
-        // Lista wszystkich aktywnych urządzeń
-        app.get("/api/getDeviceList", this::getDeviceList);
 
         // Periodic collection task
         app.get("/api/acquisition/startPeriodicCollectionTask", this::startPeriodicCollectionTask);
 
-        // Single read
-        app.get("/api/devices/{id}/requestSingleRead", this::requestSingleRead);
+        // Single read (to DB)
+        app.post("/api/devices/{id}/requestSingleRead", this::requestSingleRead);
 
+        // All sensors read (to DB)
+        app.post("/api/acquisition/requestAllRead", this::requestAllRead);
+
+        // Create device and add it to list + db
         app.put("/api/acquisition/createDevice", this::createDevice);
 
 
 
-    }
-
-    private void getDeviceList(Context ctx) {
-        try {
-            ObjectNode readingJson = objectMapper.createObjectNode();
-            readingJson.put("deviceId", "test");
-            ctx.status(200);
-            ctx.json(readingJson);
-        } catch (Exception e) {
-            ctx.status(500);
-            ObjectNode error = objectMapper.createObjectNode();
-            error.put("error", "Błąd podczas pobierania urządzeń" + e.getMessage());
-            ctx.json(error);
-            e.printStackTrace();
-        }
     }
 
     private void startPeriodicCollectionTask(Context ctx) {
@@ -104,6 +91,28 @@ public class AcquisitionControllerJavalin {
 
     }
 
+    private void requestAllRead(Context ctx) {
+        try {
+            // Logic
+            acquisitionAPI.requestAllData();
+
+            // Response
+            ObjectNode response = objectMapper.createObjectNode();
+            response.put("success", "true");
+            response.put("message", "pomyślnie zlecono odczyt na wszystkich urządzeniach");
+            ctx.status(200);
+            ctx.json(response);
+        } catch (Exception e) {
+            ctx.status(500);
+            ObjectNode error = objectMapper.createObjectNode();
+            error.put("error", "Błąd podczas próby odczytu" + e.getMessage());
+            ctx.json(error);
+            e.printStackTrace();
+        }
+
+
+    }
+
     private void createDevice(Context ctx) {
         try {
             // Logic
@@ -121,7 +130,7 @@ public class AcquisitionControllerJavalin {
 
             // Aktualizuj parametry pracy jeśli podano
             if (requestBody.has("deviceName")) {
-                deviceName = requestBody.get("testData1").asText();
+                deviceName = requestBody.get("deviceName").asText();
             }
             if (requestBody.has("roomID")) {
                 roomID = requestBody.get("roomID").asInt();

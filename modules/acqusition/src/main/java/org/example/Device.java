@@ -8,7 +8,8 @@ public class Device {
     private String metricLabel;
     private IDeviceConnector connector;
 
-    public Device(String id, String name, double minRange, double maxRange, String metricLabel, IDeviceConnector connector) {
+    public Device(String id, String name, double minRange, double maxRange, String metricLabel,
+                  IDeviceConnector connector) {
         this.id = id;
         this.name = name;
         this.minRange = minRange;
@@ -48,4 +49,8 @@ public class Device {
             throw new Exception("Błąd walidacji: Wartość " + value + " poza zakresem dla " + name);
         }
     }
+
+    public void simulateStateChange(double value) {
+        connector.setValue(value);
+    } // TODO: Simulate value changes
 }

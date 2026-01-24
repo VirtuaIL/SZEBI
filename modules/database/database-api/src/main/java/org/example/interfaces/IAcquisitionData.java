@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface IAcquisitionData {
 
-    void saveSensorReading(Odczyt reading);
+    boolean saveSensorReading(Odczyt reading);
 
     void saveBatchSensorReadings(List<Odczyt> readings);
 

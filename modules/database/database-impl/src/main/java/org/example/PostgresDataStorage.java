@@ -43,7 +43,8 @@ public class PostgresDataStorage
     }
 
     @Override
-    public void saveSensorReading(Odczyt reading) {
+    public boolean saveSensorReading(Odczyt reading) {
+        boolean status = false;
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
 
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
@@ -54,10 +55,12 @@ public class PostgresDataStorage
 
             collection.insertOne(docToInsert);
 
+            status = true;
+
         } catch (Exception e) {
-            System.out.println("Błąd podczas zapisywania odczytu do MongoDB: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+        return status;
     }
 
     @Override
