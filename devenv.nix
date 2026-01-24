@@ -24,6 +24,11 @@
     jdk.package = pkgs.jdk25;
   };
 
+  languages.javascript = {
+    enable = true;
+    npm.enable = true;
+  };
+
   # https://devenv.sh/processes/
   # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";
 
