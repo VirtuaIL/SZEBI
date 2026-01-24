@@ -132,4 +132,12 @@ public class AcquisitionAPI {
 
     deviceManager.addNewDevice(newDevice);
   }
+
+  public void updateDeviceSimulation(String deviceId, double value) {
+    Device device = deviceManager.getDeviceById(deviceId);
+    if (device != null) {
+      device.simulateStateChange(value);
+      System.out.println("[AcquisitionAPI] Ustawiono cel symulacji dla urządzenia " + deviceId + ": " + value);
+    }
+  }
 }

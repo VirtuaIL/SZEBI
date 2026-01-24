@@ -123,7 +123,7 @@ INSERT INTO Umowa (ID_budynku, ID_dostawcy, data_poczatku, data_konca, szczegoly
 INSERT INTO Model_urzadzenia (ID_typu_urzadzenia, ID_producenta, nazwa_modelu) VALUES (1, 1, 'Climatix T1'), (2, 2, 'WindFree Avant'), (3, 3, 'Hue White E27');
 INSERT INTO Urzadzenia (ID_pokoju, ID_modelu, Parametry_pracy) VALUES 
 (1, 1, '{ "moc_W": 9, "zakres_pomiaru": { "min": -20.0, "max": 50.0 }, "etykieta_metryki": "temperatura_C" }'), 
-(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700, "poziom_sciemniania": 5 }'), 
+(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700, "etykieta_metryki": "jasnosc_procent" }'), 
 (3, 2, '{ "moc_W": 11, "zakres_pomiaru": { "min": 16.0, "max": 30.0 }, "etykieta_metryki": "temperatura_C" }'), 
 (4, 1, '{ "moc_W": 12, "zakres_pomiaru": { "min": -40.0, "max": 60.0 }, "etykieta_metryki": "temperatura_C" }');
 INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc) VALUES

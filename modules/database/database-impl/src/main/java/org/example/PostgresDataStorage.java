@@ -1016,23 +1016,4 @@ public class PostgresDataStorage
         return details;
     }
 
-    @Override
-    public void logOperation(int deviceId, String operation, double value, String source) {
-        // Tabela: Logi_optymalizacji (ID_urzadzenia, operacja, wartosc, zrodlo,
-        // czas_operacji)
-        String sql = "INSERT INTO Logi_optymalizacji (ID_urzadzenia, operacja, wartosc, zrodlo, czas_operacji) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, deviceId);
-            pstmt.setString(2, operation);
-            pstmt.setDouble(3, value);
-            pstmt.setString(4, source);
-            pstmt.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
-            pstmt.executeUpdate();
-            System.out.println("[DB-LOG] Zapisano operację: " + operation + " dla urządzenia " + deviceId);
-        } catch (SQLException e) {
-            System.err.println("[DB-ERROR] Błąd zapisu logu operacji (Tabela 'Logi_optymalizacji' może nie istnieć): "
-                    + e.getMessage());
-        }
-    }
-
 }

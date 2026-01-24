@@ -30,6 +30,18 @@ public class OptimizationController {
         this.adminPref = new AdministratorPreferencesDTO();
     }
 
+    public boolean isOverrideAutomatization() {
+        return overrideAutomatization;
+    }
+
+    public void setOverrideAutomatization(boolean overrideAutomatization) {
+        this.overrideAutomatization = overrideAutomatization;
+    }
+
+    public AdministratorPreferencesDTO getAdminPref() {
+        return adminPref;
+    }
+
     public void setAcquisitionAPI(AcquisitionAPI acquisitionAPI) {
         this.acquisitionAPI = acquisitionAPI;
     }
@@ -165,13 +177,19 @@ public class OptimizationController {
             return;
         }
 
-        // Obsługa Oświetlenia
+        // Obsługa Oświetlenia (Teraz używa jasnosc_procent)
         if (isLightingDevice(device) && currentVal != null) {
+            String params = device.getParametryPracy();
+            // Sprawdź czy urządzenie w ogóle obsługuje tę metrykę (z init.sql)
+            boolean supportsDimming = params != null && params.contains("jasnosc_procent");
+
             if (!isBuildingOpen && !userOverride) {
-                System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło.");
-                controlDevice(device.getId(), "active", 0.0);
+                System.out
+                        .println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło (0%).");
+                // Ustawiamy 0% jasności
+                controlDevice(device.getId(), "jasnosc_procent", 0.0);
             } else {
-                double targetBrightness = 3.0; // 1-5
+                double targetBrightness = 3.0; // Domyślnie 3/5
 
                 List<Integer> roomUserIds = room.getUzytkownicyIds();
                 if (roomUserIds != null && !roomUserIds.isEmpty() && userService != null) {
@@ -180,7 +198,7 @@ public class OptimizationController {
                     for (Integer uid : roomUserIds) {
                         Uzytkownik u = userService.getUserById(uid);
                         if (u != null && u.getPreferencje() != null) {
-                            sumBright += u.getPreferencje().getPreferredLighting(); // Now 1-5
+                            sumBright += u.getPreferencje().getPreferredLighting(); // 1-5
                             count++;
                         }
                     }
@@ -190,30 +208,32 @@ public class OptimizationController {
                     }
                 }
 
-                String params = device.getParametryPracy();
-                boolean isDimmable = params != null && params.contains("sciemnialna") && params.contains("true");
+                // Konwersja 1-5 na 0-10 (tak jak chciał user: 11 stopni od 0 do 10)
+                // 1 -> 2.0, 5 -> 10.0
+                double targetScaled = Math.min(10.0, targetBrightness * 2.0);
 
-                // Brightness Logic
-                if (isDimmable) {
+                // Sprawdzenie czy aktualna wartość jest już poprawna (tolerancja 0.1)
+                if (Math.abs(currentVal - targetScaled) < 0.1) {
+                    System.out.println("   [LIGHT] Poziom jasności optymalny (" + currentVal + "). Brak akcji.");
+                    return;
+                }
 
-                    double dimLevel = Math.max(1.0, Math.min(5.0, targetBrightness)) * 2.0;
-                    System.out.println("      -> Ustawianie jasności (ściemnialne): " + dimLevel + " / 10");
-                    controlDevice(device.getId(), "set_dimming", dimLevel); // Logic on device side to handle this
-
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
+                // jasności
+                if (supportsDimming) {
+                    System.out.println("      -> Ustawianie jasności (0-10): " + targetScaled);
+                    controlDevice(device.getId(), "jasnosc_procent", targetScaled);
                 } else {
+                    // Fallback dla on/off
+                    double binaryState = (targetScaled >= 5.0) ? 10.0 : 0.0;
 
-                    // Using ID to be deterministic per device
-                    int hash = Math.abs(deviceId.hashCode());
-                    boolean shouldBeOn = (hash % 5) < targetBrightness;
-
-                    if (shouldBeOn) {
-                        System.out.println("   [LIGHT] Urządzenie " + deviceId + " -> WŁĄCZONE (Partial ON decision).");
-                        controlDevice(device.getId(), "active", 1.0);
-                    } else {
-                        System.out
-                                .println("   [LIGHT] Urządzenie " + deviceId + " -> WYŁĄCZONE (Partial OFF decision).");
-                        controlDevice(device.getId(), "active", 0.0);
+                    if (Math.abs(currentVal - binaryState) < 0.1) {
+                        System.out.println("   [LIGHT] Poziom jasności optymalny (" + currentVal + "). Brak akcji.");
+                        return;
                     }
+
+                    System.out.println("      -> Przełączanie (On/Off): " + binaryState);
+                    controlDevice(device.getId(), "jasnosc_procent", binaryState);
                 }
             }
             return;
@@ -335,13 +355,35 @@ public class OptimizationController {
         }
 
         System.out.println("      -> WYSYŁANIE KOMENDY: " + attribute + " = " + setting);
-        if (controlService != null)
-            controlService.updateDevice(device);
+
+        // SYNCHRONIZACJA Z SYMULACJĄ (Stopniowa zmiana w kontrolerze)
+        if (acquisitionAPI != null) {
+            // 1. Odczytaj aktualną wartość (symulowaną)
+            Double currentVal = acquisitionAPI.requestSensorRead(String.valueOf(deviceId));
+
+            double nextValue = setting; // Domyślnie skok (dla innych typów)
+
+            // 2. Jeśli mamy odczyt i sterujemy temperaturą, rób to stopniowo
+            if (currentVal != null && (attribute.equals("set_temp") || attribute.equals("temperatura_C"))) {
+                double diff = setting - currentVal;
+                double maxStep = 0.5; // Maksymalna zmiana na jeden cykl
+
+                if (Math.abs(diff) > maxStep) {
+                    nextValue = currentVal + Math.signum(diff) * maxStep;
+                    System.out.println(
+                            "      [GRADUAL] Zmiana z " + currentVal + " na " + nextValue + " (Cel: " + setting + ")");
+                }
+            }
+
+            // 3. Wyślij obliczoną (pośrednią) wartość do symulacji
+            acquisitionAPI.updateDeviceSimulation(String.valueOf(deviceId), nextValue);
+        }
 
         if (acquisitionAPI != null)
             requestSensorReading(String.valueOf(deviceId));
 
-        logAction(deviceId, attribute, setting, "AUTO");
+        // Logowanie akcji usunięte na wniosek user.
+        // logAction(deviceId, attribute, setting, "AUTO");
     }
 
     private double calculateAverageFromReadings(List<Odczyt> readings) {
@@ -503,14 +545,6 @@ public class OptimizationController {
             }
         } catch (Exception e) {
             System.err.println("[Optymalizacja] Błąd ładowania preferencji admina: " + e.getMessage());
-        }
-    }
-
-    private void logAction(int deviceId, String operation, double value, String source) {
-        if (optimizationData != null) {
-            optimizationData.logOperation(deviceId, operation, value, source);
-        } else {
-            System.out.println("   [LOG] (Brak DB) " + operation + " -> " + value + " (" + source + ")");
         }
     }
 
