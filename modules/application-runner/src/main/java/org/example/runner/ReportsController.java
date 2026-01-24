@@ -428,17 +428,11 @@ public class ReportsController {
       System.out.println("[INFO] Metrics Count " + allAvailableMetrics.stream().count());
 
       Set<ConfigurationType> filteredMetrics = allAvailableMetrics.stream()
+          .filter(x -> x.equals(ConfigurationType.fromString(medium)))
           .collect(Collectors.toSet());
 
-      if (filteredMetrics.isEmpty()) {
-        System.out.println("[WARNING] No metrics found for medium: " + medium);
-        // Opcjonalnie: jeśli nie znaleziono specyficznych, weź wszystkie, by raport nie
-        // był pusty
-        filteredMetrics = allAvailableMetrics;
-      }
-
       // Budowanie schematu z uwzględnieniem filtrowania
-      var scheme = AnalysisReportAPI.newReportScheme()
+      IDocument.Scheme scheme = AnalysisReportAPI.newReportScheme()
           .setFrom(dateFrom)
           .setTo(dateTo)
           .includeMetrics(filteredMetrics); // Używamy przefiltrowanej listy

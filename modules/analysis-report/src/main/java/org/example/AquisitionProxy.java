@@ -50,12 +50,15 @@ public class AquisitionProxy implements IAnalysisService {
   }
 
   public Set<ConfigurationType> getLabelsSet() {
+    System.out.println(">>> [ANALIZA MOCK] getLabelsSet"
+        + sensors.stream().map(InternalSensors::getLabel).collect(Collectors.toSet()));
     return sensors.stream()
         .map(InternalSensors::getLabel)
+        .filter(Objects::nonNull) // Filtrujemy nule
         .collect(Collectors.toSet());
   }
 
-  public Map<ConfigurationType, List<Double>> getLabelAndValuesFor(HashSet<String> labels) {
+  public Map<ConfigurationType, List<Double>> getLabelAndValuesFor(HashSet<ConfigurationType> labels) {
     return sensors.stream()
         .filter(s -> labels.contains(s.getLabel()))
         .collect(Collectors.groupingBy(

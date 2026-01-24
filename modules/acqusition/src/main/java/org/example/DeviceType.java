@@ -1,7 +1,7 @@
 package org.example;
 
 public enum DeviceType {
-  Temperature("temperature"),
+  Temperature("temperatura_C"),
   Humidity("humidity"),
   Pressure("pressure"),
   Power("power"),

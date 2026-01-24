@@ -108,6 +108,7 @@ public class AnalysisReportAPI {
   }
 
   public static Set<ConfigurationType> getAvailableMetrics() {
+    System.out.println(">>> [ANALIZA MOCK] getAvailableMetrics" + aquisitionProxy.getLabelsSet());
     return aquisitionProxy.getLabelsSet();
   }
 }

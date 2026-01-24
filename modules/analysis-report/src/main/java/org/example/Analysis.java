@@ -75,7 +75,7 @@ public final class Analysis extends IDocument.Document {
       for (Double value : values) {
         if (isOutOfTypicalRange(type, value)) {
           AlertEventType alert = getAlertForConfigurationType(type);
-          if (alert != null && !this.alerts.contains(alert)) {
+          if (alert != null && this.alerts != null && !this.alerts.contains(alert)) {
             this.alerts.add(alert);
           }
         }

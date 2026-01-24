@@ -113,6 +113,7 @@ public class AcquisitionAPI {
     String safeName = (name != null) ? name : "Unknown Device";
 
     DeviceType safeLabel;
+    System.out.println(">>>>>>>>>" + metricLabel + " METRYKA LABEL");
     if (metricLabel == null || metricLabel.isEmpty()) {
       // Logika dla urządzeń bez zdefiniowanej metryki (np. oświetlenie)
       safeLabel = DeviceType.Luminosity;
