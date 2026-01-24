@@ -12,7 +12,7 @@ public class UserPreferences {
     public UserPreferences() {
         this.preferences = new HashMap<>();
         this.comfortLevel = 3; // Domyślny komfort (środek skali)
-        this.preferredLighting = 70; // Domyślna jasność
+        this.preferredLighting = 3; // Domyślna jasność (skala 1-5)
     }
 
     public String getUserId() {
@@ -41,6 +41,11 @@ public class UserPreferences {
     }
 
     public void setPreferredLighting(int preferredLighting) {
+        // Zmiana skali na 1-5
+        if (preferredLighting < 1)
+            preferredLighting = 1;
+        if (preferredLighting > 5)
+            preferredLighting = 5;
         this.preferredLighting = preferredLighting;
     }
 

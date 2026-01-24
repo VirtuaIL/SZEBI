@@ -1,6 +1,6 @@
-package org.example;
+package org.example.DTO;
 
-public class AdministratorPreferences {
+public class AdministratorPreferencesDTO {
     private double preferredMinTemp;
     private double preferredMaxTemp;
     private String timeOpen;
@@ -8,7 +8,7 @@ public class AdministratorPreferences {
     private double maxEnergyUsage;
     private int priorityComfort;
 
-    public AdministratorPreferences() {
+    public AdministratorPreferencesDTO() {
         this.preferredMinTemp = 18.0;
         this.preferredMaxTemp = 26.0;
         this.timeOpen = "08:00";
@@ -63,24 +63,5 @@ public class AdministratorPreferences {
 
     public void setPriorityComfort(int priorityComfort) {
         this.priorityComfort = priorityComfort;
-    }
-
-    public void updatePreference(String key, int value) {
-        // Implementacja aktualizacji preferencji
-        switch (key) {
-            case "priorityComfort":
-                this.priorityComfort = value;
-                break;
-            // Dodaj inne przypadki według potrzeb
-        }
-    }
-
-    public int getPreference(String key) {
-        switch (key) {
-            case "priorityComfort":
-                return this.priorityComfort;
-            default:
-                return 0;
-        }
     }
 }

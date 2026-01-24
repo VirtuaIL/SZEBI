@@ -52,5 +52,5 @@ public class Device {
 
     public void simulateStateChange(double value) {
         connector.setValue(value);
-    } // TODO: Simulate value changes
+    }
 }
