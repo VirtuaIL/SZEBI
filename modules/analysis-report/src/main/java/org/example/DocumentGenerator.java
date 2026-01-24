@@ -62,10 +62,10 @@ public class DocumentGenerator {
 
     public Builder addDocumentConfigs(Map<IDocument.Scheme, List<Period>> configs) {
       if (configs != null) {
-        for (Map.Entry<IDocument.Scheme, List<Period>> entry : configs.entrySet()) {
+        configs.entrySet().forEach(entry -> {
           this.documentsConfig.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
               .addAll(entry.getValue());
-        }
+        });
       }
       return this;
     }

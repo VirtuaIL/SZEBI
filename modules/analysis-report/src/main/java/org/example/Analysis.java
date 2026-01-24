@@ -22,11 +22,11 @@ final class Analysis extends IDocument.Document {
     if (alerts.isEmpty())
       return;
 
-    for (var notifier : notifiers) {
-      for (var alert : alerts) {
+    notifiers.forEach(notifier -> {
+      alerts.forEach(alert -> {
         notifier.notify(this.getId(), alert);
-      }
-    }
+      });
+    });
 
     this.alerts.clear();
   }

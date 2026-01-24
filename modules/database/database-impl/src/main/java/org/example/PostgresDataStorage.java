@@ -715,6 +715,22 @@ public class PostgresDataStorage
         return report;
     }
 
+    @Override
+    public List<Raport> getAllReports() {
+        String sql = "SELECT * FROM Raporty ORDER BY czas_wygenerowania DESC";
+        List<Raport> reports = new ArrayList<>();
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                reports.add(mapResultSetToRaport(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return reports;
+    }
+
     private Raport mapResultSetToRaport(ResultSet rs) throws SQLException {
         Raport report = new Raport();
         report.setId(rs.getInt("ID_raportu"));

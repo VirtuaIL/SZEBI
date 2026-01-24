@@ -95,7 +95,7 @@ public class AnalysisReportAPI {
     return IDocument.reportBuilder();
   }
 
-  public static IDocument.Scheme<Analysis> newAnalysisAnalysis() {
+  public static IDocument.Scheme<Analysis> newAnalysisScheme() {
     return IDocument.analysisBuilder();
   }
 

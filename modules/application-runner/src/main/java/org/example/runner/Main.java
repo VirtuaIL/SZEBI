@@ -10,6 +10,7 @@ import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
+import org.example.runner.ReportsController;
 
 
 
@@ -40,6 +41,7 @@ public class Main {
         AnalysisReportAPI.getAquisitionProxy());
 
     // 3.5. Inicjalizacja modułu Analizy i raportowania
+    System.out.println("[INFO] Inicjalizacja modułu analizy i raportowania...");
     AnalysisReportAPI anal = new AnalysisReportAPI(databaseStorage);
 
     // 4. Pobieranie konfiguracji z Bazy Danych
@@ -191,6 +193,8 @@ public class Main {
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
     AcquisitionControllerJavalin acquisitionController = new AcquisitionControllerJavalin(databaseStorage, databaseStorage, api);
 
+    ReportsController reportsController = new ReportsController(databaseStorage, anal);
+
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
         cors.addRule(it -> it.anyHost());
@@ -210,6 +214,7 @@ public class Main {
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
     System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
+    System.out.println("[INFO] Endpoint raportów: http://localhost:" + apiPort + "/api/reports");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
