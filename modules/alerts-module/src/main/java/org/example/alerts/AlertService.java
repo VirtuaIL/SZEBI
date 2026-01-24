@@ -1,12 +1,12 @@
 package org.example.alerts;
 
 import org.example.alerts.dto.ZgloszenieDTO;
-import org.example.alerts.temporary.Alert;
-import org.example.alerts.temporary.AlertStatus;
-import org.example.alerts.temporary.AlertSeverity;
-import org.example.alerts.temporary.IAlertData;
+import org.example.interfaces.IAlertData;
+import org.example.DTO.Alert;
+import org.example.DTO.Alert.AlertStatus;
+import org.example.DTO.Alert.AlertSeverity;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class AlertService {
@@ -14,6 +14,7 @@ public class AlertService {
     private final IAlertData alertRepository;
     private final NotificationService notificationService;
 
+    // Teraz konstruktor przyjmuje PRAWDZIWY interfejs IAlertData
     public AlertService(IAlertData alertRepository) {
         this.alertRepository = alertRepository;
         this.notificationService = new NotificationService();
@@ -25,12 +26,12 @@ public class AlertService {
         Alert alert = new Alert();
         alert.setTresc(dane.getTresc());
         alert.setPriorytet(dane.getPriorytet());
-        alert.setUrzadzenieId(dane.getDeviceId()); // Zmiana nazwy settera
-        alert.setZrodlo(dane.getZrodlo());
-        alert.setDataWystapienia(new Date());
+        alert.setUrzadzenieId(dane.getDeviceId());
+        alert.setCzasAlertu(LocalDateTime.now());
 
         if (dane.getPriorytet() == AlertSeverity.CRITICAL || dane.getPriorytet() == AlertSeverity.WARNING) {
-            alert.setStatus(AlertStatus.WYSLANY);
+            alert.setStatus(AlertStatus.NOWY);
+
             notificationService.wyslijPush("AWARIA: " + alert.getTresc(), "Inżynier Utrzymania Ruchu");
         } else {
             alert.setStatus(AlertStatus.NOWY);
@@ -41,30 +42,12 @@ public class AlertService {
             System.out.println("[AlertService] Alert zapisany w bazie.");
         } catch (Exception e) {
             System.err.println("Błąd zapisu do bazy: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     public List<Alert> pobierzAktywneAlarmy() {
         return alertRepository.getActiveAlertsBySeverity(AlertSeverity.CRITICAL);
-    }
-
-
-    public Alert getNewAlert(int deviceId) {
-
-        List<Alert> alerts = alertRepository.getAlertsByDeviceId(deviceId);
-
-        if (alerts == null || alerts.isEmpty()) {
-            return null;
-        }
-
-        Alert latest = alerts.get(0);
-
-        if (latest.getPriorytet() == AlertSeverity.CRITICAL &&
-                latest.getStatus() != AlertStatus.ROZWIAZANY) {
-            return latest;
-        }
-
-        return null;
     }
 
     public void potwierdzAlarm(int idAlertu) {
