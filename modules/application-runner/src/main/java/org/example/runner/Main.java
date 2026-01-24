@@ -180,9 +180,9 @@ public class Main {
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
-    
+
     AlertsController alertsController = new AlertsController(databaseStorage);
-    
+
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
     ReportsController reportsController = new ReportsController(databaseStorage, databaseStorage, anal);
@@ -211,7 +211,7 @@ public class Main {
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
     // Dalsza część modułu analizy i raportowania
-    anal.sendDocumentScheme(AnalysisReportAPI.newReportScheme()
+    anal.sendDocumentScheme(AnalysisReportAPI.newAnalysisScheme()
         .setFrom(LocalDateTime.now().minusDays(1))
         .setTo(LocalDateTime.now())
         .includeMetrics(AnalysisReportAPI.getAvailableMetrics()));

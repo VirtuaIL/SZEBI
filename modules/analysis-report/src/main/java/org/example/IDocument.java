@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
-interface IDocument {
+public interface IDocument {
   public LocalDateTime getCreationDate();
 
   public String getId();
@@ -60,7 +60,7 @@ interface IDocument {
       return dateTo;
     }
 
-    abstract protected String generateContent(Map<ConfigurationType, Double> data);
+    abstract protected String generateContent(Map<ConfigurationType, List<Double>> data);
 
     @Override
     public String toString() {

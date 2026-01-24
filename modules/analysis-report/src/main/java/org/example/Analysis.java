@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-final class Analysis extends IDocument.Document {
+public final class Analysis extends IDocument.Document {
   private IAnalysisStrategy strategy = new IAnalysisStrategy.DefaultStrategy();
   private List<AlertEventType> alerts = new ArrayList<>();
 
@@ -38,7 +38,7 @@ final class Analysis extends IDocument.Document {
   }
 
   @Override
-  protected String generateContent(Map<ConfigurationType, Double> data) {
+  protected String generateContent(Map<ConfigurationType, List<Double>> data) {
     if (data == null || data.isEmpty()) {
       return "{\"error\": \"No data available\"}";
     }
@@ -50,17 +50,34 @@ final class Analysis extends IDocument.Document {
 
     // Grupuj wartości po ConfigurationType i sprawdź alerty
     Map<ConfigurationType, List<Double>> groupedData = new HashMap<>();
-    for (Map.Entry<ConfigurationType, Double> entry : data.entrySet()) {
-      ConfigurationType type = entry.getKey();
-      Double value = entry.getValue();
+    for (Map.Entry<?, ?> entry : data.entrySet()) {
+      // Bezpieczne pobranie klucza (poprzednia poprawka)
+      ConfigurationType type;
+      if (entry.getKey() instanceof ConfigurationType) {
+        type = (ConfigurationType) entry.getKey();
+      } else {
+        type = ConfigurationType.fromString(entry.getKey().toString());
+      }
 
-      groupedData.computeIfAbsent(type, k -> new ArrayList<>()).add(value);
+      // Pobranie listy wartości (poprawka na ArrayList)
+      List<Double> values;
+      if (entry.getValue() instanceof List) {
+        values = (List<Double>) entry.getValue();
+      } else if (entry.getValue() instanceof Double) {
+        values = Collections.singletonList((Double) entry.getValue());
+      } else {
+        continue;
+      }
 
-      // Sprawdź czy wartość wykracza poza typowy zakres i utwórz alert
-      if (isOutOfTypicalRange(type, value)) {
-        AlertEventType alert = getAlertForConfigurationType(type);
-        if (alert != null && !this.alerts.contains(alert)) {
-          this.alerts.add(alert);
+      groupedData.put(type, values);
+
+      // Sprawdzanie anomalii dla każdej wartości w liście
+      for (Double value : values) {
+        if (isOutOfTypicalRange(type, value)) {
+          AlertEventType alert = getAlertForConfigurationType(type);
+          if (alert != null && !this.alerts.contains(alert)) {
+            this.alerts.add(alert);
+          }
         }
       }
     }
