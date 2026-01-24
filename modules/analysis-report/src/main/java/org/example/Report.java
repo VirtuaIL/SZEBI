@@ -1,13 +1,14 @@
 package org.example;
 
 import java.util.Map;
+import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-final class Report extends IDocument.Document {
+public final class Report extends IDocument.Document {
   public Report(IDocument.Scheme builder) {
     super(builder);
   }
@@ -24,7 +25,7 @@ final class Report extends IDocument.Document {
    * @return [TODO:return]
    */
   @Override
-  protected String generateContent(Map<ConfigurationType, Double> data) {
+  protected String generateContent(Map<ConfigurationType, List<Double>> data) {
     ObjectMapper mapper = new ObjectMapper();
 
     mapper.registerModule(new JavaTimeModule());

@@ -19,8 +19,8 @@ public class AquisitionProxy implements IAnalysisService {
       this.powerUsage = powerUsage;
     }
 
-    String getLabel() {
-      return label.toString();
+    ConfigurationType getLabel() {
+      return ConfigurationType.fromDeviceType(label);
     }
 
     String getId() {
@@ -36,7 +36,7 @@ public class AquisitionProxy implements IAnalysisService {
     }
   }
 
-  public Map<String, List<Double>> getLabelValues() {
+  public Map<ConfigurationType, List<Double>> getLabelValues() {
     return sensors.stream()
         .collect(Collectors.groupingBy(
             InternalSensors::getLabel,
@@ -49,13 +49,13 @@ public class AquisitionProxy implements IAnalysisService {
             Map.Entry::getValue));
   }
 
-  public Set<String> getLabelsSet() {
+  public Set<ConfigurationType> getLabelsSet() {
     return sensors.stream()
         .map(InternalSensors::getLabel)
         .collect(Collectors.toSet());
   }
 
-  public Map<String, List<Double>> getLabelAndValuesFor(HashSet<String> labels) {
+  public Map<ConfigurationType, List<Double>> getLabelAndValuesFor(HashSet<String> labels) {
     return sensors.stream()
         .filter(s -> labels.contains(s.getLabel()))
         .collect(Collectors.groupingBy(

@@ -16,11 +16,17 @@ import org.example.DTO.AlertSzczegoly;
 import org.example.DTO.Umowa;
 import org.example.AnalysisReportAPI;
 import org.example.ConfigurationType;
+import org.example.IDocumentGeneratorService;
+import org.example.DocumentGenerator;
+import org.example.IDocument;
 
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -30,6 +36,62 @@ public class ReportsController {
   private final IControlData controlData;
   private final AnalysisReportAPI analysisReportAPI;
   private final ObjectMapper objectMapper;
+
+  // Przechowywanie referencji do serwisów generatorów
+  private final Map<String, IDocumentGeneratorService> activeServices = new HashMap<>();
+
+  // Generator services
+  private static class ReportGeneratorService implements IDocumentGeneratorService {
+    private final String name;
+    private final IDocument.Scheme scheme;
+    private final Period period;
+
+    public ReportGeneratorService(String name, IDocument.Scheme scheme, Period period) {
+      this.name = name;
+      this.scheme = scheme;
+      this.period = period;
+    }
+
+    @Override
+    public List<DocumentGenerator> build(DocumentGenerator.Builder builder) {
+      builder.addDocumentConfig(scheme, period);
+      DocumentGenerator generator = builder.build();
+      // MUSI BYĆ MODYFIKOWALNA LISTA!
+      List<DocumentGenerator> generators = new ArrayList<>();
+      generators.add(generator);
+      return generators;
+    }
+
+    public String getName() {
+      return name;
+    }
+  }
+
+  private static class AnalysisGeneratorService implements IDocumentGeneratorService {
+    private final String name;
+    private final IDocument.Scheme scheme;
+    private final Period period;
+
+    public AnalysisGeneratorService(String name, IDocument.Scheme scheme, Period period) {
+      this.name = name;
+      this.scheme = scheme;
+      this.period = period;
+    }
+
+    @Override
+    public List<DocumentGenerator> build(DocumentGenerator.Builder builder) {
+      builder.addDocumentConfig(scheme, period);
+      DocumentGenerator generator = builder.build();
+      // MUSI BYĆ MODYFIKOWALNA LISTA!
+      List<DocumentGenerator> generators = new ArrayList<>();
+      generators.add(generator);
+      return generators;
+    }
+
+    public String getName() {
+      return name;
+    }
+  }
 
   public ReportsController(IAnalyticsData analyticsData, IControlData controlData,
       AnalysisReportAPI analysisReportAPI) {
@@ -45,7 +107,14 @@ public class ReportsController {
     // Lista raportow z opcjonalnymi filtrami
     app.get("/api/reports", this::getAllReports);
 
-    // Szczegoly raportu po ID
+    // Zarządzanie generatorami - MUSI BYĆ PRZED /api/reports/{id}
+    app.get("/api/reports/generators", this::listGenerators);
+    app.delete("/api/reports/generators/{serviceId}/{generatorId}", this::deleteGenerator);
+
+    // Pobierz dostepne metryki
+    app.get("/api/reports/metrics", this::getAvailableMetrics);
+
+    // Szczegoly raportu po ID - MUSI BYĆ PO wszystkich bardziej specyficznych
     app.get("/api/reports/{id}", this::getReportById);
 
     // Generowanie nowego raportu
@@ -57,11 +126,209 @@ public class ReportsController {
     // Pobierz dane do raportu (bez zapisywania)
     app.post("/api/reports/preview", this::previewReport);
 
-    // Pobierz dostepne metryki
-    app.get("/api/reports/metrics", this::getAvailableMetrics);
-
     // Generuj szczegółową analizę
     app.post("/api/reports/analysis", this::generateAnalysis);
+
+    // Dodaj generator raportów/analiz
+    app.post("/api/reports/analysis/addGenerator", this::addAnalysisGenerator);
+    app.post("/api/reports/addGenerator", this::addReportGenerator);
+  }
+
+  private void addAnalysisGenerator(Context ctx) {
+    try {
+      String body = ctx.body();
+      System.out.println("[ReportsController] Add analysis generator request: " + body);
+
+      JsonNode requestBody = objectMapper.readTree(body);
+
+      String name = requestBody.has("name") ? requestBody.get("name").asText() : "Analysis Generator";
+      String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
+      String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
+
+      // Parsuj okres (w dniach, godzinach, minutach)
+      int periodDays = requestBody.has("periodDays") ? requestBody.get("periodDays").asInt() : 0;
+      int periodMonths = requestBody.has("periodMonths") ? requestBody.get("periodMonths").asInt() : 0;
+      int periodYears = requestBody.has("periodYears") ? requestBody.get("periodYears").asInt() : 0;
+
+      if (periodDays == 0 && periodMonths == 0 && periodYears == 0) {
+        ctx.status(400);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Musisz podac co najmniej jeden okres (periodDays, periodMonths lub periodYears)");
+        ctx.json(error);
+        return;
+      }
+
+      // Parsuj daty
+      LocalDateTime dateFrom = dateFromStr != null && !dateFromStr.isEmpty()
+          ? LocalDateTime.parse(dateFromStr + "T00:00:00")
+          : LocalDateTime.now().minusDays(7);
+      LocalDateTime dateTo = dateToStr != null && !dateToStr.isEmpty()
+          ? LocalDateTime.parse(dateToStr + "T23:59:59")
+          : LocalDateTime.now();
+
+      // Utwórz schemat analizy
+      IDocument.Scheme scheme = AnalysisReportAPI.newAnalysisScheme()
+          .setFrom(dateFrom)
+          .setTo(dateTo)
+          .includeMetrics(AnalysisReportAPI.getAvailableMetrics());
+
+      // Utwórz period
+      Period period = Period.of(periodYears, periodMonths, periodDays);
+
+      // Utwórz service generator z konfiguracją
+      AnalysisGeneratorService service = new AnalysisGeneratorService(name, scheme, period);
+
+      // Bind generator - to już tworzy i rejestruje generator
+      analysisReportAPI.bindDocumentGenerator(service);
+
+      List<DocumentGenerator> generators = analysisReportAPI.getBindedDocumentGenerators(service);
+
+      if (generators == null || generators.isEmpty()) {
+        ctx.status(500);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Nie udalo sie stworzyc generatora");
+        ctx.json(error);
+        return;
+      }
+
+      // Inicjalizuj generator (wywołanie package-private przez refleksję lub
+      // bezpośrednio jeśli w tym samym pakiecie)
+      for (DocumentGenerator gen : generators) {
+        try {
+          // Wywołaj initDocumentGenerator przez reflection
+          java.lang.reflect.Method initMethod = gen.getClass().getDeclaredMethod("initDocumentGenerator");
+          initMethod.setAccessible(true);
+          boolean initialized = (boolean) initMethod.invoke(gen);
+          System.out.println("[ReportsController] Generator initialized: " + initialized);
+        } catch (Exception initEx) {
+          System.err.println("[ReportsController] Failed to initialize generator: " + initEx.getMessage());
+          initEx.printStackTrace();
+        }
+      }
+
+      // Zapisz service
+      String serviceKey = "analysis-" + generators.get(0).getId();
+      activeServices.put(serviceKey, service);
+      System.out.println("[ReportsController] Added analysis generator with service key: " + serviceKey);
+
+      ObjectNode response = objectMapper.createObjectNode();
+      response.put("success", true);
+      response.put("message", "Generator analizy zostal dodany");
+      response.put("serviceName", name);
+      response.put("serviceKey", serviceKey);
+      response.put("generatorCount", generators.size());
+      if (!generators.isEmpty()) {
+        response.put("generatorId", generators.get(0).getId());
+      }
+
+      ctx.status(201);
+      ctx.json(response);
+    } catch (Exception e) {
+      System.err.println("[ReportsController] Add analysis generator error: " + e.getMessage());
+      e.printStackTrace();
+      ctx.status(500);
+      ObjectNode error = objectMapper.createObjectNode();
+      error.put("error", "Blad podczas dodawania generatora analizy: " + e.getMessage());
+      ctx.json(error);
+    }
+  }
+
+  private void addReportGenerator(Context ctx) {
+    try {
+      String body = ctx.body();
+      System.out.println("[ReportsController] Add report generator request: " + body);
+
+      JsonNode requestBody = objectMapper.readTree(body);
+
+      String name = requestBody.has("name") ? requestBody.get("name").asText() : "Report Generator";
+      String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
+      String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
+
+      // Parsuj okres
+      int periodDays = requestBody.has("periodDays") ? requestBody.get("periodDays").asInt() : 0;
+      int periodMonths = requestBody.has("periodMonths") ? requestBody.get("periodMonths").asInt() : 0;
+      int periodYears = requestBody.has("periodYears") ? requestBody.get("periodYears").asInt() : 0;
+
+      if (periodDays == 0 && periodMonths == 0 && periodYears == 0) {
+        ctx.status(400);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Musisz podac co najmniej jeden okres (periodDays, periodMonths lub periodYears)");
+        ctx.json(error);
+        return;
+      }
+
+      // Parsuj daty
+      LocalDateTime dateFrom = dateFromStr != null && !dateFromStr.isEmpty()
+          ? LocalDateTime.parse(dateFromStr + "T00:00:00")
+          : LocalDateTime.now().minusDays(7);
+      LocalDateTime dateTo = dateToStr != null && !dateToStr.isEmpty()
+          ? LocalDateTime.parse(dateToStr + "T23:59:59")
+          : LocalDateTime.now();
+
+      // Utwórz schemat raportu
+      IDocument.Scheme scheme = AnalysisReportAPI.newReportScheme()
+          .setFrom(dateFrom)
+          .setTo(dateTo)
+          .includeMetrics(AnalysisReportAPI.getAvailableMetrics());
+
+      // Utwórz period
+      Period period = Period.of(periodYears, periodMonths, periodDays);
+
+      // Utwórz service generator z konfiguracją
+      ReportGeneratorService service = new ReportGeneratorService(name, scheme, period);
+
+      // Bind generator - to już tworzy i rejestruje generator
+      analysisReportAPI.bindDocumentGenerator(service);
+
+      List<DocumentGenerator> generators = analysisReportAPI.getBindedDocumentGenerators(service);
+
+      if (generators == null || generators.isEmpty()) {
+        ctx.status(500);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Nie udalo sie stworzyc generatora");
+        ctx.json(error);
+        return;
+      }
+
+      // Inicjalizuj generator
+      for (DocumentGenerator gen : generators) {
+        try {
+          // Wywołaj initDocumentGenerator przez reflection
+          java.lang.reflect.Method initMethod = gen.getClass().getDeclaredMethod("initDocumentGenerator");
+          initMethod.setAccessible(true);
+          boolean initialized = (boolean) initMethod.invoke(gen);
+          System.out.println("[ReportsController] Generator initialized: " + initialized);
+        } catch (Exception initEx) {
+          System.err.println("[ReportsController] Failed to initialize generator: " + initEx.getMessage());
+          initEx.printStackTrace();
+        }
+      }
+
+      // Zapisz service
+      String serviceKey = "report-" + generators.get(0).getId();
+      activeServices.put(serviceKey, service);
+      System.out.println("[ReportsController] Added report generator with service key: " + serviceKey);
+
+      ObjectNode response = objectMapper.createObjectNode();
+      response.put("success", true);
+      response.put("message", "Generator raportu zostal dodany");
+      response.put("serviceName", name);
+      response.put("serviceKey", serviceKey);
+      response.put("generatorCount", generators.size());
+      if (!generators.isEmpty()) {
+        response.put("generatorId", generators.get(0).getId());
+      }
+
+      ctx.status(201);
+      ctx.json(response);
+    } catch (Exception e) {
+      System.err.println("[ReportsController] Add report generator error: " + e.getMessage());
+      e.printStackTrace();
+      ctx.status(500);
+      ObjectNode error = objectMapper.createObjectNode();
+      error.put("error", "Blad podczas dodawania generatora raportu: " + e.getMessage());
+      ctx.json(error);
+    }
   }
 
   private void getAllReports(Context ctx) {
@@ -130,18 +397,15 @@ public class ReportsController {
 
       JsonNode requestBody = objectMapper.readTree(body);
 
-      String reportType = requestBody.has("type") ? requestBody.get("type").asText() : "energy";
+      String reportType = requestBody.has("type") ? requestBody.get("type").asText() : "Raport";
       String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
       String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
-      int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
-      String zone = requestBody.has("zone") ? requestBody.get("zone").asText() : "all";
-      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
-      Integer userId = requestBody.has("userId") && !requestBody.get("userId").isNull()
-          ? requestBody.get("userId").asInt()
-          : null;
 
-      System.out.println("[ReportsController] Generate params: type=" + reportType + ", dateFrom=" + dateFromStr +
-          ", dateTo=" + dateToStr + ", buildingId=" + buildingId);
+      // NOWE: Pobranie medium z żądania
+      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "all";
+
+      System.out.println("[ReportsController] Generate params: type=" + reportType +
+          ", dateFrom=" + dateFromStr + ", dateTo=" + dateToStr + ", medium=" + medium);
 
       // Parsuj daty
       LocalDateTime dateFrom;
@@ -155,52 +419,51 @@ public class ReportsController {
             ? LocalDateTime.parse(dateToStr + "T23:59:59")
             : LocalDateTime.now();
       } catch (Exception parseEx) {
-        System.err.println("[ReportsController] Date parsing error: " + parseEx.getMessage());
-        ctx.status(400);
-        ObjectNode error = objectMapper.createObjectNode();
-        error.put("error", "Nieprawidlowy format daty. Uzyj formatu YYYY-MM-DD");
-        ctx.json(error);
+        ctx.status(400).json(objectMapper.createObjectNode().put("error", "Nieprawidlowy format daty."));
         return;
       }
 
-      // Generuj zawartosc raportu w zaleznosci od typu
-      ObjectNode reportContent = generateReportContent(reportType, buildingId, dateFrom, dateTo, zone, medium);
+      // NOWE: Filtrowanie metryk na podstawie wybranego medium
+      Set<ConfigurationType> allAvailableMetrics = AnalysisReportAPI.getAvailableMetrics();
+      System.out.println("[INFO] Metrics Count " + allAvailableMetrics.stream().count());
 
-      // Utworz raport
-      Raport report = new Raport();
-      report.setTypRaportu(reportType);
-      report.setUzytkownikId(userId);
-      report.setCzasWygenerowania(LocalDateTime.now());
-      report.setZakresOd(dateFrom);
-      report.setZakresDo(dateTo);
-      report.setOpis(generateReportDescription(reportType, zone, medium));
-      report.setZawartosc(objectMapper.writeValueAsString(reportContent));
+      Set<ConfigurationType> filteredMetrics = allAvailableMetrics.stream()
+          .collect(Collectors.toSet());
 
-      // Zapisz raport do bazy
-      Raport savedReport = analyticsData.saveReport(report);
+      if (filteredMetrics.isEmpty()) {
+        System.out.println("[WARNING] No metrics found for medium: " + medium);
+        // Opcjonalnie: jeśli nie znaleziono specyficznych, weź wszystkie, by raport nie
+        // był pusty
+        filteredMetrics = allAvailableMetrics;
+      }
 
-      if (savedReport == null) {
-        ctx.status(500);
-        ObjectNode error = objectMapper.createObjectNode();
-        error.put("error", "Nie udalo sie zapisac raportu");
-        ctx.json(error);
+      // Budowanie schematu z uwzględnieniem filtrowania
+      var scheme = AnalysisReportAPI.newReportScheme()
+          .setFrom(dateFrom)
+          .setTo(dateTo)
+          .includeMetrics(filteredMetrics); // Używamy przefiltrowanej listy
+
+      analysisReportAPI.sendDocumentScheme(scheme);
+
+      // Reszta logiki pobierania z bazy...
+      List<Raport> recentReports = analyticsData.getReportsByType(reportType);
+      if (recentReports == null || recentReports.isEmpty()) {
+        ctx.status(500).json(objectMapper.createObjectNode().put("error", "Nie udalo sie pobrac zapisanego raportu"));
         return;
       }
+
+      Raport savedReport = recentReports.stream()
+          .max((r1, r2) -> r1.getCzasWygenerowania().compareTo(r2.getCzasWygenerowania()))
+          .orElse(recentReports.get(0));
 
       ObjectNode response = objectMapper.createObjectNode();
       response.put("success", true);
-      response.put("message", "Raport zostal wygenerowany");
       response.set("report", convertReportToJson(savedReport));
 
-      ctx.status(201);
-      ctx.json(response);
+      ctx.status(201).json(response);
     } catch (Exception e) {
-      System.err.println("[ReportsController] Generate error: " + e.getClass().getName() + ": " + e.getMessage());
       e.printStackTrace();
-      ctx.status(500);
-      ObjectNode error = objectMapper.createObjectNode();
-      error.put("error", "Blad podczas generowania raportu: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-      ctx.json(error);
+      ctx.status(500).json(objectMapper.createObjectNode().put("error", e.getMessage()));
     }
   }
 
@@ -211,36 +474,34 @@ public class ReportsController {
 
       JsonNode requestBody = objectMapper.readTree(body);
 
-      String reportType = requestBody.has("type") ? requestBody.get("type").asText() : "energy";
-      String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
-      String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
-      int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
-      String zone = requestBody.has("zone") ? requestBody.get("zone").asText() : "all";
-      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
+      String reportType = requestBody.has("type") ? requestBody.get("type").asText() : "Raport";
 
-      System.out.println("[ReportsController] Params: type=" + reportType + ", dateFrom=" + dateFromStr +
-          ", dateTo=" + dateToStr + ", buildingId=" + buildingId);
+      System.out.println("[ReportsController] Preview params: type=" + reportType);
 
-      LocalDateTime dateFrom;
-      LocalDateTime dateTo;
+      // Pobierz najnowszy raport z bazy danych
+      List<Raport> reports = analyticsData.getReportsByType(reportType);
 
-      try {
-        dateFrom = dateFromStr != null && !dateFromStr.isEmpty()
-            ? LocalDateTime.parse(dateFromStr + "T00:00:00")
-            : LocalDateTime.now().minusDays(7);
-        dateTo = dateToStr != null && !dateToStr.isEmpty()
-            ? LocalDateTime.parse(dateToStr + "T23:59:59")
-            : LocalDateTime.now();
-      } catch (Exception parseEx) {
-        System.err.println("[ReportsController] Date parsing error: " + parseEx.getMessage());
-        ctx.status(400);
+      if (reports == null || reports.isEmpty()) {
+        ctx.status(404);
         ObjectNode error = objectMapper.createObjectNode();
-        error.put("error", "Nieprawidlowy format daty. Uzyj formatu YYYY-MM-DD");
+        error.put("error", "Brak raportow tego typu w bazie danych");
+        error.put("suggestion", "Najpierw wygeneruj raport");
         ctx.json(error);
         return;
       }
 
-      ObjectNode reportContent = generateReportContent(reportType, buildingId, dateFrom, dateTo, zone, medium);
+      // Znajdz najnowszy raport
+      Raport latestReport = reports.stream()
+          .max((r1, r2) -> r1.getCzasWygenerowania().compareTo(r2.getCzasWygenerowania()))
+          .orElse(reports.get(0));
+
+      // Opakowuje w format oczekiwany przez frontend
+      ObjectNode reportContent = objectMapper.createObjectNode();
+      reportContent.put("reportType", reportType);
+      reportContent.set("data", objectMapper.readTree(latestReport.getZawartosc()));
+      reportContent.put("id", latestReport.getId());
+      reportContent.put("generatedAt",
+          latestReport.getCzasWygenerowania().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
       ctx.status(200);
       ctx.json(reportContent);
@@ -250,7 +511,7 @@ public class ReportsController {
       ctx.status(500);
       ObjectNode error = objectMapper.createObjectNode();
       error.put("error",
-          "Blad podczas generowania podgladu raportu: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+          "Blad podczas pobierania podgladu raportu: " + e.getClass().getSimpleName() + " - " + e.getMessage());
       ctx.json(error);
     }
   }
@@ -313,8 +574,8 @@ public class ReportsController {
       ArrayNode metricsArray = objectMapper.createArrayNode();
 
       // Pobierz dostepne metryki z AnalysisReportAPI
-      for (String metric : AnalysisReportAPI.getAvailableMetrics()) {
-        metricsArray.add(metric);
+      for (ConfigurationType metric : AnalysisReportAPI.getAvailableMetrics()) {
+        metricsArray.add(metric.toString());
       }
 
       ctx.status(200);
@@ -326,327 +587,6 @@ public class ReportsController {
       ctx.json(error);
       e.printStackTrace();
     }
-  }
-
-  private ObjectNode generateReportContent(String reportType, int buildingId,
-      LocalDateTime from, LocalDateTime to, String zone, String mediumStr) {
-
-    ObjectNode content = objectMapper.createObjectNode();
-    content.put("reportType", reportType);
-    content.put("buildingId", buildingId);
-    content.put("zone", zone);
-    content.put("medium", mediumStr);
-    content.put("dateFrom", from.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-    content.put("dateTo", to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-    content.put("generatedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-
-    ConfigurationType configurationType = ConfigurationType.fromString(mediumStr);
-
-    switch (reportType) {
-      case "energy":
-        content.set("data", generateEnergyReportData(buildingId, from, to, configurationType));
-        break;
-      case "alerts":
-        content.set("data", generateAlertsReportData(buildingId, from, to));
-        break;
-      case "devices":
-        content.set("data", generateDevicesReportData(buildingId, from, to));
-        break;
-      case "costs":
-        content.set("data", generateCostsReportData(buildingId, from, to));
-        break;
-      default:
-        content.set("data", generateEnergyReportData(buildingId, from, to, configurationType));
-    }
-
-    return content;
-  }
-
-  private ArrayNode generateEnergyReportData(int buildingId, LocalDateTime from, LocalDateTime to,
-      ConfigurationType configurationType) {
-    ArrayNode dataArray = objectMapper.createArrayNode();
-
-    try {
-      List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
-
-      if (readings == null || readings.isEmpty()) {
-        System.out.println(
-            "[ReportsController] Brak odczytow dla budynku " + buildingId + " w zakresie " + from + " - " + to);
-        return dataArray;
-      }
-
-      System.out.println("[ReportsController] Znaleziono " + readings.size() + " odczytow");
-
-      // Grupuj odczyty po godzinie
-      Map<String, List<Double>> hourlyData = new HashMap<>();
-
-      for (Odczyt reading : readings) {
-        if (reading == null || reading.getCzasOdczytu() == null) {
-          continue;
-        }
-        LocalDateTime readingTime = LocalDateTime.ofInstant(reading.getCzasOdczytu(), ZoneId.systemDefault());
-        String hourKey = readingTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00"));
-
-        double value = extractValueFromReading(reading, configurationType);
-
-        hourlyData.computeIfAbsent(hourKey, k -> new ArrayList<>()).add(value);
-      }
-
-      // Przeksztalc na format wynikowy - sortuj po czasie
-      List<String> sortedKeys = new ArrayList<>(hourlyData.keySet());
-      sortedKeys.sort(String::compareTo);
-
-      for (String hourKey : sortedKeys) {
-        List<Double> values = hourlyData.get(hourKey);
-        ObjectNode dataPoint = objectMapper.createObjectNode();
-        dataPoint.put("time", hourKey);
-
-        double sum = values.stream().mapToDouble(Double::doubleValue).sum();
-        double avg = sum / values.size();
-
-        dataPoint.put("value", Math.round(avg * 100.0) / 100.0);
-        dataPoint.put("count", values.size());
-
-        // Wykrywanie anomalii - prosta heurystyka (wartosci poza normalnym zakresem)
-        boolean isAnomaly = avg > 1000 || avg < 50;
-        dataPoint.put("isAnomaly", isAnomaly);
-
-        dataArray.add(dataPoint);
-      }
-
-    } catch (Exception e) {
-      System.err.println("[ReportsController] Blad generowania danych energii: " + e.getMessage());
-      e.printStackTrace();
-    }
-
-    return dataArray;
-  }
-
-  private ArrayNode generateAlertsReportData(int buildingId, LocalDateTime from, LocalDateTime to) {
-    ArrayNode dataArray = objectMapper.createArrayNode();
-
-    try {
-      List<AlertSzczegoly> alerts = analyticsData.getAlertDetailsForBuilding(buildingId, from, to);
-
-      if (alerts == null) {
-        alerts = new ArrayList<>();
-      }
-
-      // Statystyki alertow
-      int critical = 0, warning = 0, info = 0;
-      int resolved = 0, confirmed = 0, newAlerts = 0;
-
-      for (AlertSzczegoly alert : alerts) {
-        if (alert == null)
-          continue;
-
-        ObjectNode alertNode = objectMapper.createObjectNode();
-        alertNode.put("id", alert.getId());
-        alertNode.put("message", alert.getTresc() != null ? alert.getTresc() : "");
-        alertNode.put("priority", alert.getPriorytet() != null ? alert.getPriorytet().name() : "INFO");
-        alertNode.put("status", alert.getStatus() != null ? alert.getStatus().name() : "NOWY");
-        alertNode.put("deviceName", alert.getNazwaUrzadzenia() != null ? alert.getNazwaUrzadzenia() : "Nieznane");
-        alertNode.put("location", alert.getNazwaPokoju() != null ? alert.getNazwaPokoju() : "");
-        if (alert.getCzasAlertu() != null) {
-          alertNode.put("timestamp", alert.getCzasAlertu().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        }
-
-        dataArray.add(alertNode);
-
-        // Zliczaj statystyki
-        if (alert.getPriorytet() != null) {
-          switch (alert.getPriorytet()) {
-            case CRITICAL:
-              critical++;
-              break;
-            case WARNING:
-              warning++;
-              break;
-            case INFO:
-              info++;
-              break;
-          }
-        }
-
-        if (alert.getStatus() != null) {
-          switch (alert.getStatus()) {
-            case ROZWIAZANY:
-              resolved++;
-              break;
-            case POTWIERDZONY:
-              confirmed++;
-              break;
-            case NOWY:
-              newAlerts++;
-              break;
-          }
-        }
-      }
-
-      ObjectNode summary = objectMapper.createObjectNode();
-      summary.put("type", "summary");
-      summary.put("total", alerts.size());
-      summary.put("critical", critical);
-      summary.put("warning", warning);
-      summary.put("info", info);
-      summary.put("resolved", resolved);
-      summary.put("confirmed", confirmed);
-      summary.put("new", newAlerts);
-
-      ArrayNode result = objectMapper.createArrayNode();
-      result.add(summary);
-      result.addAll(dataArray);
-
-      return result;
-
-    } catch (Exception e) {
-      e.printStackTrace();
-      return dataArray;
-    }
-  }
-
-  private ArrayNode generateDevicesReportData(int buildingId, LocalDateTime from, LocalDateTime to) {
-    ArrayNode dataArray = objectMapper.createArrayNode();
-
-    try {
-      List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
-
-      if (readings == null || readings.isEmpty()) {
-        return dataArray;
-      }
-
-      // Grupuj po urzadzeniu
-      Map<Integer, List<Odczyt>> deviceReadings = new HashMap<>();
-      for (Odczyt reading : readings) {
-        if (reading != null) {
-          deviceReadings.computeIfAbsent(reading.getUrzadzenieId(), k -> new ArrayList<>()).add(reading);
-        }
-      }
-
-      for (Map.Entry<Integer, List<Odczyt>> entry : deviceReadings.entrySet()) {
-        ObjectNode deviceNode = objectMapper.createObjectNode();
-        deviceNode.put("deviceId", entry.getKey());
-        deviceNode.put("readingsCount", entry.getValue().size());
-
-        double sum = 0;
-        for (Odczyt r : entry.getValue()) {
-          sum += extractValueFromReading(r, null);
-        }
-        double avg = entry.getValue().isEmpty() ? 0 : sum / entry.getValue().size();
-        deviceNode.put("averageValue", Math.round(avg * 100.0) / 100.0);
-
-        dataArray.add(deviceNode);
-      }
-
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
-    return dataArray;
-  }
-
-  private ArrayNode generateCostsReportData(int buildingId, LocalDateTime from, LocalDateTime to) {
-    ArrayNode dataArray = objectMapper.createArrayNode();
-
-    try {
-      double totalEnergy = analyticsData.getTotalEnergyConsumptionForBuilding(buildingId, from, to);
-
-      // TODO KINASIOWI PRZEKAZAĆ ŻEBY KONTROLKE CENY DODAŁ BO NIE MA CO DO BAZY
-      double ratePerKwh = 0.85;
-      String currency = "PLN";
-      String tariffName = "domyslna";
-
-      try {
-        Umowa contract = controlData.getActiveContractForBuilding(buildingId);
-        if (contract != null && contract.getSzczegolyTaryfy() != null) {
-          JsonNode tariffDetails = objectMapper.readTree(contract.getSzczegolyTaryfy());
-          if (tariffDetails.has("waluta")) {
-            currency = tariffDetails.get("waluta").asText();
-          }
-          if (tariffDetails.has("taryfy") && tariffDetails.get("taryfy").isArray()) {
-            JsonNode tariffs = tariffDetails.get("taryfy");
-            if (tariffs.size() > 0) {
-              JsonNode firstTariff = tariffs.get(0);
-              if (firstTariff.has("cena_za_kwh")) {
-                ratePerKwh = firstTariff.get("cena_za_kwh").asDouble();
-              }
-              if (firstTariff.has("nazwa")) {
-                tariffName = firstTariff.get("nazwa").asText();
-              }
-            }
-          }
-        }
-      } catch (Exception contractEx) {
-        System.out.println("[ReportsController] Nie udalo sie pobrac umowy - uzywam domyslnej stawki");
-      }
-
-      ObjectNode costNode = objectMapper.createObjectNode();
-      costNode.put("totalEnergyKwh", Math.round(totalEnergy * 100.0) / 100.0);
-      costNode.put("ratePerKwh", ratePerKwh);
-      costNode.put("tariffName", tariffName);
-      costNode.put("totalCostPln", Math.round(totalEnergy * ratePerKwh * 100.0) / 100.0);
-      costNode.put("currency", currency);
-
-      dataArray.add(costNode);
-
-    } catch (Exception e) {
-      System.err.println("[ReportsController] Blad generowania danych kosztow: " + e.getMessage());
-      e.printStackTrace();
-    }
-
-    return dataArray;
-  }
-
-  private double extractValueFromReading(Odczyt reading, ConfigurationType configurationType) {
-    if (reading.getPomiary() == null || reading.getPomiary().isEmpty()) {
-      return 0.0;
-    }
-
-    try {
-      JsonNode pomiary = objectMapper.readTree(reading.getPomiary());
-
-      // Szukaj wartosci w zaleznosci od configuration type
-      String[] keysToTry;
-      if (configurationType == null) {
-        keysToTry = new String[] { "wartosc", "value", "moc_W", "temperatura_C", "jasnosc_procent" };
-      } else {
-        switch (configurationType) {
-          case Power:
-            keysToTry = new String[] { "moc_W", "power", "zuzycie_kwh", "wartosc" };
-            break;
-          case Temperature:
-            keysToTry = new String[] { "temperatura_C", "temperature", "temp" };
-            break;
-          case Humidity:
-            keysToTry = new String[] { "wilgotnosc_procent", "humidity", "wilgotnosc" };
-            break;
-          case Pressure:
-            keysToTry = new String[] { "cisnienie_hPa", "pressure", "cisnienie" };
-            break;
-          case Luminosity:
-            keysToTry = new String[] { "jasnosc_procent", "luminosity", "jasnosc" };
-            break;
-          case CO2Level:
-            keysToTry = new String[] { "co2_ppm", "co2_level", "co2" };
-            break;
-          case NoiseLevel:
-            keysToTry = new String[] { "halas_db", "noise_level", "halas" };
-            break;
-          default:
-            keysToTry = new String[] { "wartosc", "value", "moc_W", "temperatura_C", "jasnosc_procent" };
-        }
-      }
-
-      for (String key : keysToTry) {
-        if (pomiary.has(key)) {
-          return pomiary.get(key).asDouble();
-        }
-      }
-
-    } catch (Exception e) {
-    }
-
-    return 0.0;
   }
 
   private String generateReportDescription(String reportType, String zone, String mediumStr) {
@@ -767,11 +707,9 @@ public class ReportsController {
 
       String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
       String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
-      int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
-      String mediumStr = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
 
       System.out.println("[ReportsController] Analysis params: dateFrom=" + dateFromStr +
-          ", dateTo=" + dateToStr + ", buildingId=" + buildingId + ", medium=" + mediumStr);
+          ", dateTo=" + dateToStr);
 
       // Parsuj daty
       LocalDateTime dateFrom;
@@ -793,70 +731,55 @@ public class ReportsController {
         return;
       }
 
-      // Pobierz odczyty z bazy
-      List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, dateFrom, dateTo);
-
-      if (readings == null || readings.isEmpty()) {
-        ctx.status(404);
-        ObjectNode error = objectMapper.createObjectNode();
-        error.put("error", "Brak odczytow dla budynku " + buildingId + " w podanym zakresie dat");
-        ctx.json(error);
-        return;
-      }
-
-      System.out.println("[ReportsController] Znaleziono " + readings.size() + " odczytow do analizy");
-
-      // Przygotuj dane dla analizy - grupuj po ConfigurationType
-      Map<ConfigurationType, Double> dataForAnalysis = new HashMap<>();
-      ConfigurationType filterType = ConfigurationType.fromString(mediumStr);
-
-      for (Odczyt reading : readings) {
-        if (reading == null || reading.getPomiary() == null) {
-          continue;
-        }
-
-        try {
-          JsonNode pomiary = objectMapper.readTree(reading.getPomiary());
-
-          // Jeśli podano filtr medium, użyj tylko tego typu
-          if (filterType != null) {
-            double value = extractValueFromReading(reading, filterType);
-            if (value > 0) {
-              dataForAnalysis.put(filterType, value);
-            }
-          } else {
-            // Przetwórz wszystkie dostępne typy
-            for (ConfigurationType type : ConfigurationType.values()) {
-              double value = extractValueFromReading(reading, type);
-              if (value > 0) {
-                dataForAnalysis.put(type, value);
-              }
-            }
-          }
-        } catch (Exception e) {
-          System.err.println("[ReportsController] Blad parsowania pomiarow: " + e.getMessage());
-        }
-      }
-
-      if (dataForAnalysis.isEmpty()) {
-        ctx.status(404);
-        ObjectNode error = objectMapper.createObjectNode();
-        error.put("error", "Brak danych do analizy");
-        ctx.json(error);
-        return;
-      }
-
-      // Utwórz scheme dla analizy
+      // Użyj AnalysisReportAPI.sendDocumentScheme do wygenerowania i zapisania
+      // analizy
       var scheme = AnalysisReportAPI.newAnalysisScheme()
           .setFrom(dateFrom)
           .setTo(dateTo)
           .includeMetrics(AnalysisReportAPI.getAvailableMetrics());
 
-      // Wygeneruj analizę używając AnalysisReportAPI
-      String analysisJson = analysisReportAPI.sendDocumentScheme(scheme);
+      System.out.println("[ReportsController] Wysyłanie schematu analizy...");
+      analysisReportAPI.sendDocumentScheme(scheme);
 
-      // Parsuj wynik i zwróć
-      JsonNode analysisResult = objectMapper.readTree(analysisJson);
+      // Daj chwilę na zapisanie do bazy (może być asynchroniczne)
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+
+      // Pobierz ostatnio wygenerowaną analizę z bazy
+      System.out.println("[ReportsController] Pobieranie analizy z bazy...");
+      List<Raport> recentAnalyses = null;
+      try {
+        recentAnalyses = analyticsData.getReportsByType("Analiza");
+        System.out
+            .println("[ReportsController] Znaleziono analiz: " + (recentAnalyses != null ? recentAnalyses.size() : 0));
+      } catch (Exception dbEx) {
+        System.err.println("[ReportsController] Błąd pobierania z bazy: " + dbEx.getMessage());
+        dbEx.printStackTrace();
+      }
+
+      if (recentAnalyses == null || recentAnalyses.isEmpty()) {
+        ctx.status(500);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Nie udalo sie pobrac zapisanej analizy z bazy danych");
+        error.put("hint", "Analiza mogla zostac wygenerowana ale nie zapisana w bazie");
+        ctx.json(error);
+        return;
+      }
+
+      // Znajdz najnowszą analizę
+      Raport savedAnalysis = recentAnalyses.stream()
+          .max((r1, r2) -> r1.getCzasWygenerowania().compareTo(r2.getCzasWygenerowania()))
+          .orElse(recentAnalyses.get(0));
+
+      System.out.println("[ReportsController] Najnowsza analiza ID: " + savedAnalysis.getId());
+      System.out.println("[ReportsController] Zawartość (pierwsze 200 znaków): "
+          + savedAnalysis.getZawartosc().substring(0, Math.min(200, savedAnalysis.getZawartosc().length())));
+
+      // Parsuj zawartosc i zwróć
+      JsonNode analysisResult = objectMapper.readTree(savedAnalysis.getZawartosc());
 
       ctx.status(200);
       ctx.json(analysisResult);
@@ -867,6 +790,138 @@ public class ReportsController {
       ctx.status(500);
       ObjectNode error = objectMapper.createObjectNode();
       error.put("error", "Blad podczas generowania analizy: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+      ctx.json(error);
+    }
+  }
+
+  private void listGenerators(Context ctx) {
+    try {
+      System.out.println("[ReportsController] Listing generators. Active services: " + activeServices.size());
+      ArrayNode generatorsArray = objectMapper.createArrayNode();
+
+      for (Map.Entry<String, IDocumentGeneratorService> entry : activeServices.entrySet()) {
+        String serviceKey = entry.getKey();
+        IDocumentGeneratorService service = entry.getValue();
+
+        System.out.println("[ReportsController]   Service key: " + serviceKey);
+
+        List<DocumentGenerator> generators = analysisReportAPI.getBindedDocumentGenerators(service);
+        System.out.println("[ReportsController]   Generators: " + (generators != null ? generators.size() : "null"));
+
+        for (DocumentGenerator generator : generators) {
+          ObjectNode generatorJson = objectMapper.createObjectNode();
+          generatorJson.put("id", generator.getId());
+          generatorJson.put("serviceKey", serviceKey);
+          generatorJson.put("type", serviceKey.startsWith("analysis-") ? "analysis" : "report");
+
+          if (service instanceof AnalysisGeneratorService) {
+            generatorJson.put("name", ((AnalysisGeneratorService) service).getName());
+          } else if (service instanceof ReportGeneratorService) {
+            generatorJson.put("name", ((ReportGeneratorService) service).getName());
+          }
+
+          generatorJson.put("schemeCount", generator.getDocumentSchemes().size());
+
+          // Dodaj informacje o okresach
+          ArrayNode periodsArray = objectMapper.createArrayNode();
+          for (var configEntry : generator.getDocumentConfigs().entrySet()) {
+            for (Period period : configEntry.getValue()) {
+              ObjectNode periodJson = objectMapper.createObjectNode();
+              periodJson.put("years", period.getYears());
+              periodJson.put("months", period.getMonths());
+              periodJson.put("days", period.getDays());
+              periodsArray.add(periodJson);
+            }
+          }
+          generatorJson.set("periods", periodsArray);
+
+          generatorsArray.add(generatorJson);
+        }
+      }
+
+      ctx.status(200);
+      ctx.json(generatorsArray);
+    } catch (Exception e) {
+      System.err.println("[ReportsController] List generators error: " + e.getMessage());
+      e.printStackTrace();
+      ctx.status(500);
+      ObjectNode error = objectMapper.createObjectNode();
+      error.put("error", "Blad podczas pobierania listy generatorow: " + e.getMessage());
+      ctx.json(error);
+    }
+  }
+
+  private void deleteGenerator(Context ctx) {
+    try {
+      String serviceId = ctx.pathParam("serviceId");
+      String generatorId = ctx.pathParam("generatorId");
+
+      System.out
+          .println("[ReportsController] Delete generator: serviceId=" + serviceId + ", generatorId=" + generatorId);
+      System.out.println("[ReportsController] Active services: " + activeServices.keySet());
+
+      IDocumentGeneratorService service = activeServices.get(serviceId);
+
+      if (service == null) {
+        ctx.status(404);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Generator service nie zostal znaleziony: " + serviceId);
+        error.put("availableServices", activeServices.keySet().toString());
+        ctx.json(error);
+        return;
+      }
+
+      List<DocumentGenerator> generators = analysisReportAPI.getBindedDocumentGenerators(service);
+
+      if (generators == null || generators.isEmpty()) {
+        ctx.status(404);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Brak generatorow dla tego serwisu");
+        ctx.json(error);
+        return;
+      }
+
+      System.out.println("[ReportsController] Found " + generators.size() + " generators");
+      generators.forEach(g -> System.out.println("  - Generator ID: " + g.getId()));
+
+      DocumentGenerator targetGenerator = generators.stream()
+          .filter(g -> g.getId().equals(generatorId))
+          .findFirst()
+          .orElse(null);
+
+      if (targetGenerator == null) {
+        ctx.status(404);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Generator nie zostal znaleziony w liscie");
+        error.put("searchedId", generatorId);
+        error.put("availableIds", generators.stream().map(DocumentGenerator::getId).toList().toString());
+        ctx.json(error);
+        return;
+      }
+
+      boolean removed = analysisReportAPI.unBindDocumentGenerator(service, targetGenerator);
+
+      if (removed) {
+        activeServices.remove(serviceId);
+
+        ObjectNode response = objectMapper.createObjectNode();
+        response.put("success", true);
+        response.put("message", "Generator zostal usuniety");
+
+        ctx.status(200);
+        ctx.json(response);
+      } else {
+        ctx.status(500);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Nie udalo sie usunac generatora");
+        ctx.json(error);
+      }
+    } catch (Exception e) {
+      System.err.println("[ReportsController] Delete generator error: " + e.getMessage());
+      e.printStackTrace();
+      ctx.status(500);
+      ObjectNode error = objectMapper.createObjectNode();
+      error.put("error", "Blad podczas usuwania generatora: " + e.getMessage());
       ctx.json(error);
     }
   }

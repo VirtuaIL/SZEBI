@@ -45,6 +45,14 @@ public class AnalysisReportAPI {
     this.dataStorage.addDocument(document);
   }
 
+  public IDocument buildDocument(IDocument.Scheme documentBuilder) {
+    return documentBuilder.build();
+  }
+
+  public String getDocumentContent(IDocument document) {
+    return document.getContent();
+  }
+
   public void subscribeToAlertNotifier(IAlertNotifier notifier) {
     notifiers.add(notifier);
   }
@@ -99,8 +107,7 @@ public class AnalysisReportAPI {
     return IDocument.analysisBuilder();
   }
 
-  public static Set<String> getAvailableMetrics() {
+  public static Set<ConfigurationType> getAvailableMetrics() {
     return aquisitionProxy.getLabelsSet();
   }
-
 }

@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
-interface IDocument {
+public interface IDocument {
   public LocalDateTime getCreationDate();
 
   public String getId();
@@ -60,7 +60,7 @@ interface IDocument {
       return dateTo;
     }
 
-    abstract protected String generateContent(Map<ConfigurationType, Double> data);
+    abstract protected String generateContent(Map<ConfigurationType, List<Double>> data);
 
     @Override
     public String toString() {
@@ -102,7 +102,7 @@ interface IDocument {
 
     private String id;
 
-    private HashSet<String> metrics = new HashSet<>();
+    private HashSet<ConfigurationType> metrics = new HashSet<>();
     private LocalDateTime from = LocalDateTime.MIN;
     private LocalDateTime to = LocalDateTime.MAX;
 
@@ -111,17 +111,17 @@ interface IDocument {
       this.constructor = constructor;
     }
 
-    public Scheme includeMetrics(String... confs) {
+    public Scheme includeMetrics(ConfigurationType... confs) {
       this.metrics.addAll(List.of(confs));
       return this;
     }
 
-    public Scheme includeMetrics(List<String> confs) {
+    public Scheme includeMetrics(List<ConfigurationType> confs) {
       this.metrics.addAll(confs);
       return this;
     }
 
-    public Scheme includeMetrics(Set<String> confs) {
+    public Scheme includeMetrics(Set<ConfigurationType> confs) {
       this.metrics.addAll(confs);
       return this;
     }
@@ -131,12 +131,12 @@ interface IDocument {
     // return this;
     // }
 
-    public Scheme excludeMetrics(String... confs) {
+    public Scheme excludeMetrics(ConfigurationType... confs) {
       this.metrics.removeAll(List.of(confs));
       return this;
     }
 
-    public Scheme excludeMetrics(Collection<String> confs) {
+    public Scheme excludeMetrics(Collection<ConfigurationType> confs) {
       this.metrics.removeAll(confs);
       return this;
     }
