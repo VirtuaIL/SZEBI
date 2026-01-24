@@ -60,7 +60,7 @@ interface IDocument {
       return dateTo;
     }
 
-    abstract protected String generateContent(Map<String, Double> data);
+    abstract protected String generateContent(Map<ConfigurationType, Double> data);
 
     @Override
     public String toString() {

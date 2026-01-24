@@ -24,7 +24,7 @@ final class Report extends IDocument.Document {
    * @return [TODO:return]
    */
   @Override
-  protected String generateContent(Map<String, Double> data) {
+  protected String generateContent(Map<ConfigurationType, Double> data) {
     ObjectMapper mapper = new ObjectMapper();
 
     mapper.registerModule(new JavaTimeModule());

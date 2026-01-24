@@ -59,6 +59,9 @@ public class ReportsController {
 
     // Pobierz dostepne metryki
     app.get("/api/reports/metrics", this::getAvailableMetrics);
+
+    // Generuj szczegółową analizę
+    app.post("/api/reports/analysis", this::generateAnalysis);
   }
 
   private void getAllReports(Context ctx) {
@@ -359,7 +362,8 @@ public class ReportsController {
     return content;
   }
 
-  private ArrayNode generateEnergyReportData(int buildingId, LocalDateTime from, LocalDateTime to, ConfigurationType configurationType) {
+  private ArrayNode generateEnergyReportData(int buildingId, LocalDateTime from, LocalDateTime to,
+      ConfigurationType configurationType) {
     ArrayNode dataArray = objectMapper.createArrayNode();
 
     try {
@@ -752,5 +756,118 @@ public class ReportsController {
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
         .replace("'", "&apos;");
+  }
+
+  private void generateAnalysis(Context ctx) {
+    try {
+      String body = ctx.body();
+      System.out.println("[ReportsController] Analysis request body: " + body);
+
+      JsonNode requestBody = objectMapper.readTree(body);
+
+      String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
+      String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
+      int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
+      String mediumStr = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
+
+      System.out.println("[ReportsController] Analysis params: dateFrom=" + dateFromStr +
+          ", dateTo=" + dateToStr + ", buildingId=" + buildingId + ", medium=" + mediumStr);
+
+      // Parsuj daty
+      LocalDateTime dateFrom;
+      LocalDateTime dateTo;
+
+      try {
+        dateFrom = dateFromStr != null && !dateFromStr.isEmpty()
+            ? LocalDateTime.parse(dateFromStr + "T00:00:00")
+            : LocalDateTime.now().minusDays(7);
+        dateTo = dateToStr != null && !dateToStr.isEmpty()
+            ? LocalDateTime.parse(dateToStr + "T23:59:59")
+            : LocalDateTime.now();
+      } catch (Exception parseEx) {
+        System.err.println("[ReportsController] Date parsing error: " + parseEx.getMessage());
+        ctx.status(400);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Nieprawidlowy format daty. Uzyj formatu YYYY-MM-DD");
+        ctx.json(error);
+        return;
+      }
+
+      // Pobierz odczyty z bazy
+      List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, dateFrom, dateTo);
+
+      if (readings == null || readings.isEmpty()) {
+        ctx.status(404);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Brak odczytow dla budynku " + buildingId + " w podanym zakresie dat");
+        ctx.json(error);
+        return;
+      }
+
+      System.out.println("[ReportsController] Znaleziono " + readings.size() + " odczytow do analizy");
+
+      // Przygotuj dane dla analizy - grupuj po ConfigurationType
+      Map<ConfigurationType, Double> dataForAnalysis = new HashMap<>();
+      ConfigurationType filterType = ConfigurationType.fromString(mediumStr);
+
+      for (Odczyt reading : readings) {
+        if (reading == null || reading.getPomiary() == null) {
+          continue;
+        }
+
+        try {
+          JsonNode pomiary = objectMapper.readTree(reading.getPomiary());
+
+          // Jeśli podano filtr medium, użyj tylko tego typu
+          if (filterType != null) {
+            double value = extractValueFromReading(reading, filterType);
+            if (value > 0) {
+              dataForAnalysis.put(filterType, value);
+            }
+          } else {
+            // Przetwórz wszystkie dostępne typy
+            for (ConfigurationType type : ConfigurationType.values()) {
+              double value = extractValueFromReading(reading, type);
+              if (value > 0) {
+                dataForAnalysis.put(type, value);
+              }
+            }
+          }
+        } catch (Exception e) {
+          System.err.println("[ReportsController] Blad parsowania pomiarow: " + e.getMessage());
+        }
+      }
+
+      if (dataForAnalysis.isEmpty()) {
+        ctx.status(404);
+        ObjectNode error = objectMapper.createObjectNode();
+        error.put("error", "Brak danych do analizy");
+        ctx.json(error);
+        return;
+      }
+
+      // Utwórz scheme dla analizy
+      var scheme = AnalysisReportAPI.newAnalysisScheme()
+          .setFrom(dateFrom)
+          .setTo(dateTo)
+          .includeMetrics(AnalysisReportAPI.getAvailableMetrics());
+
+      // Wygeneruj analizę używając AnalysisReportAPI
+      String analysisJson = analysisReportAPI.sendDocumentScheme(scheme);
+
+      // Parsuj wynik i zwróć
+      JsonNode analysisResult = objectMapper.readTree(analysisJson);
+
+      ctx.status(200);
+      ctx.json(analysisResult);
+
+    } catch (Exception e) {
+      System.err.println("[ReportsController] Analysis error: " + e.getClass().getName() + ": " + e.getMessage());
+      e.printStackTrace();
+      ctx.status(500);
+      ObjectNode error = objectMapper.createObjectNode();
+      error.put("error", "Blad podczas generowania analizy: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+      ctx.json(error);
+    }
   }
 }

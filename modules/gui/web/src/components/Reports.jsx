@@ -17,6 +17,8 @@ export default function Reports({ userRole }) {
   const [currentReportId, setCurrentReportId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
 
   useEffect(() => {
     fetchSavedReports();
@@ -100,6 +102,39 @@ export default function Reports({ userRole }) {
       alert('Nie udało się zapisać raportu.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateAnalysis = async () => {
+    if (!dateFrom || !dateTo) {
+      alert('Proszę wybrać zakres dat');
+      return;
+    }
+
+    setGeneratingAnalysis(true);
+    setAnalysisData(null);
+
+    try {
+      const response = await fetch(`${API_URL}/reports/analysis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateFrom,
+          dateTo,
+          medium,
+          buildingId: 1
+        }),
+      });
+
+      if (!response.ok) throw new Error('Błąd generowania analizy');
+
+      const analysis = await response.json();
+      setAnalysisData(analysis);
+    } catch (error) {
+      console.error('Błąd:', error);
+      alert('Błąd podczas generowania analizy: ' + error.message);
+    } finally {
+      setGeneratingAnalysis(false);
     }
   };
 
@@ -255,6 +290,7 @@ export default function Reports({ userRole }) {
             <option value="alerts">Historia alarmów</option>
             <option value="devices">Stan urządzeń</option>
             <option value="costs">Koszty</option>
+            <option value="analysis">Analiza szczegółowa</option>
           </select>
         </div>
 
@@ -296,10 +332,72 @@ export default function Reports({ userRole }) {
           <button className="btn-generate" onClick={handleGenerate} disabled={loading}>
             {loading ? 'Generowanie...' : 'Generuj'}
           </button>
+          {reportType === 'analysis' && (
+            <button className="btn-generate" onClick={handleGenerateAnalysis} disabled={generatingAnalysis} style={{marginLeft: '10px'}}>
+              {generatingAnalysis ? 'Analizowanie...' : '🔍 Generuj Analizę'}
+            </button>
+          )}
         </div>
       </div>
 
-      {reportData && (
+      {analysisData && reportType === 'analysis' && (
+        <div className="analysis-results">
+          <h3>Wyniki Analizy</h3>
+          <div className="analysis-summary">
+            <p><strong>Typ analizy:</strong> {analysisData.analysisType}</p>
+            <p><strong>Liczba metryk:</strong> {analysisData.metricsCount}</p>
+            <p><strong>Ogólna ocena:</strong> <span className="quality-badge">{analysisData.overallAssessment}</span></p>
+          </div>
+
+          {analysisData.metrics && Object.entries(analysisData.metrics).map(([key, metric]) => (
+            <div key={key} className="metric-card">
+              <h4>{metric.configurationType} ({metric.unit})</h4>
+
+              <div className="metric-stats">
+                <div className="stat-group">
+                  <h5>Statystyki opisowe</h5>
+                  <p>Min: {metric.descriptiveStatistics?.min}</p>
+                  <p>Max: {metric.descriptiveStatistics?.max}</p>
+                  <p>Średnia: {metric.descriptiveStatistics?.average}</p>
+                  <p>Mediana: {metric.descriptiveStatistics?.median}</p>
+                  <p>Zakres: {metric.descriptiveStatistics?.range}</p>
+                  <p>Odchylenie std: {metric.descriptiveStatistics?.standardDeviation}</p>
+                </div>
+
+                <div className="stat-group">
+                  <h5>Percentyle</h5>
+                  <p>P25: {metric.percentiles?.p25}</p>
+                  <p>P50: {metric.percentiles?.p50_median}</p>
+                  <p>P75: {metric.percentiles?.p75}</p>
+                </div>
+
+                <div className="stat-group">
+                  <h5>Zgodność z zakresami</h5>
+                  <p>Poza zakresem: {metric.rangeCompliance?.outOfTypicalRangeCount} ({metric.rangeCompliance?.outOfTypicalRangePercentage}%)</p>
+                  <p>W optymalnym: {metric.rangeCompliance?.inOptimalRangeCount} ({metric.rangeCompliance?.inOptimalRangePercentage}%)</p>
+                </div>
+              </div>
+
+              <div className="metric-assessment">
+                <p><strong>Ocena:</strong> {metric.qualityAssessment}</p>
+              </div>
+
+              {metric.recommendations && metric.recommendations.length > 0 && (
+                <div className="metric-recommendations">
+                  <h5>Rekomendacje:</h5>
+                  <ul>
+                    {metric.recommendations.map((rec, i) => (
+                      <li key={i}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {reportData && reportType !== 'analysis' && (
         <div className="report-visualization">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3>Podgląd wyników</h3>
@@ -309,7 +407,7 @@ export default function Reports({ userRole }) {
               </button>
             )}
           </div>
-          
+
           {renderChartByType()}
 
           {anomalies.length > 0 && reportType === 'energy' && (
@@ -318,7 +416,7 @@ export default function Reports({ userRole }) {
               <ul>
                 {anomalies.map((a, i) => (
                     <li key={i} className={a.type === 'high' ? 'anomaly-high' : 'anomaly-low'}>
-                        <strong>{a.time}</strong>: {a.value}W 
+                        <strong>{a.time}</strong>: {a.value}W
                         <span> ({a.type === 'high' ? 'Wysokie zużycie' : 'Niskie zużycie'})</span>
                     </li>
                 ))}
@@ -351,7 +449,6 @@ export default function Reports({ userRole }) {
       <div className="export-section">
         <h3>Eksportuj wybrany raport</h3>
         <div className="export-buttons">
-          <button className="btn-export" onClick={() => handleExport('PDF')} disabled={!currentReportId}>Pobierz PDF</button>
           <button className="btn-export" onClick={() => handleExport('JSON')} disabled={!currentReportId}>Pobierz JSON</button>
           <button className="btn-export" onClick={() => handleExport('XML')} disabled={!currentReportId}>Pobierz XML</button>
         </div>
