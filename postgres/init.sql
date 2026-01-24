@@ -108,7 +108,14 @@ INSERT INTO Producent_urzadzenia (nazwa_producenta) VALUES ('Siemens'), ('Samsun
 
 -- 2. Stwórz byty nadrzędne
 INSERT INTO Budynek (Nazwa, Adres, Powierzchnia, Liczba_pieter) VALUES ('Biurowiec Alfa', 'Warszawa, ul. Główna 1', 2500, 5), ('Biurowiec Beta', 'Kraków, ul. Boczna 2', 4500, 8), ('Magazyn Gamma', 'Poznań, ul. Logistyczna 3', 12000, 1);
-INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (1, 'Adam', 'Adminowski', '100100100', 'admin@szebi.com', '...hash...', '{ "preferowana_temperatura": 19.0 }'), (2, 'Ignacy', 'Inżynierski', '200200200', 'inzynier@szebi.com', '...hash...', '{ "preferowana_temperatura": 25.0 }'), (3, 'Natalia', 'Nowak', '300300300', 'natalia.nowak@szebi.com', '...hash...', '{ "preferowana_temperatura": 22.0 }');
+INSERT INTO Uzytkownik (ID_roli, Imie, Nazwisko, Telefon, Email, Haslo_hash, preferencje) VALUES (1, 'Adam', 'Adminowski', '100100100', 'admin@szebi.com', '...hash...', '{
+  "preferredMinTemp": 20.0,
+  "preferredMaxTemp": 24.0,
+  "timeOpen": "07:00",
+  "timeClose": "21:00",
+  "maxEnergyUsage": 2000.0,
+  "priorityComfort": 5
+}'), (2, 'Ignacy', 'Inżynierski', '200200200', 'inzynier@szebi.com', '...hash...', '{ "preferowana_temperatura": 25.0 }'), (3, 'Natalia', 'Nowak', '300300300', 'natalia.nowak@szebi.com', '...hash...', '{ "preferowana_temperatura": 22.0 }');
 
 -- 3. Stwórz byty zależne (dzieci)
 INSERT INTO Pokoje (ID_budynku, numer_pokoju, pietro) VALUES (1, '101', 1), (1, '102', 1), (2, 'Serwerownia', 0), (3, 'Hala Główna', 1);

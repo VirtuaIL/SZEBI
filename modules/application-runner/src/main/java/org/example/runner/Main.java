@@ -5,7 +5,6 @@ import org.example.DTO.*;
 import org.example.interfaces.*;
 import java.util.Collections;
 import org.example.OptimizationController;
-import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 import org.example.runner.AlertsController;
@@ -67,21 +66,9 @@ public class Main {
     System.out.println("=== Inicjalizacja modułu optymalizacji ===");
     OptimizationController optimizationController = new OptimizationController();
 
-    // 5a. Konfiguracja preferencji administratora
-    AdministratorPreferences adminPrefs = new AdministratorPreferences();
-    adminPrefs.setPreferredMinTemp(18.0);
-    adminPrefs.setPreferredMaxTemp(24.0);
-    adminPrefs.setMaxEnergyUsage(1500.0);
-    adminPrefs.setTimeOpen("08:00");
-    adminPrefs.setTimeClose("20:00");
-    adminPrefs.setPriorityComfort(7);
-    optimizationController.setAdminPreferences(adminPrefs);
-
-    System.out.println("[INFO] Preferencje administratora:");
-    System.out.println(
-        "  - Temperatura: " + adminPrefs.getPreferredMinTemp() + "°C - " + adminPrefs.getPreferredMaxTemp() + "°C");
-    System.out.println("  - Max zużycie energii: " + adminPrefs.getMaxEnergyUsage() + " W");
-    System.out.println("  - Priorytet komfortu: " + adminPrefs.getPriorityComfort() + "/10");
+    // 5a. Preferencje administratora są teraz ładowane dynamicznie z bazy danych
+    // (Rola ID 1)
+    System.out.println("[INFO] Preferencje administratora będą ładowane z bazy danych.");
 
     // 5b. Podłączenie serwisów do kontrolera optymalizacji
     optimizationController.setAcquisitionAPI(api);
@@ -131,6 +118,10 @@ public class Main {
 
       public Uzytkownik saveUser(Uzytkownik u) {
         return u;
+      }
+
+      public List<Uzytkownik> getUsersByRole(int roleId) {
+        return java.util.Collections.emptyList();
       }
 
       public List<org.example.DTO.Pokoj> getRoomsInBuilding(int bid) {

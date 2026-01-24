@@ -40,24 +40,6 @@ public class PostgresDataStorage
         return DriverManager.getConnection(DB_URL, USER, PASS);
     }
 
-    public void initializeOptimizationTables() {
-        String createLogsTable = "CREATE TABLE IF NOT EXISTS Logi_optymalizacji (" +
-                "ID_logu SERIAL PRIMARY KEY, " +
-                "ID_urzadzenia INT, " +
-                "operacja VARCHAR(50), " +
-                "wartosc DOUBLE PRECISION, " +
-                "zrodlo VARCHAR(50), " +
-                "czas_operacji TIMESTAMP" +
-                ");";
-
-        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute(createLogsTable);
-            System.out.println("[DB-INFO] Tabele optymalizacji zostały zweryfikowane/utworzone.");
-        } catch (SQLException e) {
-            System.err.println("[DB-ERROR] Błąd tworzenia tabel optymalizacji: " + e.getMessage());
-        }
-    }
-
     @Override
     public void saveSensorReading(Odczyt reading) {
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
@@ -393,9 +375,14 @@ public class PostgresDataStorage
                 user.setEmail(rs.getString("Email"));
                 user.setHasloHash(rs.getString("Haslo_hash"));
                 String prefJson = rs.getString("preferencje");
+                user.setRawPreferences(prefJson);
                 if (prefJson != null && !prefJson.isEmpty()) {
                     try {
                         ObjectMapper mapper = new ObjectMapper();
+                        // Ignorujemy błędy mapowania dla Administratora, który ma inną strukturę JSON
+                        mapper.configure(
+                                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                                false);
                         UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
                         user.setPreferencje(prefs);
                     } catch (Exception e) {
@@ -855,6 +842,50 @@ public class PostgresDataStorage
             e.printStackTrace();
         }
         return rola;
+    }
+
+    @Override
+    public List<Uzytkownik> getUsersByRole(int roleId) {
+        List<Uzytkownik> users = new ArrayList<>();
+        String sql = "SELECT * FROM Uzytkownik WHERE ID_roli = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, roleId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Uzytkownik user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                user.setHasloHash(rs.getString("Haslo_hash"));
+
+                String prefJson = rs.getString("preferencje");
+                user.setRawPreferences(prefJson);
+
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        mapper.configure(
+                                com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                                false);
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd pobierania użytkowników roli " + roleId + ": " + e.getMessage());
+        }
+        return users;
     }
 
     @Override

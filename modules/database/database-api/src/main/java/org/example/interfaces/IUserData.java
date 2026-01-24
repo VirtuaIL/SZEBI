@@ -13,4 +13,6 @@ public interface IUserData {
     Rola getRoleById(int rolaId);
 
     Uzytkownik saveUser(Uzytkownik user);
+
+    List<Uzytkownik> getUsersByRole(int roleId);
 }

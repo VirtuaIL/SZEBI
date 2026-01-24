@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OptimizationController {
-    private AdministratorPreferences adminPref;
+    private AdministratorPreferencesDTO adminPref;
     private boolean overrideAutomatization;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -27,7 +27,7 @@ public class OptimizationController {
 
     public OptimizationController() {
         this.overrideAutomatization = false;
-        this.adminPref = new AdministratorPreferences();
+        this.adminPref = new AdministratorPreferencesDTO();
     }
 
     public void setAcquisitionAPI(AcquisitionAPI acquisitionAPI) {
@@ -57,7 +57,12 @@ public class OptimizationController {
         // boolean isBuildingOpen = isWithinWorkingHours();
 
         // Tymczasowo zawsze otwarty dla testów
-        boolean isBuildingOpen = true;
+        if (userService != null) {
+            loadAdminPreferences();
+        }
+
+        boolean isBuildingOpen = isWithinWorkingHours();
+
         System.out.println("[Optymalizacja] Status budynku: " + (isBuildingOpen ? "OTWARTY" : "ZAMKNIĘTY") +
                 " (Godziny: " + adminPref.getTimeOpen() + " - " + adminPref.getTimeClose() + ")");
 
@@ -394,8 +399,28 @@ public class OptimizationController {
         }
     }
 
-    public void setAdminPreferences(AdministratorPreferences p) {
+    public void setAdminPreferences(AdministratorPreferencesDTO p) {
         this.adminPref = p;
+    }
+
+    private void loadAdminPreferences() {
+        try {
+            List<Uzytkownik> admins = userService.getUsersByRole(1); // 1 = Administrator
+            if (!admins.isEmpty()) {
+                Uzytkownik admin = admins.get(0);
+                String rawJson = admin.getRawPreferences();
+                if (rawJson != null && !rawJson.isEmpty()) {
+                    // Deserializacja do DTO
+                    this.adminPref = objectMapper.readValue(rawJson, AdministratorPreferencesDTO.class);
+                    System.out
+                            .println("[Optymalizacja] Załadowano preferencje administratora z DB ID: " + admin.getId());
+                }
+            } else {
+                System.out.println("[Optymalizacja] Nie znaleziono administratora w DB. Używam domyślnych.");
+            }
+        } catch (Exception e) {
+            System.err.println("[Optymalizacja] Błąd ładowania preferencji admina: " + e.getMessage());
+        }
     }
 
     private void logAction(int deviceId, String operation, double value, String source) {
