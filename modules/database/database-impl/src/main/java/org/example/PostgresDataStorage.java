@@ -284,7 +284,11 @@ public class PostgresDataStorage
 
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId) {
-        return getAlertDetailsWithFilter("WHERE p.ID_budynku = ?", buildingId);
+        // Zwracamy wszystkie alarmy, które są powiązane z budynkiem przez urządzenie
+        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy alarm
+        // ale z NULL-ami w polach urządzenia
+        // Filtrujemy po budynku - jeśli urządzenie jest w budynku, to pokazujemy alarm
+        return getAlertDetailsWithFilter("WHERE (p.ID_budynku = ? OR (u.ID_urzadzenia IS NULL))", buildingId);
     }
 
     @Override
@@ -467,12 +471,14 @@ public class PostgresDataStorage
 
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        String sql = "SELECT a.*, u.nazwa_wlasna, m.nazwa_modelu, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
                 "FROM Alerty a " +
                 "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
                 "JOIN Budynek b ON p.ID_budynku = b.ID_budynku " +
                 "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu " +
+                "JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta " +
+                "JOIN Typ_urzadzenia tu ON m.ID_typu_urzadzenia = tu.ID_typu_urzadzenia " +
                 "WHERE p.ID_budynku = ? AND a.czas_alertu >= ? AND a.czas_alertu < ? ORDER BY a.czas_alertu DESC";
 
         List<AlertSzczegoly> alertDetails = new ArrayList<>();
@@ -874,12 +880,20 @@ public class PostgresDataStorage
     }
 
     private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
-        String baseSql = "SELECT a.*, u.nazwa_wlasna, m.nazwa_modelu, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub nie jest powiązane
+        String baseSql = "SELECT a.*, " +
+                "COALESCE(pu.nazwa_producenta, 'Nieznany') AS nazwa_producenta, " +
+                "COALESCE(m.nazwa_modelu, 'Nieznany') AS nazwa_modelu, " +
+                "COALESCE(tu.nazwa_typu_urzadzenia, 'Nieznany') AS nazwa_typu_urzadzenia, " +
+                "COALESCE(p.numer_pokoju, 'Nieznany') AS numer_pokoju, " +
+                "COALESCE(b.Nazwa, 'Nieznany') AS nazwa_budynku " +
                 "FROM Alerty a " +
-                "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
-                "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
-                "JOIN Budynek b ON p.ID_budynku = b.ID_budynku " +
-                "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu ";
+                "LEFT JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
+                "LEFT JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
+                "LEFT JOIN Budynek b ON p.ID_budynku = b.ID_budynku " +
+                "LEFT JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu " +
+                "LEFT JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta " +
+                "LEFT JOIN Typ_urzadzenia tu ON m.ID_typu_urzadzenia = tu.ID_typu_urzadzenia ";
 
         String finalSql = baseSql + whereClause + " ORDER BY a.czas_alertu DESC";
 
@@ -894,10 +908,11 @@ public class PostgresDataStorage
 
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-
-                alertDetails.add(mapResultSetToAlertDetails(rs));
+                AlertSzczegoly alert = mapResultSetToAlertDetails(rs);
+                alertDetails.add(alert);
             }
         } catch (SQLException e) {
+            System.err.println("[ERROR] Błąd w getAlertDetailsWithFilter: " + e.getMessage());
             e.printStackTrace();
         }
         return alertDetails;
@@ -913,10 +928,36 @@ public class PostgresDataStorage
         }
         details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
-        details.setNazwaUrzadzenia(rs.getString("nazwa_wlasna"));
-        details.setNazwaModelu(rs.getString("nazwa_modelu"));
-        details.setNazwaPokoju(rs.getString("numer_pokoju"));
-        details.setNazwaBudynku(rs.getString("nazwa_budynku"));
+        
+        // Utwórz nazwę urządzenia z producenta i typu/modelu
+        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie istnieje
+        String nazwaProducenta = rs.getString("nazwa_producenta");
+        String nazwaModelu = rs.getString("nazwa_modelu");
+        String nazwaTypu = rs.getString("nazwa_typu_urzadzenia");
+        
+        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest dostępny)
+        String nazwaUrzadzenia = "";
+        if (nazwaProducenta != null && !nazwaProducenta.equals("Nieznany")) {
+            nazwaUrzadzenia = nazwaProducenta;
+        }
+        if (nazwaTypu != null && !nazwaTypu.equals("Nieznany")) {
+            nazwaUrzadzenia += (nazwaUrzadzenia.isEmpty() ? "" : " ") + nazwaTypu;
+        } else if (nazwaModelu != null && !nazwaModelu.equals("Nieznany")) {
+            nazwaUrzadzenia += (nazwaUrzadzenia.isEmpty() ? "" : " ") + nazwaModelu;
+        }
+        if (nazwaUrzadzenia.isEmpty() || nazwaUrzadzenia.equals("Nieznany")) {
+            nazwaUrzadzenia = "Urządzenie #" + details.getUrzadzenieId();
+        }
+        
+        details.setNazwaUrzadzenia(nazwaUrzadzenia);
+        details.setNazwaModelu(nazwaModelu != null && !nazwaModelu.equals("Nieznany") ? nazwaModelu : null);
+        
+        String numerPokoju = rs.getString("numer_pokoju");
+        details.setNazwaPokoju(numerPokoju != null && !numerPokoju.equals("Nieznany") ? numerPokoju : null);
+        
+        String nazwaBudynku = rs.getString("nazwa_budynku");
+        details.setNazwaBudynku(nazwaBudynku != null && !nazwaBudynku.equals("Nieznany") ? nazwaBudynku : null);
+        
         return details;
     }
 }

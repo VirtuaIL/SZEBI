@@ -41,7 +41,7 @@ public class AuthService {
                 // Dla testów - jeśli w bazie jest placeholder, sprawdź proste hasła
                 // admin@szebi.com -> admin123
                 // inzynier@szebi.com -> inzynier123
-                // natalia.nowak@szebi.com -> natalia123
+                // natalia.nowak@szebi.com -> natalia.nowak123
                 String emailPrefix = email.split("@")[0]; // admin@szebi.com -> admin
                 String expectedPassword = emailPrefix + "123";
                 passwordValid = password.equals(expectedPassword);

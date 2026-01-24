@@ -8,6 +8,8 @@ import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
+import org.example.runner.AlertsController;
+import org.example.runner.DevicesController;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -164,19 +166,23 @@ public class Main {
     optimizationController.setControlService(demoSim);
     optimizationController.setUserService(demoSim);
 
-    optimizationController.optimizeBuildingByRooms(1);
+    optimizationController.optimizeEnergyConsumption(1);
 
     optimizationController.setControlService(databaseStorage);
     optimizationController.setUserService(databaseStorage);
     System.out.println("===========================================================\n");
 
-    optimizationController.optimizeBuildingByRooms(1);
+    optimizationController.optimizeEnergyConsumption(1);
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
     // === 6. Uruchomienie REST API dla GUI ===
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
+    
+    AlertsController alertsController = new AlertsController(databaseStorage);
+    
+    DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
@@ -185,6 +191,8 @@ public class Main {
     });
 
     authController.setupRoutes(app);
+    alertsController.setupRoutes(app);
+    devicesController.setupRoutes(app);
 
     int apiPort = 8080;
     // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych
@@ -192,6 +200,8 @@ public class Main {
     app.start("0.0.0.0", apiPort);
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
+    System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
+    System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
