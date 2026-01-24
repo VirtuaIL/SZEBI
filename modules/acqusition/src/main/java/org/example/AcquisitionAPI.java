@@ -135,7 +135,22 @@ public class AcquisitionAPI {
     }
 
 
-
+    /**
+     * Rejestruje nowe urządzenie w systemie akwizycji.
+     * <p>
+     * Metoda posiada wbudowaną logikę "Smart Defaults" - automatycznie obsługuje
+     * brakujące dane konfiguracyjne (null) oraz dostosowuje typ urządzenia
+     * (np. wykrywa elementy sterowalne przy braku etykiety metryki).
+     * </p>
+     *
+     * @param deviceName    Nazwa własna urządzenia (String)
+     * @param roomID        ID pokoju
+     * @param modelID       ID modelu
+     * @param min           Dolny zakres normy pomiarowej
+     * @param max           Górny zakres normy pomiarowej
+     * @param metricLabel   Etykieta typu pomiaru (np. "temperatura_C")
+     * @param powerUsage    Nominalne zużycie energii w Watach
+     */
     public void createNewDevice(String deviceName, int roomID, int modelID, Number min, Number max, String metricLabel, Number powerUsage) {
         double safeMin = (min != null) ? min.doubleValue() : 0.0;
         double safeMax = (max != null) ? max.doubleValue() : 0.0;

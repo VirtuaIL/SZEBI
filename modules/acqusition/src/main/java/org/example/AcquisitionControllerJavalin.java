@@ -62,7 +62,8 @@ public class AcquisitionControllerJavalin {
         } catch (Exception e) {
             ctx.status(500);
             ObjectNode error = objectMapper.createObjectNode();
-            error.put("error", "Błąd podczas uruchamiania zadania " + e.getMessage());
+            error.put("success", "false" + e.getMessage());
+            error.put("error", "Błąd podczas uruchamiania zadania" + e.getMessage());
             ctx.json(error);
             e.printStackTrace();
         }
@@ -83,6 +84,7 @@ public class AcquisitionControllerJavalin {
         } catch (Exception e) {
             ctx.status(500);
             ObjectNode error = objectMapper.createObjectNode();
+            error.put("success", "false");
             error.put("error", "Błąd podczas próby odczytu" + e.getMessage());
             ctx.json(error);
             e.printStackTrace();
@@ -105,6 +107,7 @@ public class AcquisitionControllerJavalin {
         } catch (Exception e) {
             ctx.status(500);
             ObjectNode error = objectMapper.createObjectNode();
+            error.put("success", "false");
             error.put("error", "Błąd podczas próby odczytu" + e.getMessage());
             ctx.json(error);
             e.printStackTrace();
@@ -161,7 +164,8 @@ public class AcquisitionControllerJavalin {
         } catch (Exception e) {
             ctx.status(500);
             ObjectNode error = objectMapper.createObjectNode();
-            error.put("error", "Błąd podczas próby odczytu" + e.getMessage());
+            error.put("success", "false");
+            error.put("error", "Błąd podczas dodawania urządzenia" + e.getMessage());
             ctx.json(error);
             e.printStackTrace();
         }
