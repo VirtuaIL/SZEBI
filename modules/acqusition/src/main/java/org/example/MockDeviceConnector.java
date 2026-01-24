@@ -15,8 +15,7 @@ public class MockDeviceConnector implements IDeviceConnector {
 
     @Override
     public double readValue() {
-        // Symulacja: Zwraca wartość z lekkim szumem
-        double noise = (random.nextDouble() * 4.0) - 2.0;
+        double noise = (random.nextDouble() * 0.2) - 0.1;
         return baseValue + noise;
     }
 

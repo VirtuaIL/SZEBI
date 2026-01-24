@@ -97,11 +97,14 @@ public class OptimizationController {
      * Logika optymalizacji dla konkretnego pokoju.
      */
     private void optimizeRoomBasedOnPreferences(Pokoj room, boolean isBuildingOpen) {
-        System.out.println("--- Optymalizacja Pokoju: " + room.getNumerPokoju() + " (ID: " + room.getId() + ") ---");
+        System.out.println("\n╔════════════════════════════════════════════════════╗");
+        System.out.println(String.format("║ %-50s ║",
+                "Optymalizacja Pokoju: " + room.getNumerPokoju() + " (ID: " + room.getId() + ")"));
+        System.out.println("╚════════════════════════════════════════════════════╝");
 
         List<Urzadzenie> devices = getDevicesFromRoom(room.getId());
         if (devices.isEmpty()) {
-            System.out.println("   Brak urządzeń w tym pokoju.");
+            System.out.println("   [INFO] Brak urządzeń w tym pokoju.");
             return;
         }
 
@@ -158,23 +161,21 @@ public class OptimizationController {
         if (doesDeviceMeasureTemperature(device) && currentVal != null) {
 
             if (!isBuildingOpen && !userOverride) {
-                System.out.println("   [CLIMATE] Urządzenie " + deviceId + ": Budynek zamknięty -> Tryb Eco (16°C).");
+                System.out.println(String.format("   %-10s [ID:%s] | Budynek ZAMKNIĘTY -> Tryb Eco (16°C)", "[CLIMATE]",
+                        deviceId));
                 controlDevice(device.getId(), "set_temp", 16.0);
-            }
-            else {
+            } else {
                 if (currentVal < targetMinTemp) {
-                    System.out.println(
-                            "   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
-                                    + "°C) -> Za zimno! Grzanie (Cel: " + targetMinTemp + ").");
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Za zimno! Grzanie (Cel: %.1f)",
+                            "[CLIMATE]", deviceId, currentVal, targetMinTemp));
                     controlDevice(device.getId(), "set_temp", targetMinTemp + 1.0);
-                }
-                else if (currentVal > targetMaxTemp) {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
-                            + "°C) -> Za ciepło! Chłodzenie (Cel: " + targetMaxTemp + ").");
+                } else if (currentVal > targetMaxTemp) {
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Za ciepło! Chłodzenie (Cel: %.1f)",
+                            "[CLIMATE]", deviceId, currentVal, targetMaxTemp));
                     controlDevice(device.getId(), "set_temp", targetMaxTemp - 1.0);
-                }
-                else {
-                    System.out.println("   [CLIMATE] Urządzenie " + deviceId + " -> Temperatura w normie.");
+                } else {
+                    System.out.println(String.format("   %-10s [ID:%s] | %.2f°C -> Temperatura OK", "[CLIMATE]",
+                            deviceId, currentVal));
                 }
             }
             return;
@@ -187,11 +188,11 @@ public class OptimizationController {
             boolean supportsDimming = params != null && params.contains("jasnosc_procent");
 
             if (!isBuildingOpen && !userOverride) {
-                System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło (0%).");
+                System.out.println(String.format("   %-10s [ID:%s] | Budynek ZAMKNIĘTY -> Wyłączam światło (0%%)",
+                        "[LIGHT]", deviceId));
                 // Ustawiamy 0% jasności
                 controlDevice(device.getId(), "jasnosc_procent", 0.0);
-            }
-            else {
+            } else {
                 double targetBrightness = 3.0;
 
                 List<Integer> roomUserIds = room.getUzytkownicyIds();
@@ -207,34 +208,39 @@ public class OptimizationController {
                     }
                     if (count > 0) {
                         targetBrightness = sumBright / count;
-                        System.out.println("   [LIGHT] Średnie preferencje: Jasność=" + targetBrightness + " (1-5)");
+                        System.out.println(String.format("   %-10s [ID:%s] | Średnie preferencje: %.2f (1-5)",
+                                "[LIGHT]", deviceId, targetBrightness));
                     }
                 }
 
-                // Konwersja 1-5 na 0-10
-                double targetScaled = Math.min(10.0, targetBrightness * 2.0);
+                // Konwersja 1-5 na 0-100 (tak jak chciał user)
+                // 1 -> 20.0, 5 -> 100.0
+                double targetScaled = Math.min(100.0, targetBrightness * 20.0);
 
-                // Sprawdzenie, czy aktualna wartość jest już poprawna (tolerancja 0.1)
-                if (Math.abs(currentVal - targetScaled) < 0.1) {
-                    System.out.println("   [LIGHT] Poziom jasności optymalny (" + currentVal + "). Brak akcji.");
+                // Sprawdzenie, czy aktualna wartość jest już poprawna (tolerancja 1.0 dla szumu
+                // +/- 0.5)
+                if (Math.abs(currentVal - targetScaled) < 1.0) {
+                    System.out.println(String.format("   %-10s [ID:%s] | Jasność OK (%.1f%%). Brak akcji.", "[LIGHT]",
+                            deviceId, currentVal));
                     return;
                 }
 
-                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę jasności
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
+                // jasności
                 if (supportsDimming) {
-                    System.out.println("      -> Ustawianie jasności (0-10): " + targetScaled);
+                    System.out.println(String.format("      -> Ustawiam jasność: %.1f%%", targetScaled));
                     controlDevice(device.getId(), "jasnosc_procent", targetScaled);
-                }
-                else {
+                } else {
                     // Fallback dla on/off
-                    double binaryState = (targetScaled >= 5.0) ? 10.0 : 0.0;
+                    double binaryState = (targetScaled >= 50.0) ? 100.0 : 0.0;
 
-                    if (Math.abs(currentVal - binaryState) < 0.1) {
-                        System.out.println("   [LIGHT] Poziom jasności optymalny (" + currentVal + "). Brak akcji.");
+                    if (Math.abs(currentVal - binaryState) < 1.0) {
+                        System.out.println(String.format("   %-10s [ID:%s] | Stan OK (%.1f%%). Brak akcji.", "[LIGHT]",
+                                deviceId, currentVal));
                         return;
                     }
 
-                    System.out.println("      -> Przełączanie (On/Off): " + binaryState);
+                    System.out.println(String.format("      -> Przełączam (On/Off): %.0f%%", binaryState));
                     controlDevice(device.getId(), "jasnosc_procent", binaryState);
                 }
             }
@@ -310,10 +316,9 @@ public class OptimizationController {
             System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
                     + String.format("%.2f", effectiveLimit) + "). Ograniczam.");
             controlDevice(device.getId(), "limit_power", 50.0);
-        }
-        else {
-             System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
-             + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
+        } else {
+            System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
+                    + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
     }
 
