@@ -5,10 +5,10 @@ public class Device {
     private String name;
     private double minRange;
     private double maxRange;
-    private String metricLabel;
+    private DeviceType metricLabel;
     private IDeviceConnector connector;
 
-    public Device(String id, String name, double minRange, double maxRange, String metricLabel,
+    public Device(String id, String name, double minRange, double maxRange, DeviceType metricLabel,
                   IDeviceConnector connector) {
         this.id = id;
         this.name = name;
@@ -26,7 +26,7 @@ public class Device {
         return name;
     }
 
-    public String getMetricLabel() {
+    public DeviceType getMetricLabel() {
         return metricLabel;
     }
 

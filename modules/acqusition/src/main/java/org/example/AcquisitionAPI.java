@@ -114,14 +114,21 @@ public class AcquisitionAPI {
         String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
         String safeName = (name != null) ? name : "Unknown Device";
 
-        String safeLabel;
+        DeviceType safeLabel;
         if (metricLabel == null || metricLabel.isEmpty()) {
             // Logika dla urządzeń bez zdefiniowanej metryki (np. oświetlenie)
-            safeLabel = "jasnosc_procent";
+            safeLabel = DeviceType.Luminosity;
             safeMin = 0.0;
             safeMax = 100.0;
         } else {
-            safeLabel = metricLabel;
+            var conf = DeviceType.fromString(metricLabel);
+            if (conf != null) {
+                safeLabel = conf;
+            } else {
+                safeLabel = DeviceType.Luminosity;
+                safeMin = 0.0;
+                safeMax = 100.0;
+            }
         }
 
         // Konfiguracja symulatora (Mock)
@@ -159,14 +166,21 @@ public class AcquisitionAPI {
         String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
         String safeName = (deviceName != null) ? deviceName : "Unknown Device";
 
-        String safeLabel;
+        DeviceType safeLabel;
         if (metricLabel == null || metricLabel.isEmpty()) {
             // Logika dla urządzeń bez zdefiniowanej metryki (np. oświetlenie)
-            safeLabel = "jasnosc_procent";
+            safeLabel = DeviceType.Luminosity;
             safeMin = 0.0;
             safeMax = 100.0;
         } else {
-            safeLabel = metricLabel;
+            var conf = DeviceType.fromString(metricLabel);
+            if (conf != null) {
+                safeLabel = conf;
+            } else {
+                safeLabel = DeviceType.Luminosity;
+                safeMin = 0.0;
+                safeMax = 100.0;
+            }
         }
 
         // Konfiguracja symulatora (Mock)
