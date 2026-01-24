@@ -21,17 +21,20 @@ import java.time.ZoneOffset;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.postgresql.util.PGobject;
 
 public class PostgresDataStorage
         implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData {
 
     // config postgres
-    private final String DB_URL = "jdbc:postgresql://localhost:5433/szebi_db_nowa";
+    //FIXME
+    private final String DB_URL = "jdbc:postgresql://192.168.1.13:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
-    private final String MONGO_URI = "mongodb://root:bazka@localhost:27018/";
+    //FIXME
+    private final String MONGO_URI = "mongodb://root:bazka@192.168.1.13:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 
@@ -40,7 +43,8 @@ public class PostgresDataStorage
     }
 
     @Override
-    public void saveSensorReading(Odczyt reading) {
+    public boolean saveSensorReading(Odczyt reading) {
+        boolean status = false;
         try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
 
             MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
@@ -51,10 +55,12 @@ public class PostgresDataStorage
 
             collection.insertOne(docToInsert);
 
+            status = true;
+
         } catch (Exception e) {
-            System.out.println("Błąd podczas zapisywania odczytu do MongoDB: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+        return status;
     }
 
     @Override
@@ -182,6 +188,79 @@ public class PostgresDataStorage
         }
 
         return devicesWithDetails;
+    }
+
+    @Override
+    public List<ProducentUrzadzenia> getAvailableManufacturers() {
+
+        String sql = "SELECT * FROM producent_urzadzenia";
+
+        List<ProducentUrzadzenia> availableManufacturers = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                ProducentUrzadzenia producent = new ProducentUrzadzenia();
+
+                producent.setId(rs.getInt("ID_producenta"));
+                producent.setNazwa(rs.getString("nazwa_producenta"));
+
+                availableManufacturers.add(producent);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania dostępnych producentów: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return availableManufacturers;
+    }
+
+    @Override
+    public List<ModelUrzadzenia> getAvailableModels() {
+
+        String sql = "SELECT * FROM model_urzadzenia";
+
+        List<ModelUrzadzenia> availableModels = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                ModelUrzadzenia producent = new ModelUrzadzenia();
+
+                producent.setId(rs.getInt("ID_modelu"));
+                producent.setNazwaModelu(rs.getString("nazwa_modelu"));
+
+                availableModels.add(producent);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania dostępnych modeli: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return availableModels;
+    }
+
+    @Override
+    public Boolean addDevice(Urzadzenie device) {
+        System.out.println("ADDING DEVICE");
+        String sql = "INSERT INTO urzadzenia (ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, device.getPokojId());
+            pstmt.setInt(2, device.getModelId());
+            PGobject jsonObject = new PGobject();
+            jsonObject.setType("json");
+            jsonObject.setValue(device.getParametryPracy());
+            pstmt.setObject(3, jsonObject);
+            pstmt.setBoolean(4, true);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     @Override
