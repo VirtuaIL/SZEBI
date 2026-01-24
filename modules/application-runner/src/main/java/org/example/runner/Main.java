@@ -10,6 +10,8 @@ import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
+import org.example.ForecastServiceAPI;
+import org.example.ForecastController;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -183,6 +185,10 @@ public class Main {
     
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
+    ForecastServiceAPI forecastService = new ForecastServiceAPI(databaseStorage, databaseStorage);
+    forecastService.initializeScheduler(databaseStorage);
+    ForecastController forecastController = new ForecastController(forecastService);
+
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
         cors.addRule(it -> it.anyHost());
@@ -192,15 +198,19 @@ public class Main {
     authController.setupRoutes(app);
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
+    forecastController.setupRoutes(app);
 
     int apiPort = 8080;
     // Nasłuchuj na wszystkich interfejsach (0.0.0.0) aby umożliwić dostęp z innych
     // urządzeń w sieci
     app.start("0.0.0.0", apiPort);
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
+    
+    forecastService.startScheduler();
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
     System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
+    System.out.println("[INFO] Endpoint prognoz: http://localhost:" + apiPort + "/api/forecasts");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 
