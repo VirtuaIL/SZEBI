@@ -820,6 +820,45 @@ public class PostgresDataStorage
     }
 
     @Override
+    public List<Uzytkownik> getAllUsers() {
+        String sql = "SELECT * FROM Uzytkownik ORDER BY ID_uzytkownika";
+        List<Uzytkownik> users = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Uzytkownik user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                // Hasło (hash) nie jest konieczne do wyświetlania listy, ale DTO je ma
+                user.setHasloHash(rs.getString("Haslo_hash"));
+
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        // Ignoruj błędy deserializacji przy liście
+                    }
+                }
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania listy użytkowników: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return users;
+    }
+
+    @Override
     public Rola getRoleById(int rolaId) {
         String sql = "SELECT * FROM Rola WHERE ID_roli = ?";
         Rola rola = null;

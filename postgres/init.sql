@@ -59,16 +59,6 @@ CREATE TABLE Prognozy (
 CREATE INDEX idx_prognozy_urzadzenia ON Prognozy(ID_urzadzenia, czas_prognozy);
 CREATE INDEX idx_prognozy_budynku ON Prognozy(ID_budynku, czas_prognozy);
 
-CREATE TABLE Logi_optymalizacji (
-    ID_logu SERIAL PRIMARY KEY,
-    ID_urzadzenia INTEGER REFERENCES Urzadzenia(ID_urzadzenia), -- Opcjonalnie FK, jeśli chcemy spójność
-    operacja VARCHAR(50), 
-    wartosc DOUBLE PRECISION, 
-    zrodlo VARCHAR(50), 
-    czas_operacji TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX idx_logi_opt_urzadzenia ON Logi_optymalizacji(ID_urzadzenia);
-
 CREATE TABLE Raporty (
     ID_raportu SERIAL PRIMARY KEY,
     
@@ -123,7 +113,7 @@ INSERT INTO Umowa (ID_budynku, ID_dostawcy, data_poczatku, data_konca, szczegoly
 INSERT INTO Model_urzadzenia (ID_typu_urzadzenia, ID_producenta, nazwa_modelu) VALUES (1, 1, 'Climatix T1'), (2, 2, 'WindFree Avant'), (3, 3, 'Hue White E27');
 INSERT INTO Urzadzenia (ID_pokoju, ID_modelu, Parametry_pracy) VALUES 
 (1, 1, '{ "moc_W": 9, "zakres_pomiaru": { "min": -20.0, "max": 50.0 }, "etykieta_metryki": "temperatura_C" }'), 
-(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700, "zakres_pomiaru": { "min": 0.0, "max": 105.0 }, "etykieta_metryki": "jasnosc_procent" }'), 
+(2, 3, '{ "moc_W": 10, "sciemnialna": true, "barwa_K": 2700, "zakres_pomiaru": { "min": 0.0, "max": 105.0 }, "etykieta_metryki": "jasnosc_procent" }'),
 (3, 2, '{ "moc_W": 11, "zakres_pomiaru": { "min": 16.0, "max": 30.0 }, "etykieta_metryki": "temperatura_C" }'), 
 (4, 1, '{ "moc_W": 12, "zakres_pomiaru": { "min": -40.0, "max": 60.0 }, "etykieta_metryki": "temperatura_C" }');
 INSERT INTO Alerty (ID_urzadzenia, priorytet, status, tresc) VALUES

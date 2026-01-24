@@ -7,6 +7,7 @@ import java.util.Collections;
 import org.example.OptimizationController;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
+import org.example.runner.UserController; // Import UserController
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
 
@@ -98,6 +99,7 @@ public class Main {
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
+    UserController userController = new UserController(authService); // Injalizacja UserController
 
     AlertsController alertsController = new AlertsController(databaseStorage);
 
@@ -110,6 +112,7 @@ public class Main {
     });
 
     authController.setupRoutes(app);
+    userController.setupRoutes(app); // Rejestracja endpointów użytkownika
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
 

@@ -14,9 +14,11 @@ public class AuthService {
 
     /**
      * Weryfikuje dane logowania użytkownika
-     * @param email Email użytkownika
+     * 
+     * @param email    Email użytkownika
      * @param password Hasło w formie plaintext
-     * @return LoginResult z informacją o użytkowniku i roli, lub null jeśli logowanie nie powiodło się
+     * @return LoginResult z informacją o użytkowniku i roli, lub null jeśli
+     *         logowanie nie powiodło się
      */
     public LoginResult authenticate(String email, String password) {
         if (email == null || password == null || email.isEmpty() || password.isEmpty()) {
@@ -29,10 +31,10 @@ public class AuthService {
         }
 
         String hashedPassword = user.getHasloHash();
-        
+
         // Sprawdź czy hasło jest zahashowane (BCrypt) czy plaintext (dla testów)
         boolean passwordValid = false;
-        
+
         if (hashedPassword != null) {
             // Jeśli hash zaczyna się od $2a$, $2b$ lub $2y$ to jest BCrypt
             if (hashedPassword.startsWith("$2")) {
@@ -65,12 +67,11 @@ public class AuthService {
         String roleName = mapRoleToFrontend(rola.getNazwaRoli());
 
         return new LoginResult(
-            user.getId(),
-            user.getEmail(),
-            user.getImie(),
-            user.getNazwisko(),
-            roleName
-        );
+                user.getId(),
+                user.getEmail(),
+                user.getImie(),
+                user.getNazwisko(),
+                roleName);
     }
 
     /**
@@ -80,7 +81,7 @@ public class AuthService {
         if (nazwaRoli == null) {
             return "user";
         }
-        
+
         String lower = nazwaRoli.toLowerCase();
         if (lower.contains("admin") || lower.contains("administrator")) {
             return "admin";
@@ -109,11 +110,50 @@ public class AuthService {
             this.role = role;
         }
 
-        public int getUserId() { return userId; }
-        public String getEmail() { return email; }
-        public String getImie() { return imie; }
-        public String getNazwisko() { return nazwisko; }
-        public String getRole() { return role; }
+        public int getUserId() {
+            return userId;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public String getImie() {
+            return imie;
+        }
+
+        public String getNazwisko() {
+            return nazwisko;
+        }
+
+        public String getRole() {
+            return role;
+        }
+    }
+
+    /**
+     * Rejestruje nowego użytkownika w systemie
+     */
+    public Uzytkownik registerUser(String imie, String nazwisko, String email, String password, int rolaId,
+            String telefon) {
+        if (databaseStorage.getUserByEmail(email) != null) {
+            throw new IllegalArgumentException("Użytkownik o podanym emailu już istnieje");
+        }
+
+        String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+
+        Uzytkownik newUser = new Uzytkownik();
+        newUser.setImie(imie);
+        newUser.setNazwisko(nazwisko);
+        newUser.setEmail(email);
+        newUser.setHasloHash(hashedPassword);
+        newUser.setRolaId(rolaId);
+        newUser.setTelefon(telefon);
+
+        return databaseStorage.saveUser(newUser);
+    }
+
+    public java.util.List<org.example.DTO.Uzytkownik> getAllUsers() {
+        return databaseStorage.getAllUsers();
     }
 }
-
