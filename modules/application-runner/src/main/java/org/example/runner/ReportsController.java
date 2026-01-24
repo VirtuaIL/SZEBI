@@ -9,10 +9,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.example.interfaces.IAnalyticsData;
+import org.example.interfaces.IControlData;
 import org.example.DTO.Raport;
 import org.example.DTO.Odczyt;
 import org.example.DTO.AlertSzczegoly;
+import org.example.DTO.Umowa;
 import org.example.AnalysisReportAPI;
+import org.example.ConfigurationType;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -24,11 +27,14 @@ import java.util.ArrayList;
 
 public class ReportsController {
   private final IAnalyticsData analyticsData;
+  private final IControlData controlData;
   private final AnalysisReportAPI analysisReportAPI;
   private final ObjectMapper objectMapper;
 
-  public ReportsController(IAnalyticsData analyticsData, AnalysisReportAPI analysisReportAPI) {
+  public ReportsController(IAnalyticsData analyticsData, IControlData controlData,
+      AnalysisReportAPI analysisReportAPI) {
     this.analyticsData = analyticsData;
+    this.controlData = controlData;
     this.analysisReportAPI = analysisReportAPI;
     this.objectMapper = new ObjectMapper();
     this.objectMapper.registerModule(new JavaTimeModule());
@@ -70,8 +76,7 @@ public class ReportsController {
           }
         }
       } catch (Exception dbEx) {
-        // Tabela moze nie istniec - zwroc pusta liste
-        System.out.println("[ReportsController] Brak tabeli Raporty w bazie - zwracam pusta liste");
+        System.out.println("[ReportsController] Brak tabeli Raporty w bazie");
       }
 
       ArrayNode reportsArray = objectMapper.createArrayNode();
@@ -127,7 +132,7 @@ public class ReportsController {
       String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
       int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
       String zone = requestBody.has("zone") ? requestBody.get("zone").asText() : "all";
-      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "all";
+      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
       Integer userId = requestBody.has("userId") && !requestBody.get("userId").isNull()
           ? requestBody.get("userId").asInt()
           : null;
@@ -208,7 +213,7 @@ public class ReportsController {
       String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
       int buildingId = requestBody.has("buildingId") ? requestBody.get("buildingId").asInt() : 1;
       String zone = requestBody.has("zone") ? requestBody.get("zone").asText() : "all";
-      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "all";
+      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : "";
 
       System.out.println("[ReportsController] Params: type=" + reportType + ", dateFrom=" + dateFromStr +
           ", dateTo=" + dateToStr + ", buildingId=" + buildingId);
@@ -241,7 +246,8 @@ public class ReportsController {
       e.printStackTrace();
       ctx.status(500);
       ObjectNode error = objectMapper.createObjectNode();
-      error.put("error", "Blad podczas generowania podgladu raportu: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+      error.put("error",
+          "Blad podczas generowania podgladu raportu: " + e.getClass().getSimpleName() + " - " + e.getMessage());
       ctx.json(error);
     }
   }
@@ -320,20 +326,22 @@ public class ReportsController {
   }
 
   private ObjectNode generateReportContent(String reportType, int buildingId,
-      LocalDateTime from, LocalDateTime to, String zone, String medium) {
+      LocalDateTime from, LocalDateTime to, String zone, String mediumStr) {
 
     ObjectNode content = objectMapper.createObjectNode();
     content.put("reportType", reportType);
     content.put("buildingId", buildingId);
     content.put("zone", zone);
-    content.put("medium", medium);
+    content.put("medium", mediumStr);
     content.put("dateFrom", from.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
     content.put("dateTo", to.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
     content.put("generatedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
+    ConfigurationType configurationType = ConfigurationType.fromString(mediumStr);
+
     switch (reportType) {
       case "energy":
-        content.set("data", generateEnergyReportData(buildingId, from, to, medium));
+        content.set("data", generateEnergyReportData(buildingId, from, to, configurationType));
         break;
       case "alerts":
         content.set("data", generateAlertsReportData(buildingId, from, to));
@@ -345,22 +353,25 @@ public class ReportsController {
         content.set("data", generateCostsReportData(buildingId, from, to));
         break;
       default:
-        content.set("data", generateEnergyReportData(buildingId, from, to, medium));
+        content.set("data", generateEnergyReportData(buildingId, from, to, configurationType));
     }
 
     return content;
   }
 
-  private ArrayNode generateEnergyReportData(int buildingId, LocalDateTime from, LocalDateTime to, String medium) {
+  private ArrayNode generateEnergyReportData(int buildingId, LocalDateTime from, LocalDateTime to, ConfigurationType configurationType) {
     ArrayNode dataArray = objectMapper.createArrayNode();
 
     try {
       List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
 
-      // Jesli brak danych, wygeneruj przykladowe
       if (readings == null || readings.isEmpty()) {
-        return generateMockEnergyData(from, to);
+        System.out.println(
+            "[ReportsController] Brak odczytow dla budynku " + buildingId + " w zakresie " + from + " - " + to);
+        return dataArray;
       }
+
+      System.out.println("[ReportsController] Znaleziono " + readings.size() + " odczytow");
 
       // Grupuj odczyty po godzinie
       Map<String, List<Double>> hourlyData = new HashMap<>();
@@ -372,38 +383,36 @@ public class ReportsController {
         LocalDateTime readingTime = LocalDateTime.ofInstant(reading.getCzasOdczytu(), ZoneId.systemDefault());
         String hourKey = readingTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00"));
 
-        double value = extractValueFromReading(reading, medium);
+        double value = extractValueFromReading(reading, configurationType);
 
         hourlyData.computeIfAbsent(hourKey, k -> new ArrayList<>()).add(value);
       }
 
-      // Przeksztalc na format wynikowy
-      for (Map.Entry<String, List<Double>> entry : hourlyData.entrySet()) {
-        ObjectNode dataPoint = objectMapper.createObjectNode();
-        dataPoint.put("time", entry.getKey());
+      // Przeksztalc na format wynikowy - sortuj po czasie
+      List<String> sortedKeys = new ArrayList<>(hourlyData.keySet());
+      sortedKeys.sort(String::compareTo);
 
-        List<Double> values = entry.getValue();
+      for (String hourKey : sortedKeys) {
+        List<Double> values = hourlyData.get(hourKey);
+        ObjectNode dataPoint = objectMapper.createObjectNode();
+        dataPoint.put("time", hourKey);
+
         double sum = values.stream().mapToDouble(Double::doubleValue).sum();
         double avg = sum / values.size();
 
         dataPoint.put("value", Math.round(avg * 100.0) / 100.0);
         dataPoint.put("count", values.size());
 
-        // Wykrywanie anomalii - prosta heurystyka
-        boolean isAnomaly = avg > 1000 || avg < 100;
+        // Wykrywanie anomalii - prosta heurystyka (wartosci poza normalnym zakresem)
+        boolean isAnomaly = avg > 1000 || avg < 50;
         dataPoint.put("isAnomaly", isAnomaly);
 
         dataArray.add(dataPoint);
       }
 
-      // Jesli brak danych, wygeneruj przykladowe
-      if (dataArray.isEmpty()) {
-        dataArray = generateMockEnergyData(from, to);
-      }
-
     } catch (Exception e) {
+      System.err.println("[ReportsController] Blad generowania danych energii: " + e.getMessage());
       e.printStackTrace();
-      dataArray = generateMockEnergyData(from, to);
     }
 
     return dataArray;
@@ -424,7 +433,8 @@ public class ReportsController {
       int resolved = 0, confirmed = 0, newAlerts = 0;
 
       for (AlertSzczegoly alert : alerts) {
-        if (alert == null) continue;
+        if (alert == null)
+          continue;
 
         ObjectNode alertNode = objectMapper.createObjectNode();
         alertNode.put("id", alert.getId());
@@ -469,7 +479,6 @@ public class ReportsController {
         }
       }
 
-      // Dodaj podsumowanie na poczatku
       ObjectNode summary = objectMapper.createObjectNode();
       summary.put("type", "summary");
       summary.put("total", alerts.size());
@@ -495,7 +504,6 @@ public class ReportsController {
   private ArrayNode generateDevicesReportData(int buildingId, LocalDateTime from, LocalDateTime to) {
     ArrayNode dataArray = objectMapper.createArrayNode();
 
-    // Dane o urzadzeniach - uzycie getReadingsForBuilding do analizy aktywnosci
     try {
       List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
 
@@ -516,10 +524,9 @@ public class ReportsController {
         deviceNode.put("deviceId", entry.getKey());
         deviceNode.put("readingsCount", entry.getValue().size());
 
-        // Oblicz srednia wartosc
         double sum = 0;
         for (Odczyt r : entry.getValue()) {
-          sum += extractValueFromReading(r, "all");
+          sum += extractValueFromReading(r, null);
         }
         double avg = entry.getValue().isEmpty() ? 0 : sum / entry.getValue().size();
         deviceNode.put("averageValue", Math.round(avg * 100.0) / 100.0);
@@ -540,25 +547,53 @@ public class ReportsController {
     try {
       double totalEnergy = analyticsData.getTotalEnergyConsumptionForBuilding(buildingId, from, to);
 
-      // Przykladowa stawka za kWh
-      double ratePerKwh = 0.85; // PLN/kWh
+      // TODO KINASIOWI PRZEKAZAĆ ŻEBY KONTROLKE CENY DODAŁ BO NIE MA CO DO BAZY
+      double ratePerKwh = 0.85;
+      String currency = "PLN";
+      String tariffName = "domyslna";
+
+      try {
+        Umowa contract = controlData.getActiveContractForBuilding(buildingId);
+        if (contract != null && contract.getSzczegolyTaryfy() != null) {
+          JsonNode tariffDetails = objectMapper.readTree(contract.getSzczegolyTaryfy());
+          if (tariffDetails.has("waluta")) {
+            currency = tariffDetails.get("waluta").asText();
+          }
+          if (tariffDetails.has("taryfy") && tariffDetails.get("taryfy").isArray()) {
+            JsonNode tariffs = tariffDetails.get("taryfy");
+            if (tariffs.size() > 0) {
+              JsonNode firstTariff = tariffs.get(0);
+              if (firstTariff.has("cena_za_kwh")) {
+                ratePerKwh = firstTariff.get("cena_za_kwh").asDouble();
+              }
+              if (firstTariff.has("nazwa")) {
+                tariffName = firstTariff.get("nazwa").asText();
+              }
+            }
+          }
+        }
+      } catch (Exception contractEx) {
+        System.out.println("[ReportsController] Nie udalo sie pobrac umowy - uzywam domyslnej stawki");
+      }
 
       ObjectNode costNode = objectMapper.createObjectNode();
       costNode.put("totalEnergyKwh", Math.round(totalEnergy * 100.0) / 100.0);
       costNode.put("ratePerKwh", ratePerKwh);
+      costNode.put("tariffName", tariffName);
       costNode.put("totalCostPln", Math.round(totalEnergy * ratePerKwh * 100.0) / 100.0);
-      costNode.put("currency", "PLN");
+      costNode.put("currency", currency);
 
       dataArray.add(costNode);
 
     } catch (Exception e) {
+      System.err.println("[ReportsController] Blad generowania danych kosztow: " + e.getMessage());
       e.printStackTrace();
     }
 
     return dataArray;
   }
 
-  private double extractValueFromReading(Odczyt reading, String medium) {
+  private double extractValueFromReading(Odczyt reading, ConfigurationType configurationType) {
     if (reading.getPomiary() == null || reading.getPomiary().isEmpty()) {
       return 0.0;
     }
@@ -566,20 +601,36 @@ public class ReportsController {
     try {
       JsonNode pomiary = objectMapper.readTree(reading.getPomiary());
 
-      // Szukaj wartosci w zaleznosci od medium
+      // Szukaj wartosci w zaleznosci od configuration type
       String[] keysToTry;
-      switch (medium) {
-        case "power":
-          keysToTry = new String[] { "moc_W", "power", "zuzycie_kwh", "wartosc" };
-          break;
-        case "temp":
-          keysToTry = new String[] { "temperatura_C", "temperature", "temp" };
-          break;
-        case "humidity":
-          keysToTry = new String[] { "wilgotnosc_procent", "humidity", "wilgotnosc" };
-          break;
-        default:
-          keysToTry = new String[] { "wartosc", "value", "moc_W", "temperatura_C", "jasnosc_procent" };
+      if (configurationType == null) {
+        keysToTry = new String[] { "wartosc", "value", "moc_W", "temperatura_C", "jasnosc_procent" };
+      } else {
+        switch (configurationType) {
+          case Power:
+            keysToTry = new String[] { "moc_W", "power", "zuzycie_kwh", "wartosc" };
+            break;
+          case Temperature:
+            keysToTry = new String[] { "temperatura_C", "temperature", "temp" };
+            break;
+          case Humidity:
+            keysToTry = new String[] { "wilgotnosc_procent", "humidity", "wilgotnosc" };
+            break;
+          case Pressure:
+            keysToTry = new String[] { "cisnienie_hPa", "pressure", "cisnienie" };
+            break;
+          case Luminosity:
+            keysToTry = new String[] { "jasnosc_procent", "luminosity", "jasnosc" };
+            break;
+          case CO2Level:
+            keysToTry = new String[] { "co2_ppm", "co2_level", "co2" };
+            break;
+          case NoiseLevel:
+            keysToTry = new String[] { "halas_db", "noise_level", "halas" };
+            break;
+          default:
+            keysToTry = new String[] { "wartosc", "value", "moc_W", "temperatura_C", "jasnosc_procent" };
+        }
       }
 
       for (String key : keysToTry) {
@@ -589,37 +640,12 @@ public class ReportsController {
       }
 
     } catch (Exception e) {
-      // Ignoruj bledy parsowania
     }
 
     return 0.0;
   }
 
-  private ArrayNode generateMockEnergyData(LocalDateTime from, LocalDateTime to) {
-    ArrayNode dataArray = objectMapper.createArrayNode();
-
-    LocalDateTime current = from;
-    int maxPoints = 168; // max 1 tydzien godzinowo
-    int count = 0;
-
-    while (current.isBefore(to) && count < maxPoints) {
-      ObjectNode dataPoint = objectMapper.createObjectNode();
-      dataPoint.put("time", current.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00")));
-
-      double value = 500 + Math.random() * 800;
-      dataPoint.put("value", Math.round(value * 100.0) / 100.0);
-      dataPoint.put("count", 1);
-      dataPoint.put("isAnomaly", value > 1000 || value < 200);
-
-      dataArray.add(dataPoint);
-      current = current.plusHours(1);
-      count++;
-    }
-
-    return dataArray;
-  }
-
-  private String generateReportDescription(String reportType, String zone, String medium) {
+  private String generateReportDescription(String reportType, String zone, String mediumStr) {
     StringBuilder desc = new StringBuilder();
 
     switch (reportType) {
@@ -643,8 +669,8 @@ public class ReportsController {
       desc.append(" dla strefy: ").append(zone);
     }
 
-    if (!"all".equals(medium)) {
-      desc.append(" (medium: ").append(medium).append(")");
+    if (mediumStr != null && !mediumStr.isEmpty()) {
+      desc.append(" (medium: ").append(mediumStr).append(")");
     }
 
     return desc.toString();

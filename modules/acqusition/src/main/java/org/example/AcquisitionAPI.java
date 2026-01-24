@@ -112,14 +112,21 @@ public class AcquisitionAPI {
     String safeId = (id != null) ? id : "UNKNOWN";
     String safeName = (name != null) ? name : "Unknown Device";
 
-    String safeLabel;
+    DeviceType safeLabel;
     if (metricLabel == null || metricLabel.isEmpty()) {
       // Logika dla urządzeń bez zdefiniowanej metryki (np. oświetlenie)
-      safeLabel = "jasnosc_procent";
+      safeLabel = DeviceType.Luminosity;
       safeMin = 0.0;
       safeMax = 100.0;
     } else {
-      safeLabel = metricLabel;
+      var conf = DeviceType.fromString(metricLabel);
+      if (conf != null) {
+        safeLabel = conf;
+      } else {
+        safeLabel = DeviceType.Luminosity;
+        safeMin = 0.0;
+        safeMax = 100.0;
+      }
     }
 
     // Konfiguracja symulatora (Mock)

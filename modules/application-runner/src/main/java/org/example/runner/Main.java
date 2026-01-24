@@ -185,7 +185,7 @@ public class Main {
     
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
-    ReportsController reportsController = new ReportsController(databaseStorage, anal);
+    ReportsController reportsController = new ReportsController(databaseStorage, databaseStorage, anal);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
