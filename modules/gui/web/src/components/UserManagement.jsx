@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './UserManagement.css';
 
 import { getApiBaseUrl } from '../utils/api';
@@ -14,18 +14,65 @@ export default function UserManagement({ userRole }) {
     phone: '',
     role: 'user'
   });
+  const [users, setUsers] = useState([]);
+
+  // Pobierz listę użytkowników przy ładowaniu
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API_URL}/users`);
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      } else {
+        console.error('Błąd pobierania użytkowników:', response.status);
+      }
+    } catch (error) {
+      console.error('Błąd połączenia:', error);
+    }
+  };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      // TODO: Implementować endpoint API
-      console.log('Dodawanie użytkownika:', formData);
-      alert('Użytkownik został dodany (funkcja do implementacji)');
-      setShowAddForm(false);
-      setFormData({ email: '', password: '', firstName: '', lastName: '', phone: '', role: 'user' });
+      // Mapowanie roli tekstowej na ID (Backend oczekuje int rolaId)
+      // 1: Admin, 2: Inżynier, 3: Najemca (wg skryptu SQL/logiki backendu)
+      let rolaId = 3;
+      if (formData.role === 'admin') rolaId = 1;
+      else if (formData.role === 'engineer') rolaId = 2;
+
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+        imie: formData.firstName,
+        nazwisko: formData.lastName,
+        telefon: formData.phone,
+        rolaId: rolaId
+      };
+
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Użytkownik został pomyślnie dodany!');
+        setShowAddForm(false);
+        setFormData({ email: '', password: '', firstName: '', lastName: '', phone: '', role: 'user' });
+      } else {
+        alert(`Błąd: ${data.error || 'Nie udało się dodać użytkownika'}`);
+      }
     } catch (error) {
       console.error('Błąd dodawania użytkownika:', error);
-      alert('Błąd podczas dodawania użytkownika');
+      alert('Wystąpił błąd połączenia z serwerem.');
     }
   };
 
@@ -33,7 +80,7 @@ export default function UserManagement({ userRole }) {
     <div className="user-management">
       <div className="user-management-header">
         <h2>Zarządzanie Użytkownikami</h2>
-        <button 
+        <button
           className="btn-add-user"
           onClick={() => setShowAddForm(!showAddForm)}
         >
@@ -103,8 +150,8 @@ export default function UserManagement({ userRole }) {
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-submit">Dodaj Użytkownika</button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn-cancel"
                 onClick={() => setShowAddForm(false)}
               >
@@ -117,7 +164,37 @@ export default function UserManagement({ userRole }) {
 
       <div className="users-list">
         <h3>Lista Użytkowników</h3>
-        <p className="info-text">Lista użytkowników - do implementacji (endpoint API)</p>
+        {users.length === 0 ? (
+          <p className="no-users">Brak użytkowników</p>
+        ) : (
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Imię i Nazwisko</th>
+                <th>Email</th>
+                <th>Telefon</th>
+                <th>Rola</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id}>
+                  <td>{user.id}</td>
+                  <td>{user.imie} {user.nazwisko}</td>
+                  <td>{user.email}</td>
+                  <td>{user.telefon || '-'}</td>
+                  <td>
+                    <span className={`role-badge role-${user.role}`}>
+                      {user.role === 'admin' ? 'Administrator' :
+                        user.role === 'engineer' ? 'Inżynier' : 'Najemca'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

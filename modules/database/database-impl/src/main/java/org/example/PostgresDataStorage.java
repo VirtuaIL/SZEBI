@@ -285,7 +285,8 @@ public class PostgresDataStorage
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId) {
         // Zwracamy wszystkie alarmy, które są powiązane z budynkiem przez urządzenie
-        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy alarm
+        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy
+        // alarm
         // ale z NULL-ami w polach urządzenia
         // Filtrujemy po budynku - jeśli urządzenie jest w budynku, to pokazujemy alarm
         return getAlertDetailsWithFilter("WHERE (p.ID_budynku = ? OR (u.ID_urzadzenia IS NULL))", buildingId);
@@ -471,7 +472,8 @@ public class PostgresDataStorage
 
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku "
+                +
                 "FROM Alerty a " +
                 "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
@@ -812,6 +814,45 @@ public class PostgresDataStorage
     }
 
     @Override
+    public List<Uzytkownik> getAllUsers() {
+        String sql = "SELECT * FROM Uzytkownik ORDER BY ID_uzytkownika";
+        List<Uzytkownik> users = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Uzytkownik user = new Uzytkownik();
+                user.setId(rs.getInt("ID_uzytkownika"));
+                user.setRolaId(rs.getInt("ID_roli"));
+                user.setImie(rs.getString("Imie"));
+                user.setNazwisko(rs.getString("Nazwisko"));
+                user.setTelefon(rs.getString("Telefon"));
+                user.setEmail(rs.getString("Email"));
+                // Hasło (hash) nie jest konieczne do wyświetlania listy, ale DTO je ma
+                user.setHasloHash(rs.getString("Haslo_hash"));
+
+                String prefJson = rs.getString("preferencje");
+                if (prefJson != null && !prefJson.isEmpty()) {
+                    try {
+                        ObjectMapper mapper = new ObjectMapper();
+                        UserPreferences prefs = mapper.readValue(prefJson, UserPreferences.class);
+                        user.setPreferencje(prefs);
+                    } catch (Exception e) {
+                        // Ignoruj błędy deserializacji przy liście
+                    }
+                }
+                users.add(user);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania listy użytkowników: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return users;
+    }
+
+    @Override
     public Rola getRoleById(int rolaId) {
         String sql = "SELECT * FROM Rola WHERE ID_roli = ?";
         Rola rola = null;
@@ -880,7 +921,8 @@ public class PostgresDataStorage
     }
 
     private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
-        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub nie jest powiązane
+        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub
+        // nie jest powiązane
         String baseSql = "SELECT a.*, " +
                 "COALESCE(pu.nazwa_producenta, 'Nieznany') AS nazwa_producenta, " +
                 "COALESCE(m.nazwa_modelu, 'Nieznany') AS nazwa_modelu, " +
@@ -928,14 +970,16 @@ public class PostgresDataStorage
         }
         details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
-        
+
         // Utwórz nazwę urządzenia z producenta i typu/modelu
-        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie istnieje
+        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie
+        // istnieje
         String nazwaProducenta = rs.getString("nazwa_producenta");
         String nazwaModelu = rs.getString("nazwa_modelu");
         String nazwaTypu = rs.getString("nazwa_typu_urzadzenia");
-        
-        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest dostępny)
+
+        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest
+        // dostępny)
         String nazwaUrzadzenia = "";
         if (nazwaProducenta != null && !nazwaProducenta.equals("Nieznany")) {
             nazwaUrzadzenia = nazwaProducenta;
@@ -948,16 +992,16 @@ public class PostgresDataStorage
         if (nazwaUrzadzenia.isEmpty() || nazwaUrzadzenia.equals("Nieznany")) {
             nazwaUrzadzenia = "Urządzenie #" + details.getUrzadzenieId();
         }
-        
+
         details.setNazwaUrzadzenia(nazwaUrzadzenia);
         details.setNazwaModelu(nazwaModelu != null && !nazwaModelu.equals("Nieznany") ? nazwaModelu : null);
-        
+
         String numerPokoju = rs.getString("numer_pokoju");
         details.setNazwaPokoju(numerPokoju != null && !numerPokoju.equals("Nieznany") ? numerPokoju : null);
-        
+
         String nazwaBudynku = rs.getString("nazwa_budynku");
         details.setNazwaBudynku(nazwaBudynku != null && !nazwaBudynku.equals("Nieznany") ? nazwaBudynku : null);
-        
+
         return details;
     }
 }

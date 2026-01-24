@@ -8,6 +8,7 @@ import org.example.OptimizationController;
 import org.example.AdministratorPreferences;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
+import org.example.runner.UserController; // Import UserController
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
 
@@ -122,6 +123,10 @@ public class Main {
         return u;
       }
 
+      public List<Uzytkownik> getAllUsers() {
+        return java.util.Collections.emptyList();
+      }
+
       public List<org.example.DTO.Pokoj> getRoomsInBuilding(int bid) {
         org.example.DTO.Pokoj p = new org.example.DTO.Pokoj();
         p.setId(999);
@@ -178,9 +183,10 @@ public class Main {
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
-    
+    UserController userController = new UserController(authService); // Injalizacja UserController
+
     AlertsController alertsController = new AlertsController(databaseStorage);
-    
+
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
@@ -190,6 +196,7 @@ public class Main {
     });
 
     authController.setupRoutes(app);
+    userController.setupRoutes(app); // Rejestracja endpointów użytkownika
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
 
