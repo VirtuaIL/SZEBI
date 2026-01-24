@@ -70,13 +70,14 @@ public class OptimizationController {
             loadAdminPreferences();
         }
 
+        // Odkomentuj poniżej, aby używać godzin pracy
         // boolean isBuildingOpen = isWithinWorkingHours();
         boolean isBuildingOpen = true;
 
         System.out.println("[Optymalizacja] Status budynku: " + (isBuildingOpen ? "OTWARTY" : "ZAMKNIĘTY") +
                 " (Godziny: " + adminPref.getTimeOpen() + " - " + adminPref.getTimeClose() + ")");
 
-        // 2. Pobierz listę pokoi
+        // Pobierz listę pokoi
         List<Pokoj> rooms = controlService.getRoomsInBuilding(buildingId);
 
         if (rooms.isEmpty()) {
@@ -84,7 +85,7 @@ public class OptimizationController {
             return;
         }
 
-        // 3. Iteruj po pokojach
+        // Iteruj po pokojach
         for (Pokoj room : rooms) {
             optimizeRoomBasedOnPreferences(room, isBuildingOpen);
         }
@@ -119,7 +120,6 @@ public class OptimizationController {
         String deviceId = String.valueOf(device.getId());
         Double currentVal = requestSensorReading(deviceId);
 
-        // Obliczanie preferencji użytkowników
         double targetMinTemp = adminPref.getPreferredMinTemp();
         double targetMaxTemp = adminPref.getPreferredMaxTemp();
         boolean userOverride = false;
@@ -160,36 +160,39 @@ public class OptimizationController {
             if (!isBuildingOpen && !userOverride) {
                 System.out.println("   [CLIMATE] Urządzenie " + deviceId + ": Budynek zamknięty -> Tryb Eco (16°C).");
                 controlDevice(device.getId(), "set_temp", 16.0);
-            } else {
+            }
+            else {
                 if (currentVal < targetMinTemp) {
                     System.out.println(
                             "   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
                                     + "°C) -> Za zimno! Grzanie (Cel: " + targetMinTemp + ").");
                     controlDevice(device.getId(), "set_temp", targetMinTemp + 1.0);
-                } else if (currentVal > targetMaxTemp) {
+                }
+                else if (currentVal > targetMaxTemp) {
                     System.out.println("   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
                             + "°C) -> Za ciepło! Chłodzenie (Cel: " + targetMaxTemp + ").");
                     controlDevice(device.getId(), "set_temp", targetMaxTemp - 1.0);
-                } else {
+                }
+                else {
                     System.out.println("   [CLIMATE] Urządzenie " + deviceId + " -> Temperatura w normie.");
                 }
             }
             return;
         }
 
-        // Obsługa Oświetlenia (Teraz używa jasnosc_procent)
+        // Obsługa Oświetlenia
         if (isLightingDevice(device) && currentVal != null) {
             String params = device.getParametryPracy();
-            // Sprawdź czy urządzenie w ogóle obsługuje tę metrykę (z init.sql)
+            // Sprawdź czy urządzenie w ogóle obsługuje tę metrykę
             boolean supportsDimming = params != null && params.contains("jasnosc_procent");
 
             if (!isBuildingOpen && !userOverride) {
-                System.out
-                        .println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło (0%).");
+                System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło (0%).");
                 // Ustawiamy 0% jasności
                 controlDevice(device.getId(), "jasnosc_procent", 0.0);
-            } else {
-                double targetBrightness = 3.0; // Domyślnie 3/5
+            }
+            else {
+                double targetBrightness = 3.0;
 
                 List<Integer> roomUserIds = room.getUzytkownicyIds();
                 if (roomUserIds != null && !roomUserIds.isEmpty() && userService != null) {
@@ -208,22 +211,21 @@ public class OptimizationController {
                     }
                 }
 
-                // Konwersja 1-5 na 0-10 (tak jak chciał user: 11 stopni od 0 do 10)
-                // 1 -> 2.0, 5 -> 10.0
+                // Konwersja 1-5 na 0-10
                 double targetScaled = Math.min(10.0, targetBrightness * 2.0);
 
-                // Sprawdzenie czy aktualna wartość jest już poprawna (tolerancja 0.1)
+                // Sprawdzenie, czy aktualna wartość jest już poprawna (tolerancja 0.1)
                 if (Math.abs(currentVal - targetScaled) < 0.1) {
                     System.out.println("   [LIGHT] Poziom jasności optymalny (" + currentVal + "). Brak akcji.");
                     return;
                 }
 
-                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
-                // jasności
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę jasności
                 if (supportsDimming) {
                     System.out.println("      -> Ustawianie jasności (0-10): " + targetScaled);
                     controlDevice(device.getId(), "jasnosc_procent", targetScaled);
-                } else {
+                }
+                else {
                     // Fallback dla on/off
                     double binaryState = (targetScaled >= 5.0) ? 10.0 : 0.0;
 
@@ -262,25 +264,19 @@ public class OptimizationController {
 
         // "temperatura_C" - zazwyczaj odczyt z czujnika
         // "set_temp" lub "docelowa_temperatura" - nastawy grzejników
-        return params.contains("temperatura_C") ||
-                params.contains("set_temp") ||
-                params.contains("docelowa_temperatura");
+        return params.contains("temperatura_C");
     }
 
     private double calculateSolarProduction() {
         LocalTime now = LocalTime.now();
         int hour = now.getHour();
-        // Simple simulation: Bell curve peaking at 12:00 (12 PM)
-        // Production between 06:00 and 20:00
         if (hour < 6 || hour > 20) {
             return 0.0;
         }
 
-        // Peak power: 5000 W (5kWp installation simulated)
         double maxPower = 5000.0;
 
-        // Normalize time to -1.0 to 1.0 (where 0.0 is Noon)
-        double timeFromNoon = (hour - 13.0) / 7.0; // 13:00 is center approx, range +/- 7h
+        double timeFromNoon = (hour - 13.0) / 7.0;
         double productionFactor = Math.cos(timeFromNoon * Math.PI / 2.0);
 
         if (productionFactor < 0)
@@ -296,14 +292,9 @@ public class OptimizationController {
 
         double avgUsage = calculateAverageFromReadings(readings);
 
-        // Dynamic Limit Calculation
         double solarProduction = calculateSolarProduction();
         double baseLimit = adminPref.getMaxEnergyUsage();
 
-        // Distribute solar production across active devices?
-        // Or just treat it as a building-wide buffer.
-        // Let's assume the 'maxEnergyUsage' is PER DEVICE.
-        // So we add a share of solar production to this limit.
         List<Urzadzenie> activeDevices = getActiveDevices();
         double activeCount = Math.max(1.0, activeDevices.size());
         double perDeviceBonus = solarProduction / activeCount;
@@ -319,9 +310,10 @@ public class OptimizationController {
             System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
                     + String.format("%.2f", effectiveLimit) + "). Ograniczam.");
             controlDevice(device.getId(), "limit_power", 50.0);
-        } else {
-            // System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
-            // + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
+        }
+        else {
+             System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
+             + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
     }
 
@@ -356,17 +348,14 @@ public class OptimizationController {
 
         System.out.println("      -> WYSYŁANIE KOMENDY: " + attribute + " = " + setting);
 
-        // SYNCHRONIZACJA Z SYMULACJĄ (Stopniowa zmiana w kontrolerze)
         if (acquisitionAPI != null) {
-            // 1. Odczytaj aktualną wartość (symulowaną)
             Double currentVal = acquisitionAPI.requestSensorRead(String.valueOf(deviceId));
 
-            double nextValue = setting; // Domyślnie skok (dla innych typów)
+            double nextValue = setting;
 
-            // 2. Jeśli mamy odczyt i sterujemy temperaturą, rób to stopniowo
             if (currentVal != null && (attribute.equals("set_temp") || attribute.equals("temperatura_C"))) {
                 double diff = setting - currentVal;
-                double maxStep = 0.5; // Maksymalna zmiana na jeden cykl
+                double maxStep = 0.5;
 
                 if (Math.abs(diff) > maxStep) {
                     nextValue = currentVal + Math.signum(diff) * maxStep;
@@ -375,15 +364,12 @@ public class OptimizationController {
                 }
             }
 
-            // 3. Wyślij obliczoną (pośrednią) wartość do symulacji
             acquisitionAPI.updateDeviceSimulation(String.valueOf(deviceId), nextValue);
         }
 
         if (acquisitionAPI != null)
             requestSensorReading(String.valueOf(deviceId));
 
-        // Logowanie akcji usunięte na wniosek user.
-        // logAction(deviceId, attribute, setting, "AUTO");
     }
 
     private double calculateAverageFromReadings(List<Odczyt> readings) {
