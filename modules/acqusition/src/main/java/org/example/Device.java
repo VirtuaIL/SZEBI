@@ -48,4 +48,8 @@ public class Device {
             throw new Exception("Błąd walidacji: Wartość " + value + " poza zakresem dla " + name);
         }
     }
+
+    public void simulateStateChange(double value) {
+        connector.setValue(value);
+    }
 }

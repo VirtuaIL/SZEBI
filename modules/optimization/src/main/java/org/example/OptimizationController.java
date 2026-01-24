@@ -53,15 +53,13 @@ public class OptimizationController {
 
         System.out.println("[Optymalizacja] Rozpoczynam optymalizację budynku ID: " + buildingId);
 
-        // 1. Sprawdź czy budynek jest otwarty wg preferencji admina
-        // boolean isBuildingOpen = isWithinWorkingHours();
-
         // Tymczasowo zawsze otwarty dla testów
         if (userService != null) {
             loadAdminPreferences();
         }
 
-        boolean isBuildingOpen = isWithinWorkingHours();
+        // boolean isBuildingOpen = isWithinWorkingHours();
+        boolean isBuildingOpen = true;
 
         System.out.println("[Optymalizacja] Status budynku: " + (isBuildingOpen ? "OTWARTY" : "ZAMKNIĘTY") +
                 " (Godziny: " + adminPref.getTimeOpen() + " - " + adminPref.getTimeClose() + ")");
@@ -151,7 +149,6 @@ public class OptimizationController {
                 System.out.println("   [CLIMATE] Urządzenie " + deviceId + ": Budynek zamknięty -> Tryb Eco (16°C).");
                 controlDevice(device.getId(), "set_temp", 16.0);
             } else {
-                // Tryb dzienny lub wymuszony przez obecność/preferencje użytkowników
                 if (currentVal < targetMinTemp) {
                     System.out.println(
                             "   [CLIMATE] Urządzenie " + deviceId + " (" + currentVal
@@ -170,12 +167,54 @@ public class OptimizationController {
 
         // Obsługa Oświetlenia
         if (isLightingDevice(device) && currentVal != null) {
-            // Można tu dodać analogiczną logikę dla oświetlenia
             if (!isBuildingOpen && !userOverride) {
                 System.out.println("   [LIGHT] Urządzenie " + deviceId + ": Budynek zamknięty -> Wyłączam światło.");
                 controlDevice(device.getId(), "active", 0.0);
             } else {
-                System.out.println("   [LIGHT] Urządzenie " + deviceId + " (Jasność: " + currentVal + "%) -> OK.");
+                double targetBrightness = 3.0; // 1-5
+
+                List<Integer> roomUserIds = room.getUzytkownicyIds();
+                if (roomUserIds != null && !roomUserIds.isEmpty() && userService != null) {
+                    double sumBright = 0;
+                    int count = 0;
+                    for (Integer uid : roomUserIds) {
+                        Uzytkownik u = userService.getUserById(uid);
+                        if (u != null && u.getPreferencje() != null) {
+                            sumBright += u.getPreferencje().getPreferredLighting(); // Now 1-5
+                            count++;
+                        }
+                    }
+                    if (count > 0) {
+                        targetBrightness = sumBright / count;
+                        System.out.println("   [LIGHT] Średnie preferencje: Jasność=" + targetBrightness + " (1-5)");
+                    }
+                }
+
+                String params = device.getParametryPracy();
+                boolean isDimmable = params != null && params.contains("sciemnialna") && params.contains("true");
+
+                // Brightness Logic
+                if (isDimmable) {
+
+                    double dimLevel = Math.max(1.0, Math.min(5.0, targetBrightness)) * 2.0;
+                    System.out.println("      -> Ustawianie jasności (ściemnialne): " + dimLevel + " / 10");
+                    controlDevice(device.getId(), "set_dimming", dimLevel); // Logic on device side to handle this
+
+                } else {
+
+                    // Using ID to be deterministic per device
+                    int hash = Math.abs(deviceId.hashCode());
+                    boolean shouldBeOn = (hash % 5) < targetBrightness;
+
+                    if (shouldBeOn) {
+                        System.out.println("   [LIGHT] Urządzenie " + deviceId + " -> WŁĄCZONE (Partial ON decision).");
+                        controlDevice(device.getId(), "active", 1.0);
+                    } else {
+                        System.out
+                                .println("   [LIGHT] Urządzenie " + deviceId + " -> WYŁĄCZONE (Partial OFF decision).");
+                        controlDevice(device.getId(), "active", 0.0);
+                    }
+                }
             }
             return;
         }
@@ -208,6 +247,28 @@ public class OptimizationController {
                 params.contains("docelowa_temperatura");
     }
 
+    private double calculateSolarProduction() {
+        LocalTime now = LocalTime.now();
+        int hour = now.getHour();
+        // Simple simulation: Bell curve peaking at 12:00 (12 PM)
+        // Production between 06:00 and 20:00
+        if (hour < 6 || hour > 20) {
+            return 0.0;
+        }
+
+        // Peak power: 5000 W (5kWp installation simulated)
+        double maxPower = 5000.0;
+
+        // Normalize time to -1.0 to 1.0 (where 0.0 is Noon)
+        double timeFromNoon = (hour - 13.0) / 7.0; // 13:00 is center approx, range +/- 7h
+        double productionFactor = Math.cos(timeFromNoon * Math.PI / 2.0);
+
+        if (productionFactor < 0)
+            productionFactor = 0;
+
+        return maxPower * productionFactor;
+    }
+
     private void checkEnergyLimit(Urzadzenie device) {
         LocalDateTime from = LocalDateTime.now().minusHours(24);
         LocalDateTime to = LocalDateTime.now();
@@ -215,10 +276,32 @@ public class OptimizationController {
 
         double avgUsage = calculateAverageFromReadings(readings);
 
-        if (avgUsage > adminPref.getMaxEnergyUsage()) {
+        // Dynamic Limit Calculation
+        double solarProduction = calculateSolarProduction();
+        double baseLimit = adminPref.getMaxEnergyUsage();
+
+        // Distribute solar production across active devices?
+        // Or just treat it as a building-wide buffer.
+        // Let's assume the 'maxEnergyUsage' is PER DEVICE.
+        // So we add a share of solar production to this limit.
+        List<Urzadzenie> activeDevices = getActiveDevices();
+        double activeCount = Math.max(1.0, activeDevices.size());
+        double perDeviceBonus = solarProduction / activeCount;
+
+        double effectiveLimit = baseLimit + perDeviceBonus;
+
+        if (solarProduction > 100) {
+            System.out.println("   [OZE] Symulowana produkcja: " + String.format("%.2f", solarProduction)
+                    + " W. Bonus na urządzenie: " + String.format("%.2f", perDeviceBonus) + " W");
+        }
+
+        if (avgUsage > effectiveLimit) {
             System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
-                    + adminPref.getMaxEnergyUsage() + "). Ograniczam.");
+                    + String.format("%.2f", effectiveLimit) + "). Ograniczam.");
             controlDevice(device.getId(), "limit_power", 50.0);
+        } else {
+            // System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
+            // + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
     }
 
