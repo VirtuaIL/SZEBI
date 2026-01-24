@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.DTO.*;
 import org.example.interfaces.*;
+import org.example.alerts.AlertService;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -16,7 +17,7 @@ public class OptimizationController {
     private boolean overrideAutomatization;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private IAlertData alertService;
+    private AlertService alertService;
     private IAcquisitionData acquisitionService;
     private IForecastingData forecastService;
     private IControlData controlService;
@@ -251,6 +252,8 @@ public class OptimizationController {
 
         if (acquisitionAPI != null)
             requestSensorReading(String.valueOf(deviceId));
+
+        logAction(deviceId, attribute, setting, "AUTO");
     }
 
     private double calculateAverageFromReadings(List<Odczyt> readings) {
@@ -299,8 +302,20 @@ public class OptimizationController {
             List<Odczyt> readings = forecastService.getReadingsForDevice(device.getId(), from, to);
             if (readings != null) {
                 for (Odczyt r : readings) {
-                    if (isAnomalousReading(r))
+                    if (isAnomalousReading(r)) {
                         System.out.println("ANOMALIA: " + device.getId());
+
+                        if (alertService != null) {
+                            org.example.alerts.dto.ZgloszenieDTO zgloszenie = new org.example.alerts.dto.ZgloszenieDTO(
+                                    "Wykryto anomalię w odczytach urządzenia (wartość poza zakresem).",
+                                    device.getId(),
+                                    org.example.DTO.Alert.AlertSeverity.WARNING,
+                                    "OPTIMIZATION_MODULE");
+                            alertService.zglosAnomalie(zgloszenie);
+                            System.out.println(
+                                    "   -> Zgłoszono anomalię przez AlertService dla urządzenia " + device.getId());
+                        }
+                    }
                 }
             }
         }
@@ -316,7 +331,7 @@ public class OptimizationController {
         }
     }
 
-    public void setAlertService(IAlertData s) {
+    public void setAlertService(AlertService s) {
         this.alertService = s;
     }
 
@@ -336,7 +351,59 @@ public class OptimizationController {
         this.analyticsService = s;
     }
 
+    private java.util.concurrent.ScheduledExecutorService scheduler;
+    private java.util.concurrent.ScheduledFuture<?> scheduledTask;
+    private IOptimizationData optimizationData;
+    private ForecastServiceAPI forecastServiceAPI;
+
+    public void setOptimizationData(IOptimizationData data) {
+        this.optimizationData = data;
+    }
+
+    public void setForecastServiceAPI(ForecastServiceAPI api) {
+        this.forecastServiceAPI = api;
+    }
+
+    public void startAutoCycle(int buildingId, int intervalSeconds) {
+        if (scheduler == null) {
+            scheduler = java.util.concurrent.Executors.newScheduledThreadPool(1);
+        }
+        if (scheduledTask != null && !scheduledTask.isCancelled()) {
+            System.out.println("[Optymalizacja] Cykl już jest uruchomiony.");
+            return;
+        }
+
+        Runnable task = () -> {
+            try {
+                optimizeEnergyConsumption(buildingId);
+                checkForAnomalies();
+            } catch (Exception e) {
+                System.err.println("[Optymalizacja] Błąd w cyklu: " + e.getMessage());
+                e.printStackTrace();
+            }
+        };
+
+        scheduledTask = scheduler.scheduleAtFixedRate(task, 0, intervalSeconds, java.util.concurrent.TimeUnit.SECONDS);
+        System.out.println("[Optymalizacja] Uruchomiono automatyczny cykl co " + intervalSeconds + " sekund.");
+    }
+
+    public void stopAutoCycle() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel(false);
+            System.out.println("[Optymalizacja] Zatrzymano automatyczny cykl.");
+        }
+    }
+
     public void setAdminPreferences(AdministratorPreferences p) {
         this.adminPref = p;
     }
+
+    private void logAction(int deviceId, String operation, double value, String source) {
+        if (optimizationData != null) {
+            optimizationData.logOperation(deviceId, operation, value, source);
+        } else {
+            System.out.println("   [LOG] (Brak DB) " + operation + " -> " + value + " (" + source + ")");
+        }
+    }
+
 }

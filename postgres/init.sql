@@ -59,6 +59,16 @@ CREATE TABLE Prognozy (
 CREATE INDEX idx_prognozy_urzadzenia ON Prognozy(ID_urzadzenia, czas_prognozy);
 CREATE INDEX idx_prognozy_budynku ON Prognozy(ID_budynku, czas_prognozy);
 
+CREATE TABLE Logi_optymalizacji (
+    ID_logu SERIAL PRIMARY KEY,
+    ID_urzadzenia INTEGER REFERENCES Urzadzenia(ID_urzadzenia), -- Opcjonalnie FK, jeśli chcemy spójność
+    operacja VARCHAR(50), 
+    wartosc DOUBLE PRECISION, 
+    zrodlo VARCHAR(50), 
+    czas_operacji TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_logi_opt_urzadzenia ON Logi_optymalizacji(ID_urzadzenia);
+
 CREATE TABLE Raporty (
     ID_raportu SERIAL PRIMARY KEY,
     

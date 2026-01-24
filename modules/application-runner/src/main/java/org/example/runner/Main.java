@@ -85,7 +85,11 @@ public class Main {
 
     // 5b. Podłączenie serwisów do kontrolera optymalizacji
     optimizationController.setAcquisitionAPI(api);
-    optimizationController.setAlertService(databaseStorage);
+
+    // Użycie AlertService zamiast bezpośredniego IAlertData
+    org.example.alerts.AlertService alertServiceRef = new org.example.alerts.AlertService(databaseStorage);
+    optimizationController.setAlertService(alertServiceRef);
+
     optimizationController.setAcquisitionService(databaseStorage);
     optimizationController.setForecastService(databaseStorage);
     optimizationController.setControlService(databaseStorage);
@@ -93,6 +97,13 @@ public class Main {
 
     System.out.println("[INFO] Kontroler optymalizacji skonfigurowany.");
     optimizationController.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
+    optimizationController.setOptimizationData(databaseStorage);
+
+    ForecastServiceAPI forecastServiceAPI = new ForecastServiceAPI(databaseStorage);
+    optimizationController.setForecastServiceAPI(forecastServiceAPI);
+
+    // Uruchomienie automatycznego cyklu (co 60 sekund)
+    optimizationController.startAutoCycle(1, 60);
 
     // START DEMO SCENARIUSZ
     System.out.println("\n========== DEMONSTRACJA: Preferencje Użytkownika ==========");
@@ -178,9 +189,9 @@ public class Main {
     System.out.println("\n=== Inicjalizacja REST API ===");
     AuthService authService = new AuthService(databaseStorage);
     AuthController authController = new AuthController(authService);
-    
+
     AlertsController alertsController = new AlertsController(databaseStorage);
-    
+
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {

@@ -23,7 +23,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class PostgresDataStorage
-        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData {
+        implements IUserData, IAcquisitionData, IAlertData, IControlData, IAnalyticsData, IForecastingData,
+        IOptimizationData {
 
     // config postgres
     private final String DB_URL = "jdbc:postgresql://localhost:5433/szebi_db_nowa";
@@ -37,6 +38,24 @@ public class PostgresDataStorage
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, USER, PASS);
+    }
+
+    public void initializeOptimizationTables() {
+        String createLogsTable = "CREATE TABLE IF NOT EXISTS Logi_optymalizacji (" +
+                "ID_logu SERIAL PRIMARY KEY, " +
+                "ID_urzadzenia INT, " +
+                "operacja VARCHAR(50), " +
+                "wartosc DOUBLE PRECISION, " +
+                "zrodlo VARCHAR(50), " +
+                "czas_operacji TIMESTAMP" +
+                ");";
+
+        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute(createLogsTable);
+            System.out.println("[DB-INFO] Tabele optymalizacji zostały zweryfikowane/utworzone.");
+        } catch (SQLException e) {
+            System.err.println("[DB-ERROR] Błąd tworzenia tabel optymalizacji: " + e.getMessage());
+        }
     }
 
     @Override
@@ -285,7 +304,8 @@ public class PostgresDataStorage
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId) {
         // Zwracamy wszystkie alarmy, które są powiązane z budynkiem przez urządzenie
-        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy alarm
+        // Używamy LEFT JOIN, więc jeśli urządzenie nie istnieje, to i tak zwrócimy
+        // alarm
         // ale z NULL-ami w polach urządzenia
         // Filtrujemy po budynku - jeśli urządzenie jest w budynku, to pokazujemy alarm
         return getAlertDetailsWithFilter("WHERE (p.ID_budynku = ? OR (u.ID_urzadzenia IS NULL))", buildingId);
@@ -471,7 +491,8 @@ public class PostgresDataStorage
 
     @Override
     public List<AlertSzczegoly> getAlertDetailsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
-        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku " +
+        String sql = "SELECT a.*, pu.nazwa_producenta, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, p.numer_pokoju, b.Nazwa AS nazwa_budynku "
+                +
                 "FROM Alerty a " +
                 "JOIN Urzadzenia u ON a.ID_urzadzenia = u.ID_urzadzenia " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
@@ -880,7 +901,8 @@ public class PostgresDataStorage
     }
 
     private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
-        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub nie jest powiązane
+        // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub
+        // nie jest powiązane
         String baseSql = "SELECT a.*, " +
                 "COALESCE(pu.nazwa_producenta, 'Nieznany') AS nazwa_producenta, " +
                 "COALESCE(m.nazwa_modelu, 'Nieznany') AS nazwa_modelu, " +
@@ -928,14 +950,16 @@ public class PostgresDataStorage
         }
         details.setPriorytet(Alert.AlertSeverity.valueOf(rs.getString("priorytet")));
         details.setStatus(Alert.AlertStatus.valueOf(rs.getString("status")));
-        
+
         // Utwórz nazwę urządzenia z producenta i typu/modelu
-        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie istnieje
+        // Używamy COALESCE, więc wartości mogą być "Nieznany" jeśli urządzenie nie
+        // istnieje
         String nazwaProducenta = rs.getString("nazwa_producenta");
         String nazwaModelu = rs.getString("nazwa_modelu");
         String nazwaTypu = rs.getString("nazwa_typu_urzadzenia");
-        
-        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest dostępny)
+
+        // Kombinuj nazwę urządzenia: Producent + Typ (lub Model jeśli typ nie jest
+        // dostępny)
         String nazwaUrzadzenia = "";
         if (nazwaProducenta != null && !nazwaProducenta.equals("Nieznany")) {
             nazwaUrzadzenia = nazwaProducenta;
@@ -948,16 +972,36 @@ public class PostgresDataStorage
         if (nazwaUrzadzenia.isEmpty() || nazwaUrzadzenia.equals("Nieznany")) {
             nazwaUrzadzenia = "Urządzenie #" + details.getUrzadzenieId();
         }
-        
+
         details.setNazwaUrzadzenia(nazwaUrzadzenia);
         details.setNazwaModelu(nazwaModelu != null && !nazwaModelu.equals("Nieznany") ? nazwaModelu : null);
-        
+
         String numerPokoju = rs.getString("numer_pokoju");
         details.setNazwaPokoju(numerPokoju != null && !numerPokoju.equals("Nieznany") ? numerPokoju : null);
-        
+
         String nazwaBudynku = rs.getString("nazwa_budynku");
         details.setNazwaBudynku(nazwaBudynku != null && !nazwaBudynku.equals("Nieznany") ? nazwaBudynku : null);
-        
+
         return details;
     }
+
+    @Override
+    public void logOperation(int deviceId, String operation, double value, String source) {
+        // Tabela: Logi_optymalizacji (ID_urzadzenia, operacja, wartosc, zrodlo,
+        // czas_operacji)
+        String sql = "INSERT INTO Logi_optymalizacji (ID_urzadzenia, operacja, wartosc, zrodlo, czas_operacji) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, deviceId);
+            pstmt.setString(2, operation);
+            pstmt.setDouble(3, value);
+            pstmt.setString(4, source);
+            pstmt.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+            pstmt.executeUpdate();
+            System.out.println("[DB-LOG] Zapisano operację: " + operation + " dla urządzenia " + deviceId);
+        } catch (SQLException e) {
+            System.err.println("[DB-ERROR] Błąd zapisu logu operacji (Tabela 'Logi_optymalizacji' może nie istnieć): "
+                    + e.getMessage());
+        }
+    }
+
 }
