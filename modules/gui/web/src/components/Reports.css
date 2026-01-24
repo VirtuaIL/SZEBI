@@ -44,6 +44,28 @@
   font-size: 16px;
 }
 
+.btn-save-action {
+  padding: 8px 20px;
+  background: #28a745; /* Zielony dla zapisu */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-save-action:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.btn-save-action:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
 .btn-generate:hover:not(:disabled) {
   background: #0056b3;
 }
@@ -129,6 +151,107 @@
   border-left: 4px solid #f39c12;
 }
 
+/* Analysis Results */
+.analysis-results {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.analysis-summary {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #007bff;
+}
+
+.analysis-summary p {
+  margin: 8px 0;
+}
+
+.quality-badge {
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: #28a745;
+  color: white;
+}
+
+.metric-card {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.metric-card h4 {
+  margin-top: 0;
+  color: #007bff;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+}
+
+.metric-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin: 15px 0;
+}
+
+.stat-group {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.stat-group h5 {
+  margin-top: 0;
+  color: #495057;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-group p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.metric-assessment {
+  background: #fff3cd;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 15px 0;
+  border-left: 4px solid #ffc107;
+}
+
+.metric-recommendations {
+  background: #d1ecf1;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #17a2b8;
+}
+
+.metric-recommendations h5 {
+  margin-top: 0;
+  color: #0c5460;
+}
+
+.metric-recommendations ul {
+  margin: 10px 0 0 0;
+  padding-left: 20px;
+}
+
+.metric-recommendations li {
+  margin-bottom: 8px;
+  color: #0c5460;
+}
+
 /* Mobile styles */
 @media (max-width: 768px) {
   .reports {
@@ -153,5 +276,9 @@
 
   .btn-generate {
     width: 100%;
+  }
+
+  .metric-stats {
+    grid-template-columns: 1fr;
   }
 }
