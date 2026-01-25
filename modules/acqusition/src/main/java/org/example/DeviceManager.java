@@ -47,7 +47,7 @@ public class DeviceManager {
     // Sprawdzamy, gdzie jest następne wolne ID w bazie danych, żeby dodać na właściwe miejsce
     public int getNextAvailableID(){
         //TODO: add getAllDevices method to PostgresDataStorage to count inactive devices too
-        List<Urzadzenie> devices = dataStorage.getActiveDevices();
+        List<Urzadzenie> devices = dataStorage.getAllDevices();
         int highestID = 0;
         for(Urzadzenie device : devices){
             if(device.getId() >= highestID){ highestID = device.getId() + 1;}

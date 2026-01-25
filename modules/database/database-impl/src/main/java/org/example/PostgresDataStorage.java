@@ -118,6 +118,35 @@ public class PostgresDataStorage
     }
 
     @Override
+    public List<Urzadzenie> getAllDevices() {
+        String sql = "SELECT * FROM Urzadzenia";
+
+        List<Urzadzenie> activeDevices = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Urzadzenie device = new Urzadzenie();
+
+                device.setId(rs.getInt("ID_urzadzenia"));
+                device.setPokojId(rs.getInt("ID_pokoju"));
+                device.setModelId(rs.getInt("ID_modelu"));
+                device.setParametryPracy(rs.getString("Parametry_pracy"));
+                device.setAktywny(rs.getBoolean("aktywny"));
+
+                activeDevices.add(device);
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas pobierania aktywnych urządzeń: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return activeDevices;
+    }
+
+    @Override
     public List<UrzadzenieSzczegoly> getActiveDevicesWithDetails() {
         String sql = "SELECT u.*, p.numer_pokoju, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, pu.nazwa_producenta " +
                 "FROM Urzadzenia u " +

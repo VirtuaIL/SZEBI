@@ -20,5 +20,7 @@ public interface IAcquisitionData {
 
     Boolean addDevice(Urzadzenie device);
 
+    List<Urzadzenie> getAllDevices();
+
     boolean isDatabaseConnected();
 }
