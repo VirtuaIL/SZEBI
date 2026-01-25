@@ -1,0 +1,20 @@
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div style={{ backgroundColor: 'white', padding: '10px', border: '1px solid #ccc', borderRadius: '4px',boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                        <p style={{ margin: '0 0 8px 0', fontWeight: 'bold',fontSize: '14px' }}>Godzina: {label}</p>
+                        {payload
+                          .filter(entry => entry.dataKey !== 'hour' && entry.dataKey !== 'day' && entry.dataKey !== 'anomaly' && entry.value !== null)
+                          .map((entry, index) => (
+                            <p key={index} style={{ margin: '3px 0', color: entry.color, fontSize: '13px' }}>
+                              {entry.name}: {typeof entry.value === 'number' ? entry.value.toFixed(2) : entry.value} kWh
+                            </p>
+                          ))
+                        }
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
