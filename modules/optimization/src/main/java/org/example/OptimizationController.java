@@ -445,8 +445,9 @@ public class OptimizationController {
 
                 if (Math.abs(diff) > maxStep) {
                     nextValue = currentVal + Math.signum(diff) * maxStep;
-                    System.out.println(
-                            "      [GRADUAL] Zmiana z " + currentVal + " na " + nextValue + " (Cel: " + setting + ")");
+                    System.out.println(String.format("      -> Dążenie do celu: %.1f°C", setting));
+                } else {
+                    System.out.println(String.format("      -> Temperatura w normie (cel: %.1f°C)", setting));
                 }
             }
 

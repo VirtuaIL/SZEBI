@@ -1069,6 +1069,7 @@ public class PostgresDataStorage
     /**
      * Aktualizuje istniejącego użytkownika w bazie danych
      */
+    @Override
     public Uzytkownik updateUser(Uzytkownik user) {
         if (user.getId() <= 0) {
             System.out.println("Błąd: ID użytkownika musi być większe od 0");
@@ -1135,6 +1136,7 @@ public class PostgresDataStorage
     /**
      * Usuwa użytkownika z bazy danych
      */
+    @Override
     public boolean deleteUser(int userId) {
         if (userId <= 0) {
             System.out.println("Błąd: ID użytkownika musi być większe od 0");
