@@ -29,11 +29,14 @@ public final class Analysis extends IDocument.Document {
   }
 
   void notifyNotifiers(List<IAlertNotifier> notifiers) {
+    System.out.println("[Analysis] notifyNotifiers called - alerts count: " + alerts.size() + ", notifiers count: " + notifiers.size());
+
     if (alerts.isEmpty())
       return;
 
     notifiers.forEach(notifier -> {
       alerts.forEach(alert -> {
+        System.out.println("[Analysis] Sending alert: " + alert + " to notifier: " + notifier.getClass().getSimpleName());
         notifier.notify(this.getId(), alert);
       });
     });
@@ -76,10 +79,13 @@ public final class Analysis extends IDocument.Document {
       groupedData.put(type, values);
     }
 
-    // Use strategy to analyze data and generate alerts
+    // Use strategy to analyze data and generate alerts with deviceId
     // Note: strategy may be null during super() constructor call due to Java initialization order
     IAnalysisStrategy effectiveStrategy = (this.strategy != null) ? this.strategy : new IAnalysisStrategy.DefaultStrategy();
-    this.alerts = effectiveStrategy.analyze(groupedData);
+
+    // Pobierz SensorReadings z informacją o deviceId
+    List<SensorReading> sensorReadings = AnalysisReportAPI.getAquisitionProxy().getSensorReadingsFor(this.metrics);
+    this.alerts = effectiveStrategy.analyzeWithDeviceId(sensorReadings);
 
     // Oblicz statystyki dla każdego typu
     Map<ConfigurationType, MetricStatistics> metricsMap = new HashMap<>();

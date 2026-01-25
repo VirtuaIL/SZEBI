@@ -30,9 +30,11 @@ public interface IDocument {
     private LocalDateTime creationDate;
     private LocalDateTime dateFrom;
     private LocalDateTime dateTo;
+    protected HashSet<ConfigurationType> metrics;
 
     protected Document(Scheme builder) {
       this.id = builder.id;
+      this.metrics = builder.metrics;
       this.content = generateContent(
           AnalysisReportAPI.getAquisitionProxy().getLabelAndValuesFor(builder.metrics));
       this.creationDate = LocalDateTime.now();
