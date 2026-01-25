@@ -13,15 +13,19 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 public final class Analysis extends IDocument.Document {
   private IAnalysisStrategy strategy = new IAnalysisStrategy.DefaultStrategy();
-  private List<AlertEventType> alerts = new ArrayList<>();
+  private List<AlertEvent> alerts = new ArrayList<>();
 
   public Analysis(IDocument.Scheme scheme) {
     super(scheme);
-    // Dodaj alerty ze strategii do istniejącej listy
-    List<AlertEventType> strategyAlerts = strategy.analyze(this);
-    if (strategyAlerts != null) {
-      this.alerts.addAll(strategyAlerts);
-    }
+  }
+
+  public Analysis(IDocument.Scheme scheme, IAnalysisStrategy strategy) {
+    super(scheme);
+    this.strategy = strategy;
+  }
+
+  public void setStrategy(IAnalysisStrategy strategy) {
+    this.strategy = strategy;
   }
 
   void notifyNotifiers(List<IAlertNotifier> notifiers) {
@@ -48,7 +52,7 @@ public final class Analysis extends IDocument.Document {
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-    // Grupuj wartości po ConfigurationType i sprawdź alerty
+    // Grupuj wartości po ConfigurationType
     Map<ConfigurationType, List<Double>> groupedData = new HashMap<>();
     for (Map.Entry<?, ?> entry : data.entrySet()) {
       // Bezpieczne pobranie klucza (poprzednia poprawka)
@@ -70,17 +74,12 @@ public final class Analysis extends IDocument.Document {
       }
 
       groupedData.put(type, values);
-
-      // Sprawdzanie anomalii dla każdej wartości w liście
-      for (Double value : values) {
-        if (isOutOfTypicalRange(type, value)) {
-          AlertEventType alert = getAlertForConfigurationType(type);
-          if (alert != null && this.alerts != null && !this.alerts.contains(alert)) {
-            this.alerts.add(alert);
-          }
-        }
-      }
     }
+
+    // Use strategy to analyze data and generate alerts
+    // Note: strategy may be null during super() constructor call due to Java initialization order
+    IAnalysisStrategy effectiveStrategy = (this.strategy != null) ? this.strategy : new IAnalysisStrategy.DefaultStrategy();
+    this.alerts = effectiveStrategy.analyze(groupedData);
 
     // Oblicz statystyki dla każdego typu
     Map<ConfigurationType, MetricStatistics> metricsMap = new HashMap<>();
@@ -177,34 +176,6 @@ public final class Analysis extends IDocument.Document {
   private double round(double value, int places) {
     double scale = Math.pow(10, places);
     return Math.round(value * scale) / scale;
-  }
-
-  /**
-   * Mapuje ConfigurationType na odpowiedni AlertEventType
-   */
-  private AlertEventType getAlertForConfigurationType(ConfigurationType type) {
-    if (type == null) {
-      return null;
-    }
-
-    switch (type) {
-      case Temperature:
-        return AlertEventType.TemperatureExceedsThreshold;
-      case Humidity:
-        return AlertEventType.HumidityExceedsThreshold;
-      case Pressure:
-        return AlertEventType.PressureExceedsThreshold;
-      case Power:
-        return AlertEventType.PowerExceedsThreshold;
-      case Luminosity:
-        return AlertEventType.LuminosityExceedsThreshold;
-      case CO2Level:
-        return AlertEventType.CO2LevelExceedsThreshold;
-      case NoiseLevel:
-        return AlertEventType.NoiseLevelExceedsThreshold;
-      default:
-        return null;
-    }
   }
 
   /**

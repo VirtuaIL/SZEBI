@@ -712,9 +712,10 @@ public class ReportsController {
 
       String dateFromStr = requestBody.has("dateFrom") ? requestBody.get("dateFrom").asText() : null;
       String dateToStr = requestBody.has("dateTo") ? requestBody.get("dateTo").asText() : null;
+      String medium = requestBody.has("medium") ? requestBody.get("medium").asText() : null;
 
       System.out.println("[ReportsController] Analysis params: dateFrom=" + dateFromStr +
-          ", dateTo=" + dateToStr);
+          ", dateTo=" + dateToStr + ", medium=" + medium);
 
       // Parsuj daty
       LocalDateTime dateFrom;
@@ -736,12 +737,26 @@ public class ReportsController {
         return;
       }
 
+      // Filtrowanie metryk na podstawie wybranego medium
+      Set<ConfigurationType> allAvailableMetrics = AnalysisReportAPI.getAvailableMetrics();
+      Set<ConfigurationType> filteredMetrics;
+
+      if (medium == null || medium.isEmpty() || "all".equalsIgnoreCase(medium)) {
+        filteredMetrics = allAvailableMetrics;
+        System.out.println("[ReportsController] Analysis using all metrics");
+      } else {
+        filteredMetrics = allAvailableMetrics.stream()
+            .filter(x -> x.equals(ConfigurationType.fromString(medium)))
+            .collect(Collectors.toSet());
+        System.out.println("[ReportsController] Analysis filtered metrics for medium '" + medium + "': " + filteredMetrics.size());
+      }
+
       // Użyj AnalysisReportAPI.sendDocumentScheme do wygenerowania i zapisania
       // analizy
       var scheme = AnalysisReportAPI.newAnalysisScheme()
           .setFrom(dateFrom)
           .setTo(dateTo)
-          .includeMetrics(AnalysisReportAPI.getAvailableMetrics());
+          .includeMetrics(filteredMetrics);
 
       System.out.println("[ReportsController] Wysyłanie schematu analizy...");
       analysisReportAPI.sendDocumentScheme(scheme);
