@@ -85,9 +85,21 @@ public class OptimizationController {
             return;
         }
 
+        // Oblicz zużycie energii dla urządzeń w budynku
+        if (acquisitionAPI != null) {
+            double buildingPower = calculateBuildingPowerUsage(rooms);
+            System.out.println(String.format("[ENERGIA] Aktualne zużycie budynku: %.2f W", buildingPower));
+        }
+
         // Iteruj po pokojach
         for (Pokoj room : rooms) {
             optimizeRoomBasedOnPreferences(room, isBuildingOpen);
+        }
+
+        // Wyświetl zużycie energii po optymalizacji
+        if (acquisitionAPI != null) {
+            double buildingPowerAfter = calculateBuildingPowerUsage(rooms);
+            System.out.println(String.format("[ENERGIA] Zużycie po optymalizacji: %.2f W", buildingPowerAfter));
         }
 
         System.out.println("[Optymalizacja] Zakończono optymalizację budynku.");
@@ -330,11 +342,66 @@ public class OptimizationController {
             System.out.println(
                     "   [ENERGIA] Urządzenie " + device.getId() + " PRZEKROCZY limit (" + predictedAvgUsage + " > "
                             + String.format("%.2f", effectiveLimit) + "). Ograniczam prewencyjnie.");
-            controlDevice(device.getId(), "limit_power", 50.0);
+            applyEnergySavingAction(device);
         } else {
             System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie prognozy ("
                     + predictedAvgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
+    }
+
+    /**
+     * Stosuje akcję oszczędzania energii dla urządzenia.
+     * - Dla urządzeń klimatycznych: obniża temperaturę (ale nie poniżej minimum
+     * admina)
+     * - Dla oświetlenia: zmniejsza jasność lub wyłącza
+     */
+    private void applyEnergySavingAction(Urzadzenie device) {
+        String deviceId = String.valueOf(device.getId());
+        Double currentVal = requestSensorReading(deviceId);
+
+        // Urządzenia klimatyczne (temperatura)
+        if (doesDeviceMeasureTemperature(device)) {
+            double minTemp = adminPref.getPreferredMinTemp();
+
+            if (currentVal != null && currentVal > minTemp) {
+                // Obniżamy o 1-2 stopnie, ale nie poniżej minimum
+                double reducedTemp = Math.max(minTemp, currentVal - 2.0);
+                System.out.println(String.format(
+                        "   [OSZCZĘDNOŚĆ] Urządzenie %s: obniżam temperaturę z %.1f°C do %.1f°C (min: %.1f°C)",
+                        deviceId, currentVal, reducedTemp, minTemp));
+                controlDevice(device.getId(), "set_temp", reducedTemp);
+            } else {
+                System.out.println(String.format("   [OSZCZĘDNOŚĆ] Urządzenie %s: temperatura już na minimum (%.1f°C)",
+                        deviceId, minTemp));
+            }
+            return;
+        }
+
+        // Oświetlenie
+        if (isLightingDevice(device)) {
+            if (currentVal != null && currentVal > 0) {
+                // Zmniejszamy jasność o 30% lub wyłączamy jeśli już niska
+                double reducedBrightness = currentVal * 0.7;
+                if (reducedBrightness < 20.0) {
+                    reducedBrightness = 0.0; // Wyłączamy całkowicie
+                    System.out
+                            .println(String.format("   [OSZCZĘDNOŚĆ] Urządzenie %s: wyłączam oświetlenie (było %.1f%%)",
+                                    deviceId, currentVal));
+                } else {
+                    System.out.println(
+                            String.format("   [OSZCZĘDNOŚĆ] Urządzenie %s: zmniejszam jasność z %.1f%% do %.1f%%",
+                                    deviceId, currentVal, reducedBrightness));
+                }
+                controlDevice(device.getId(), "jasnosc_procent", reducedBrightness);
+            } else {
+                System.out
+                        .println(String.format("   [OSZCZĘDNOŚĆ] Urządzenie %s: oświetlenie już wyłączone", deviceId));
+            }
+            return;
+        }
+
+        // Inne urządzenia - logujemy tylko
+        System.out.println(String.format("   [OSZCZĘDNOŚĆ] Urządzenie %s: brak możliwości redukcji zużycia", deviceId));
     }
 
     private double calculateAverageFromForecasts(List<Prognoza> forecasts) {
@@ -360,6 +427,20 @@ public class OptimizationController {
             return controlService.getDevicesInRoom(roomId);
         System.err.println("[Optymalizacja] Brak połączenia z serwisem kontroli!");
         return new ArrayList<>();
+    }
+
+    /**
+     * Oblicza sumę zużycia energii dla wszystkich urządzeń w pokojach budynku.
+     */
+    private double calculateBuildingPowerUsage(List<Pokoj> rooms) {
+        double totalPower = 0.0;
+        for (Pokoj room : rooms) {
+            List<Urzadzenie> devices = getDevicesFromRoom(room.getId());
+            for (Urzadzenie device : devices) {
+                totalPower += acquisitionAPI.getPowerUsageForDevice(String.valueOf(device.getId()));
+            }
+        }
+        return totalPower;
     }
 
     public Double requestSensorReading(String deviceId) {
@@ -390,8 +471,9 @@ public class OptimizationController {
 
                 if (Math.abs(diff) > maxStep) {
                     nextValue = currentVal + Math.signum(diff) * maxStep;
-                    System.out.println(
-                            "      [GRADUAL] Zmiana z " + currentVal + " na " + nextValue + " (Cel: " + setting + ")");
+                    System.out.println(String.format("      -> Dążenie do celu: %.1f°C", setting));
+                } else {
+                    System.out.println(String.format("      -> Temperatura w normie (cel: %.1f°C)", setting));
                 }
             }
 

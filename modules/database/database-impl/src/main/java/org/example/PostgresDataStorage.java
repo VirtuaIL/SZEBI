@@ -28,13 +28,13 @@ public class PostgresDataStorage
         IOptimizationData {
 
     // config postgres
-    //FIXME
+    // FIXME
     private final String DB_URL = "jdbc:postgresql://127.0.0.1:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
-    //FIXME
+    // FIXME
     private final String MONGO_URI = "mongodb://root:bazka@127.0.0.1:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
@@ -199,8 +199,8 @@ public class PostgresDataStorage
         List<ProducentUrzadzenia> availableManufacturers = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 ProducentUrzadzenia producent = new ProducentUrzadzenia();
@@ -226,8 +226,8 @@ public class PostgresDataStorage
         List<ModelUrzadzenia> availableModels = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 ModelUrzadzenia producent = new ModelUrzadzenia();
@@ -248,15 +248,16 @@ public class PostgresDataStorage
     @Override
     public Boolean addDevice(Urzadzenie device) {
         System.out.println("ADDING DEVICE");
-        String sql = "INSERT INTO urzadzenia (ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO urzadzenia (ID_Urzadzenia, ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, device.getPokojId());
-            pstmt.setInt(2, device.getModelId());
+            pstmt.setInt(1, device.getId());
+            pstmt.setInt(2, device.getPokojId());
+            pstmt.setInt(3, device.getModelId());
             PGobject jsonObject = new PGobject();
             jsonObject.setType("json");
             jsonObject.setValue(device.getParametryPracy());
-            pstmt.setObject(3, jsonObject);
-            pstmt.setBoolean(4, true);
+            pstmt.setObject(4, jsonObject);
+            pstmt.setBoolean(5, true);
             pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -728,8 +729,8 @@ public class PostgresDataStorage
         String sql = "SELECT * FROM Raporty ORDER BY czas_wygenerowania DESC";
         List<Raport> reports = new ArrayList<>();
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 reports.add(mapResultSetToRaport(rs));
             }
@@ -1068,6 +1069,7 @@ public class PostgresDataStorage
     /**
      * Aktualizuje istniejącego użytkownika w bazie danych
      */
+    @Override
     public Uzytkownik updateUser(Uzytkownik user) {
         if (user.getId() <= 0) {
             System.out.println("Błąd: ID użytkownika musi być większe od 0");
@@ -1098,9 +1100,10 @@ public class PostgresDataStorage
             pstmt.setString(4, user.getTelefon());
             pstmt.setString(5, user.getEmail());
             pstmt.setString(6, hasloHash);
-            
+
             String prefJson = null;
-            // Użyj rawPreferences jeśli jest dostępne (surowy JSON, może być AdministratorPreferencesDTO)
+            // Użyj rawPreferences jeśli jest dostępne (surowy JSON, może być
+            // AdministratorPreferencesDTO)
             if (user.getRawPreferences() != null && !user.getRawPreferences().isEmpty()) {
                 prefJson = user.getRawPreferences();
             } else if (user.getPreferencje() != null) {
@@ -1133,6 +1136,7 @@ public class PostgresDataStorage
     /**
      * Usuwa użytkownika z bazy danych
      */
+    @Override
     public boolean deleteUser(int userId) {
         if (userId <= 0) {
             System.out.println("Błąd: ID użytkownika musi być większe od 0");
