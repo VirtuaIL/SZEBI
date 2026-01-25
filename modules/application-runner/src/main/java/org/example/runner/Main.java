@@ -15,8 +15,6 @@ import org.example.runner.DashboardController;
 import org.example.ForecastServiceAPI;
 import org.example.ForecastController;
 
-
-
 import javax.swing.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -116,7 +114,8 @@ public class Main {
     AlertsController alertsController = new AlertsController(databaseStorage);
 
     DevicesController devicesController = new DevicesController(databaseStorage, databaseStorage, api);
-    AcquisitionControllerJavalin acquisitionController = new AcquisitionControllerJavalin(databaseStorage, databaseStorage, api);
+    AcquisitionControllerJavalin acquisitionController = new AcquisitionControllerJavalin(databaseStorage,
+        databaseStorage, api);
 
     ReportsController reportsController = new ReportsController(databaseStorage, databaseStorage, anal);
 
@@ -124,7 +123,7 @@ public class Main {
     forecastService.initializeScheduler(databaseStorage);
     ForecastController forecastController = new ForecastController(forecastService);
 
-    DashboardController dashboardController = new DashboardController(databaseStorage);
+    DashboardController dashboardController = new DashboardController(databaseStorage, optimizationAPI);
 
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {

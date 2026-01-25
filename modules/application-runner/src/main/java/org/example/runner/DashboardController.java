@@ -12,6 +12,7 @@ import org.example.DTO.Odczyt;
 import org.example.DTO.Prognoza;
 import org.example.DTO.AlertSzczegoly;
 import org.example.DTO.Alert;
+import org.example.OptimizationAPI;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -23,11 +24,13 @@ import java.util.HashMap;
 public class DashboardController {
     private final IAnalyticsData analyticsData;
     private final IAcquisitionData acquisitionData;
+    private final OptimizationAPI optimizationAPI;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    public DashboardController(IAnalyticsData analyticsData) {
+    public DashboardController(IAnalyticsData analyticsData, OptimizationAPI optimizationAPI) {
         this.analyticsData = analyticsData;
+        this.optimizationAPI = optimizationAPI;
         // PostgresDataStorage implementuje zarówno IAnalyticsData jak i
         // IAcquisitionData
         this.acquisitionData = (IAcquisitionData) analyticsData;
@@ -284,33 +287,21 @@ public class DashboardController {
         }
 
         // Oblicz bazowe zużycie jako suma mocy wszystkich aktywnych urządzeń
-        // (to jest szacowane stałe zużycie, rzeczywiste może się różnić)
+        // (to jest szacowane maksymalne zużycie)
         double totalPowerW = 0.0;
         for (org.example.DTO.UrzadzenieSzczegoly device : devices) {
             totalPowerW += device.getMocW();
         }
-        totalPowerW *= 50; // Współczynnik aktywności (50 odczytów/godzinę)
+        // USUNIĘTO: totalPowerW *= 50; // To mnożenie było błędne i zawyżało wynik
 
-        // Jeśli są odczyty w ostatniej godzinie, użyj ich do lepszego oszacowania
-        if (!readings.isEmpty()) {
-            double sumFromReadings = 0.0;
-            for (Odczyt reading : readings) {
-                int deviceId = reading.getUrzadzenieId();
-                double devicePower = devicePowerMap.getOrDefault(deviceId, 0.0);
-                sumFromReadings += devicePower;
-            }
-            // Użyj średniej: (bazowa moc + odczyty) / 2 dla stabilności
-            totalPowerW = (totalPowerW + sumFromReadings) / 2;
-        }
+        // Wniosek: Używamy sumy mocy nominalnej aktywnych urządzeń jako estymaty "Max
+        // Chwilowy Pobór".
+        // Jest to bezpieczne przybliżenie.
 
         // Symulacja produkcji OZE (można później zastąpić rzeczywistymi danymi)
         // Zakładamy że OZE pokrywa część zużycia w zależności od pory dnia
-        int hour = now.getHour();
-        double solarProduction = 0.0;
-        if (hour >= 6 && hour <= 18) {
-            // W ciągu dnia symulujemy produkcję słoneczną
-            solarProduction = Math.max(0, 300 + (Math.sin((hour - 6) * Math.PI / 12) * 200));
-        }
+        // Używamy OptimizationAPI do pobrania aktualnej produkcji solarnej
+        double solarProduction = optimizationAPI.getSolarProduction();
 
         // Pobór z sieci = całkowite zużycie - produkcja OZE
         double gridConsumption = Math.max(0, totalPowerW - solarProduction);
