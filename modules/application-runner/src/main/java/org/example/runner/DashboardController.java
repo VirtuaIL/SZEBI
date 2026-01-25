@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.example.interfaces.IAnalyticsData;
+import org.example.interfaces.IAcquisitionData;
 import org.example.DTO.Odczyt;
 import org.example.DTO.Prognoza;
 import org.example.DTO.AlertSzczegoly;
@@ -21,26 +22,42 @@ import java.util.HashMap;
 
 public class DashboardController {
     private final IAnalyticsData analyticsData;
+    private final IAcquisitionData acquisitionData;
     private final ObjectMapper objectMapper;
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     public DashboardController(IAnalyticsData analyticsData) {
         this.analyticsData = analyticsData;
+        // PostgresDataStorage implementuje zarówno IAnalyticsData jak i
+        // IAcquisitionData
+        this.acquisitionData = (IAcquisitionData) analyticsData;
         this.objectMapper = new ObjectMapper();
     }
 
     public void setupRoutes(Javalin app) {
-        // Agregowany endpoint dla wszystkich danych dashboardu
-        app.get("/api/dashboard/summary", this::getDashboardSummary);
-        
-        // Endpoint dla zużycia energii (rzeczywiste + prognozowane)
-        app.get("/api/dashboard/energy", this::getEnergyData);
-        
-        // Endpoint dla statusu OZE
-        app.get("/api/dashboard/oze-status", this::getOZEStatus);
-        
-        // Endpoint dla anomalii
-        app.get("/api/dashboard/anomalies", this::getAnomalies);
+        System.out.println("[DEBUG] DashboardController.setupRoutes() CALLED");
+        try {
+            // Agregowany endpoint dla wszystkich danych dashboardu
+            app.get("/api/dashboard/summary", this::getDashboardSummary);
+            System.out.println("[DEBUG] Registered: GET /api/dashboard/summary");
+
+            // Endpoint dla zużycia energii (rzeczywiste + prognozowane)
+            app.get("/api/dashboard/energy", this::getEnergyData);
+            System.out.println("[DEBUG] Registered: GET /api/dashboard/energy");
+
+            // Endpoint dla statusu OZE
+            app.get("/api/dashboard/oze-status", this::getOZEStatus);
+            System.out.println("[DEBUG] Registered: GET /api/dashboard/oze-status");
+
+            // Endpoint dla anomalii
+            app.get("/api/dashboard/anomalies", this::getAnomalies);
+            System.out.println("[DEBUG] Registered: GET /api/dashboard/anomalies");
+
+            System.out.println("[DEBUG] DashboardController.setupRoutes() COMPLETED SUCCESSFULLY");
+        } catch (Exception e) {
+            System.err.println("[ERROR] Exception in DashboardController.setupRoutes(): " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -61,18 +78,20 @@ public class DashboardController {
 
             // Pobierz dane energii
             ObjectNode energyData = getEnergyDataInternal(buildingId, from, to, range);
-            
+
             // Pobierz status OZE
             ObjectNode ozeStatus = getOZEStatusInternal(buildingId);
-            
+
             // Pobierz anomalie
             ArrayNode anomalies = getAnomaliesInternal(buildingId, from, to);
 
             // Oblicz statystyki
-            double totalConsumption = energyData.has("totalConsumption") 
-                ? energyData.get("totalConsumption").asDouble() : 0.0;
+            double totalConsumption = energyData.has("totalConsumption")
+                    ? energyData.get("totalConsumption").asDouble()
+                    : 0.0;
             double avgConsumption = energyData.has("averageConsumption")
-                ? energyData.get("averageConsumption").asDouble() : 0.0;
+                    ? energyData.get("averageConsumption").asDouble()
+                    : 0.0;
 
             ObjectNode response = objectMapper.createObjectNode();
             response.set("energy", energyData);
@@ -126,9 +145,27 @@ public class DashboardController {
     private ObjectNode getEnergyDataInternal(int buildingId, LocalDateTime from, LocalDateTime to, String range) {
         // Pobierz rzeczywiste odczyty
         List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
-        
-        // Pobierz prognozy
-        List<Prognoza> forecasts = analyticsData.getForecastsForBuilding(buildingId, from, to);
+
+        // Pobierz informacje o urządzeniach (potrzebne dla mocy i ID urządzeń)
+        List<org.example.DTO.UrzadzenieSzczegoly> devices = acquisitionData.getActiveDevicesWithDetails();
+        Map<Integer, Double> devicePowerMap = new HashMap<>();
+        List<Integer> deviceIds = new ArrayList<>();
+        for (org.example.DTO.UrzadzenieSzczegoly device : devices) {
+            devicePowerMap.put(device.getId(), (double) device.getMocW());
+            deviceIds.add(device.getId());
+        }
+
+        // Pobierz prognozy dla wszystkich urządzeń w budynku
+        // (prognozy są zapisywane per-urządzenie, nie per-budynek)
+        List<Prognoza> allForecasts = new ArrayList<>();
+        for (Integer deviceId : deviceIds) {
+            try {
+                List<Prognoza> deviceForecasts = analyticsData.getForecastsForDevice(deviceId, from, to);
+                allForecasts.addAll(deviceForecasts);
+            } catch (Exception e) {
+                // Ignoruj błędy dla urządzeń bez prognoz
+            }
+        }
 
         // Agreguj dane rzeczywiste według przedziału czasowego
         ArrayNode energyDataArray = objectMapper.createArrayNode();
@@ -136,22 +173,33 @@ public class DashboardController {
         Map<String, List<Double>> forecastDataMap = new HashMap<>();
 
         // Grupuj odczyty rzeczywiste
+        // Dla każdego odczytu: zużycie = moc urządzenia (W) * czas (1 godzina) / 1000 =
+        // kWh
         for (Odczyt reading : readings) {
             try {
-                String timeKey = formatTimeKey(reading.getCzasOdczytu().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime(), range);
-                double value = extractEnergyValue(reading.getPomiary());
-                realDataMap.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(value);
+                String timeKey = formatTimeKey(
+                        reading.getCzasOdczytu().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime(), range);
+
+                // Pobierz moc urządzenia
+                int deviceId = reading.getUrzadzenieId();
+                double devicePower = devicePowerMap.getOrDefault(deviceId, 0.0); // W
+
+                // Oblicz zużycie energii: moc (W) dla danej godziny
+                double energyConsumption = devicePower; // W
+
+                realDataMap.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(energyConsumption);
             } catch (Exception e) {
                 // Ignoruj błędy parsowania
             }
         }
 
-        // Grupuj prognozy
-        for (Prognoza forecast : forecasts) {
+        // Grupuj prognozy (prognozy są już w W, trzeba je sumować dla całego budynku)
+        for (Prognoza forecast : allForecasts) {
             try {
                 String timeKey = formatTimeKey(forecast.getCzasPrognozy(), range);
-                double value = forecast.getPrognozowanaWartosc();
-                forecastDataMap.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(value);
+                // Prognozy są wartości bazowe w kWh, konwertuj na W
+                double forecastValue = forecast.getPrognozowanaWartosc() * 1000; // kWh -> W
+                forecastDataMap.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(forecastValue);
             } catch (Exception e) {
                 // Ignoruj błędy
             }
@@ -167,16 +215,17 @@ public class DashboardController {
         int count = 0;
 
         for (String timeKey : allTimeKeys) {
-            double realAvg = realDataMap.containsKey(timeKey) 
-                ? realDataMap.get(timeKey).stream().mapToDouble(Double::doubleValue).average().orElse(0.0)
-                : 0.0;
-            double forecastAvg = forecastDataMap.containsKey(timeKey)
-                ? forecastDataMap.get(timeKey).stream().mapToDouble(Double::doubleValue).average().orElse(0.0)
-                : 0.0;
+            // Suma mocy wszystkich urządzeń w danej godzinie
+            double realSum = realDataMap.containsKey(timeKey)
+                    ? realDataMap.get(timeKey).stream().mapToDouble(Double::doubleValue).sum()
+                    : 0.0;
+            double forecastSum = forecastDataMap.containsKey(timeKey)
+                    ? forecastDataMap.get(timeKey).stream().mapToDouble(Double::doubleValue).sum()
+                    : 0.0;
 
             // Konwersja z W na kWh (zakładając że to wartość godzinowa)
-            double realKwh = realAvg / 1000.0;
-            double forecastKwh = forecastAvg / 1000.0;
+            double realKwh = realSum / 1000.0;
+            double forecastKwh = forecastSum / 1000.0;
 
             ObjectNode dataPoint = objectMapper.createObjectNode();
             dataPoint.put(range.equals("day") ? "hour" : "day", timeKey);
@@ -220,13 +269,40 @@ public class DashboardController {
     }
 
     private ObjectNode getOZEStatusInternal(int buildingId) {
-        // Oblicz produkcję OZE (symulacja - można później zintegrować z rzeczywistymi danymi)
+        // Oblicz produkcję OZE (symulacja - można później zintegrować z rzeczywistymi
+        // danymi)
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime from = now.minusHours(1);
-        
-        // Pobierz całkowite zużycie z ostatniej godziny
-        double totalConsumption = analyticsData.getTotalEnergyConsumptionForBuilding(buildingId, from, now);
-        
+
+        // Pobierz całkowite zużycie z ostatniej godziny - oblicz na podstawie mocy
+        // urządzeń
+        List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, now);
+        List<org.example.DTO.UrzadzenieSzczegoly> devices = acquisitionData.getActiveDevicesWithDetails();
+        Map<Integer, Double> devicePowerMap = new HashMap<>();
+        for (org.example.DTO.UrzadzenieSzczegoly device : devices) {
+            devicePowerMap.put(device.getId(), (double) device.getMocW());
+        }
+
+        // Oblicz bazowe zużycie jako suma mocy wszystkich aktywnych urządzeń
+        // (to jest szacowane stałe zużycie, rzeczywiste może się różnić)
+        double totalPowerW = 0.0;
+        for (org.example.DTO.UrzadzenieSzczegoly device : devices) {
+            totalPowerW += device.getMocW();
+        }
+        totalPowerW *= 50; // Współczynnik aktywności (50 odczytów/godzinę)
+
+        // Jeśli są odczyty w ostatniej godzinie, użyj ich do lepszego oszacowania
+        if (!readings.isEmpty()) {
+            double sumFromReadings = 0.0;
+            for (Odczyt reading : readings) {
+                int deviceId = reading.getUrzadzenieId();
+                double devicePower = devicePowerMap.getOrDefault(deviceId, 0.0);
+                sumFromReadings += devicePower;
+            }
+            // Użyj średniej: (bazowa moc + odczyty) / 2 dla stabilności
+            totalPowerW = (totalPowerW + sumFromReadings) / 2;
+        }
+
         // Symulacja produkcji OZE (można później zastąpić rzeczywistymi danymi)
         // Zakładamy że OZE pokrywa część zużycia w zależności od pory dnia
         int hour = now.getHour();
@@ -235,15 +311,20 @@ public class DashboardController {
             // W ciągu dnia symulujemy produkcję słoneczną
             solarProduction = Math.max(0, 300 + (Math.sin((hour - 6) * Math.PI / 12) * 200));
         }
-        
+
         // Pobór z sieci = całkowite zużycie - produkcja OZE
-        double gridConsumption = Math.max(0, totalConsumption * 1000 - solarProduction); // Konwersja kWh na W
-        
+        double gridConsumption = Math.max(0, totalPowerW - solarProduction);
+
+        System.out.println("[DEBUG OZE] Devices: " + devices.size());
+        System.out.println("[DEBUG OZE] Total Power: " + totalPowerW + " W");
+        System.out.println("[DEBUG OZE] Solar: " + solarProduction + " W");
+        System.out.println("[DEBUG OZE] Grid: " + gridConsumption + " W");
+
         ObjectNode response = objectMapper.createObjectNode();
         response.put("production", Math.round(solarProduction));
         response.put("grid", Math.round(gridConsumption));
         response.put("buildingId", buildingId);
-        
+
         return response;
     }
 
@@ -281,13 +362,13 @@ public class DashboardController {
 
         for (AlertSzczegoly alert : alerts) {
             // Filtruj tylko alarmy związane z anomaliami (WARNING i CRITICAL)
-            if (alert.getPriorytet() != null && 
-                (alert.getPriorytet() == Alert.AlertSeverity.WARNING || 
-                 alert.getPriorytet() == Alert.AlertSeverity.CRITICAL)) {
+            if (alert.getPriorytet() != null &&
+                    (alert.getPriorytet() == Alert.AlertSeverity.WARNING ||
+                            alert.getPriorytet() == Alert.AlertSeverity.CRITICAL)) {
                 ObjectNode anomaly = objectMapper.createObjectNode();
-                anomaly.put("time", alert.getCzasAlertu() != null 
-                    ? alert.getCzasAlertu().format(DateTimeFormatter.ofPattern("HH:mm"))
-                    : "N/A");
+                anomaly.put("time", alert.getCzasAlertu() != null
+                        ? alert.getCzasAlertu().format(DateTimeFormatter.ofPattern("HH:mm"))
+                        : "N/A");
                 // Użyj wartości z treści alertu lub domyślnej wartości
                 anomaly.put("value", 1000.0); // Domyślna wartość, można później wyciągnąć z treści
                 anomaly.put("type", alert.getPriorytet() == Alert.AlertSeverity.CRITICAL ? "high" : "medium");
