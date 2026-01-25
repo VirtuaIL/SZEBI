@@ -28,14 +28,14 @@ public class PostgresDataStorage
         IOptimizationData {
 
     // config postgres
-    //FIXME
-    private final String DB_URL = "jdbc:postgresql://192.168.1.13:5433/szebi_db_nowa";
+    // FIXME
+    private final String DB_URL = "jdbc:postgresql://127.0.0.1:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
-    //FIXME
-    private final String MONGO_URI = "mongodb://root:bazka@192.168.1.13:27018/";
+    // FIXME
+    private final String MONGO_URI = "mongodb://root:bazka@127.0.0.1:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 
@@ -199,8 +199,8 @@ public class PostgresDataStorage
         List<ProducentUrzadzenia> availableManufacturers = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 ProducentUrzadzenia producent = new ProducentUrzadzenia();
@@ -226,8 +226,8 @@ public class PostgresDataStorage
         List<ModelUrzadzenia> availableModels = new ArrayList<>();
 
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 ModelUrzadzenia producent = new ModelUrzadzenia();
@@ -729,8 +729,8 @@ public class PostgresDataStorage
         String sql = "SELECT * FROM Raporty ORDER BY czas_wygenerowania DESC";
         List<Raport> reports = new ArrayList<>();
         try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 reports.add(mapResultSetToRaport(rs));
             }
@@ -1099,9 +1099,10 @@ public class PostgresDataStorage
             pstmt.setString(4, user.getTelefon());
             pstmt.setString(5, user.getEmail());
             pstmt.setString(6, hasloHash);
-            
+
             String prefJson = null;
-            // Użyj rawPreferences jeśli jest dostępne (surowy JSON, może być AdministratorPreferencesDTO)
+            // Użyj rawPreferences jeśli jest dostępne (surowy JSON, może być
+            // AdministratorPreferencesDTO)
             if (user.getRawPreferences() != null && !user.getRawPreferences().isEmpty()) {
                 prefJson = user.getRawPreferences();
             } else if (user.getPreferencje() != null) {
