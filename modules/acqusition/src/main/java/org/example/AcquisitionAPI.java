@@ -93,6 +93,37 @@ public class AcquisitionAPI {
     collectionService.forceRead();
   }
 
+  /**
+   * Pobiera sumę aktualnego zużycia energii (W) ze wszystkich aktywnych urządzeń.
+   * 
+   * @return Suma zużycia energii w Watach
+   */
+  public double getTotalPowerUsage() {
+    double totalPower = 0.0;
+    for (Device device : deviceManager.getActiveDevices()) {
+      Double power = device.readCurrentPowerUsage();
+      if (power != null) {
+        totalPower += power;
+      }
+    }
+    return totalPower;
+  }
+
+  /**
+   * Pobiera aktualne zużycie energii (W) dla konkretnego urządzenia.
+   * 
+   * @param deviceId ID urządzenia
+   * @return Zużycie energii w Watach lub 0 jeśli urządzenie nie istnieje
+   */
+  public double getPowerUsageForDevice(String deviceId) {
+    Device device = deviceManager.getDeviceById(deviceId);
+    if (device != null) {
+      Double power = device.readCurrentPowerUsage();
+      return power != null ? power : 0.0;
+    }
+    return 0.0;
+  }
+
   public void startPeriodicCollectionTask() {
     collectionService.runPeriodicCollectionTask();
   }
@@ -116,7 +147,6 @@ public class AcquisitionAPI {
     double safeMin = (min != null) ? min.doubleValue() : 0.0;
     double safeMax = (max != null) ? max.doubleValue() : 0.0;
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;
-
 
     String deviceID = id;
     String safeName = (name != null) ? name : "Unknown Device";
@@ -172,7 +202,7 @@ public class AcquisitionAPI {
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;
 
     int deviceID = deviceManager.getNextAvailableID();
-    //String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
+    // String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
 
     String safeName = (deviceName != null) ? deviceName : "Unknown Device";
 
@@ -219,7 +249,6 @@ public class AcquisitionAPI {
     Device device = deviceManager.getDeviceById(deviceId);
     if (device != null) {
       device.simulateStateChange(value);
-      System.out.println("[AcquisitionAPI] Ustawiono cel symulacji dla urządzenia " + deviceId + ": " + value);
     }
   }
 }
