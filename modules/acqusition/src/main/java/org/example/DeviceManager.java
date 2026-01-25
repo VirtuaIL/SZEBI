@@ -33,13 +33,27 @@ public class DeviceManager {
         return null;
     }
 
-    public Boolean saveDeviceToDB(JSONObject parameters, int roomID, int modelID){
+    public Boolean saveDeviceToDB(int deviceID, JSONObject parameters, int roomID, int modelID){
         Urzadzenie dbDevice = new Urzadzenie();
         dbDevice.setParametryPracy(parameters.toString());
         dbDevice.setPokojId(roomID);
         dbDevice.setModelId(modelID);
+        dbDevice.setId(deviceID);
 
         dataStorage.addDevice(dbDevice);
         return true;
+    }
+
+    // Sprawdzamy, gdzie jest następne wolne ID w bazie danych, żeby dodać na właściwe miejsce
+    public int getNextAvailableID(){
+        //TODO: add getAllDevices method to PostgresDataStorage to count inactive devices too
+        List<Urzadzenie> devices = dataStorage.getActiveDevices();
+        int highestID = 0;
+        for(Urzadzenie device : devices){
+            if(device.getId() >= highestID){ highestID = device.getId() + 1;}
+        }
+
+        System.out.println("NEXT AVAILABLE ID IN DB: " + highestID);
+        return highestID;
     }
 }

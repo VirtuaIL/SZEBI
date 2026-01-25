@@ -73,11 +73,12 @@ public class AcquisitionControllerJavalin {
         try {
             // Logic
             int deviceID = ctx.pathParamAsClass("id", Integer.class).get();
-            acquisitionAPI.requestSensorRead(Integer.toString(deviceID));
+            Double result = acquisitionAPI.requestSensorRead(Integer.toString(deviceID));
 
             // Response
             ObjectNode response = objectMapper.createObjectNode();
             response.put("success", "true");
+            response.put("value ", result);
             response.put("message", "pomyślnie zlecono odczyt");
             ctx.status(200);
             ctx.json(response);

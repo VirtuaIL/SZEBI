@@ -29,13 +29,13 @@ public class PostgresDataStorage
 
     // config postgres
     //FIXME
-    private final String DB_URL = "jdbc:postgresql://127.0.0.1:5433/szebi_db_nowa";
+    private final String DB_URL = "jdbc:postgresql://192.168.1.13:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
     //FIXME
-    private final String MONGO_URI = "mongodb://root:bazka@127.0.0.1:27018/";
+    private final String MONGO_URI = "mongodb://root:bazka@192.168.1.13:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 
@@ -248,15 +248,16 @@ public class PostgresDataStorage
     @Override
     public Boolean addDevice(Urzadzenie device) {
         System.out.println("ADDING DEVICE");
-        String sql = "INSERT INTO urzadzenia (ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO urzadzenia (ID_Urzadzenia, ID_pokoju, ID_modelu, parametry_pracy, aktywny) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, device.getPokojId());
-            pstmt.setInt(2, device.getModelId());
+            pstmt.setInt(1, device.getId());
+            pstmt.setInt(2, device.getPokojId());
+            pstmt.setInt(3, device.getModelId());
             PGobject jsonObject = new PGobject();
             jsonObject.setType("json");
             jsonObject.setValue(device.getParametryPracy());
-            pstmt.setObject(3, jsonObject);
-            pstmt.setBoolean(4, true);
+            pstmt.setObject(4, jsonObject);
+            pstmt.setBoolean(5, true);
             pstmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
