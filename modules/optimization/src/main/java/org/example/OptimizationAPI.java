@@ -85,4 +85,15 @@ public class OptimizationAPI {
     public void setOverrideAutomatization(boolean override) {
         controller.setOverrideAutomatization(override);
     }
+
+    // --- OZE (Odnawialne Źródła Energii) ---
+
+    /**
+     * Pobiera aktualną symulowaną produkcję energii z OZE (fotowoltaika).
+     * 
+     * @return produkcja w watach (W)
+     */
+    public double getSolarProduction() {
+        return controller.calculateSolarProduction();
+    }
 }

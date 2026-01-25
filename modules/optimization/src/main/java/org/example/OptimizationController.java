@@ -224,7 +224,8 @@ public class OptimizationController {
                     return;
                 }
 
-                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę jasności
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
+                // jasności
                 if (supportsDimming) {
                     System.out.println(String.format("      -> Ustawiam jasność: %.1f%%", targetScaled));
                     controlDevice(device.getId(), "jasnosc_procent", targetScaled);
@@ -270,7 +271,7 @@ public class OptimizationController {
         return params.contains("temperatura_C");
     }
 
-    private double calculateSolarProduction() {
+    public double calculateSolarProduction() {
         LocalTime now = LocalTime.now();
         int hour = now.getHour();
         if (hour < 6 || hour > 20) {

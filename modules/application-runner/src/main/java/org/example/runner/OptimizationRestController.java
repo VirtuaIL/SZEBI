@@ -39,6 +39,9 @@ public class OptimizationRestController {
         // Override
         app.get("/api/optimization/override", this::getOverride);
         app.post("/api/optimization/override", this::setOverride);
+
+        // OZE - Odnawialne Źródła Energii
+        app.get("/api/optimization/solar-production", this::getSolarProduction);
     }
 
     private void getConfig(Context ctx) {
@@ -48,18 +51,19 @@ public class OptimizationRestController {
     private void updateConfig(Context ctx) {
         try {
             AdministratorPreferencesDTO newPref = ctx.bodyAsClass(AdministratorPreferencesDTO.class);
-            
+
             // Zapisz preferencje do bazy danych (do użytkownika z rolą administratora)
             List<Uzytkownik> admins = userData.getUsersByRole(1); // 1 = Administrator
             if (!admins.isEmpty()) {
                 Uzytkownik admin = admins.get(0);
-                
-                // Konwertuj AdministratorPreferencesDTO na JSON i zapisz jako preferencje użytkownika
+
+                // Konwertuj AdministratorPreferencesDTO na JSON i zapisz jako preferencje
+                // użytkownika
                 String prefJson = objectMapper.writeValueAsString(newPref);
-                
+
                 // Ustaw preferencje w obiekcie użytkownika jako surowy JSON
                 admin.setRawPreferences(prefJson);
-                
+
                 // Aktualizuj użytkownika w bazie danych
                 Uzytkownik updated = userData.updateUser(admin);
                 if (updated == null) {
@@ -70,17 +74,17 @@ public class OptimizationRestController {
                 ctx.status(404).json(createErrorResponse("Nie znaleziono użytkownika z rolą administratora"));
                 return;
             }
-            
+
             // Ustaw preferencje w API optymalizacji
             optimizationAPI.setAdminPreferences(newPref);
-            
+
             ctx.status(200).json(newPref);
         } catch (Exception e) {
             ctx.status(400).json(createErrorResponse("Błąd formatu preferencji: " + e.getMessage()));
             e.printStackTrace();
         }
     }
-    
+
     private ObjectNode createErrorResponse(String message) {
         ObjectNode error = objectMapper.createObjectNode();
         error.put("error", message);
@@ -115,6 +119,14 @@ public class OptimizationRestController {
         boolean override = ctx.queryParamAsClass("enabled", Boolean.class).getOrDefault(true);
         optimizationAPI.setOverrideAutomatization(override);
         ctx.status(200).result("Tryb override ustawiony na: " + override);
+    }
+
+    private void getSolarProduction(Context ctx) {
+        double production = optimizationAPI.getSolarProduction();
+        ObjectNode response = objectMapper.createObjectNode();
+        response.put("solarProductionWatts", production);
+        response.put("unit", "W");
+        ctx.json(response);
     }
 
 }
