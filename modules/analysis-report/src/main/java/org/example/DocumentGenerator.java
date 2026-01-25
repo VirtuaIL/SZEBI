@@ -95,7 +95,8 @@ public class DocumentGenerator {
       LocalDate now = LocalDate.now();
       LocalDate then = now.plus(p);
 
-      // Użyj dni zamiast minut, bo LocalDate nie obsługuje jednostek mniejszych niż dzień
+      // Użyj dni zamiast minut, bo LocalDate nie obsługuje jednostek mniejszych niż
+      // dzień
       long days = ChronoUnit.DAYS.between(now, then);
       return Duration.ofDays(days).toMillis();
     };
@@ -104,18 +105,25 @@ public class DocumentGenerator {
       IDocument.Scheme scheme = entry.getKey();
 
       for (Period period : entry.getValue()) {
-        long delayMs = periodToMillis.run(period);
+        long periodMs = periodToMillis.run(period);
 
-        scheduler.schedule(() -> {
+        // Minimamy okres to 1 minuta (dla testowania)
+        if (periodMs < 60000) {
+          periodMs = 60000;
+        }
+
+        // scheduleAtFixedRate dla cyklicznego wykonywania, a nie jednorazowego
+        scheduler.scheduleAtFixedRate(() -> {
           try {
+            System.out.println("[DocumentGenerator] Generowanie dokumentu cyklicznego...");
             var document = this.dataService.enqueueDocument(scheme.build());
             this.database.addDocument(document);
-
+            System.out.println("[DocumentGenerator] Dokument wygenerowany i zapisany.");
           } catch (Exception e) {
             System.err.println("Error building document scheme: " + scheme);
             e.printStackTrace();
           }
-        }, delayMs, TimeUnit.MILLISECONDS);
+        }, 0, periodMs, TimeUnit.MILLISECONDS); // 0 = natychmiastowe pierwsze wykonanie
       }
     }
 
