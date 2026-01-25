@@ -11,6 +11,7 @@ import org.example.runner.UserController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
 import org.example.runner.ReportsController;
+import org.example.runner.DashboardController;
 import org.example.ForecastServiceAPI;
 import org.example.ForecastController;
 
@@ -123,6 +124,8 @@ public class Main {
     forecastService.initializeScheduler(databaseStorage);
     ForecastController forecastController = new ForecastController(forecastService);
 
+    DashboardController dashboardController = new DashboardController(databaseStorage);
+
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
         cors.addRule(it -> it.anyHost());
@@ -136,9 +139,10 @@ public class Main {
     acquisitionController.setupRoutes(app);
     reportsController.setupRoutes(app);
     forecastController.setupRoutes(app);
+    dashboardController.setupRoutes(app);
 
     OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationAPI,
-        databaseStorage);
+        databaseStorage, databaseStorage); // databaseStorage implementuje zarówno IOptimizationData jak i IUserData
     optimizationRestController.setupRoutes(app);
 
     int apiPort = 8080;
@@ -153,6 +157,7 @@ public class Main {
     System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
     System.out.println("[INFO] Endpoint prognoz: http://localhost:" + apiPort + "/api/forecasts");
     System.out.println("[INFO] Endpoint raportów: http://localhost:" + apiPort + "/api/reports");
+    System.out.println("[INFO] Endpoint dashboard: http://localhost:" + apiPort + "/api/dashboard");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");
 

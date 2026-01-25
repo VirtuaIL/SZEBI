@@ -21,50 +21,53 @@ export default function Dashboard({ userRole }) {
 
   const loadDashboardData = async () => {
     try {
-      // TODO: Implementować endpoint API
-      // Na razie mock data
-      const mockEnergyData = generateMockEnergyData();
-      const mockForecastData = generateMockForecastData();
-      const mockAnomalies = [
-        { time: '14:30', value: 1250, type: 'high' },
-        { time: '18:45', value: 980, type: 'low' }
-      ];
+      setLoading(true);
+      const buildingId = 1; // Domyślny buildingId, można później pobrać z kontekstu użytkownika
+      
+      // Pobierz agregowane dane z dashboardu
+      const response = await apiRequest(`/dashboard/summary?buildingId=${buildingId}&range=${timeRange}`);
+      
+      if (response.energy && response.energy.data) {
+        // Przekształć dane energii do formatu wykresu
+        const energyChartData = response.energy.data.map(item => ({
+          [timeRange === 'day' ? 'hour' : 'day']: item[timeRange === 'day' ? 'hour' : 'day'],
+          rzeczywiste: item.rzeczywiste || 0,
+          prognozowane: item.prognozowane || 0
+        }));
+        setEnergyData(energyChartData);
+      } else {
+        setEnergyData([]);
+      }
 
-      setEnergyData(mockEnergyData);
-      setForecastData(mockForecastData);
-      setAnomalies(mockAnomalies);
+      // Ustaw dane OZE
+      if (response.ozeStatus) {
+        setForecastData([
+          { name: 'Sieć', value: response.ozeStatus.grid || 0 },
+          { name: 'OZE', value: response.ozeStatus.production || 0 }
+        ]);
+      } else {
+        setForecastData([{ name: 'Sieć', value: 0 }, { name: 'OZE', value: 0 }]);
+      }
+
+      // Ustaw anomalie
+      if (response.anomalies && Array.isArray(response.anomalies)) {
+        setAnomalies(response.anomalies);
+      } else {
+        setAnomalies([]);
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Błąd ładowania danych dashboard:', error);
       handleApiError(error, showToast);
       setLoading(false);
+      // Fallback do pustych danych w przypadku błędu
+      setEnergyData([]);
+      setForecastData([{ name: 'Sieć', value: 0 }, { name: 'OZE', value: 0 }]);
+      setAnomalies([]);
     }
   };
 
-  const generateMockEnergyData = () => {
-    const data = [];
-    const hours = timeRange === 'day' ? 24 : timeRange === 'week' ? 7 : 30;
-    const label = timeRange === 'day' ? 'hour' : timeRange === 'week' ? 'day' : 'day';
-
-    for (let i = 0; i < hours; i++) {
-      // Konwersja W na kWh (zakładając że to wartość godzinowa)
-      const rzeczywisteW = Math.floor(Math.random() * 500) + 800;
-      const prognozowaneW = Math.floor(Math.random() * 500) + 750;
-      data.push({
-        [label]: timeRange === 'day' ? `${i}:00` : `Dzień ${i + 1}`,
-        rzeczywiste: parseFloat((rzeczywisteW / 1000).toFixed(2)), // kWh
-        prognozowane: parseFloat((prognozowaneW / 1000).toFixed(2)) // kWh
-      });
-    }
-    return data;
-  };
-
-  const generateMockForecastData = () => {
-    return [
-      { name: 'Sieć', value: 1200 },
-      { name: 'OZE', value: 350 }
-    ];
-  };
 
   if (loading) {
     return <div className="dashboard">Ładowanie dashboardu...</div>;
@@ -170,13 +173,17 @@ export default function Dashboard({ userRole }) {
           <div className="stats-grid">
             <div className="stat-item">
               <div className="stat-value">
-                {energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0).toFixed(2)}
+                {energyData.length > 0 
+                  ? energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0).toFixed(2)
+                  : '0.00'}
               </div>
               <div className="stat-label">Całkowite zużycie (kWh)</div>
             </div>
             <div className="stat-item">
               <div className="stat-value">
-                {(energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0) / energyData.length).toFixed(2)}
+                {energyData.length > 0
+                  ? (energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0) / energyData.length).toFixed(2)
+                  : '0.00'}
               </div>
               <div className="stat-label">Średnie zużycie (kWh)</div>
             </div>
@@ -194,12 +201,18 @@ export default function Dashboard({ userRole }) {
             <div className="cost-info">
               <div className="cost-item">
                 <span>Dzisiejsze zużycie:</span>
-                <strong>{energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0).toFixed(2)} kWh</strong>
+                <strong>
+                  {energyData.length > 0
+                    ? energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0).toFixed(2)
+                    : '0.00'} kWh
+                </strong>
               </div>
               <div className="cost-item">
                 <span>Szacowany koszt:</span>
                 <strong>
-                  {(energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0) * 0.85).toFixed(2)} PLN
+                  {energyData.length > 0
+                    ? (energyData.reduce((sum, d) => sum + (d.rzeczywiste || 0), 0) * 0.85).toFixed(2)
+                    : '0.00'} PLN
                 </strong>
               </div>
               <div className="cost-item">

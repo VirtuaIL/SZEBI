@@ -6,6 +6,7 @@ const API_URL = getApiBaseUrl();
 
 export default function UserManagement({ userRole }) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -15,6 +16,8 @@ export default function UserManagement({ userRole }) {
     role: 'user'
   });
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Pobierz listę użytkowników przy ładowaniu
   useEffect(() => {
@@ -22,27 +25,51 @@ export default function UserManagement({ userRole }) {
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch(`${API_URL}/users`);
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(`Błąd pobierania użytkowników: ${errorData.error || response.status}`);
         console.error('Błąd pobierania użytkowników:', response.status);
       }
     } catch (error) {
+      setError('Błąd połączenia z serwerem. Upewnij się, że backend jest uruchomiony.');
       console.error('Błąd połączenia:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const mapRoleToId = (role) => {
+    // 1: Admin, 2: Inżynier, 3: Najemca (wg skryptu SQL/logiki backendu)
+    if (role === 'admin') return 1;
+    if (role === 'engineer') return 2;
+    return 3;
+  };
+
+  const mapIdToRole = (rolaId) => {
+    if (rolaId === 1) return 'admin';
+    if (rolaId === 2) return 'engineer';
+    return 'user';
+  };
+
+  const resetForm = () => {
+    setFormData({ email: '', password: '', firstName: '', lastName: '', phone: '', role: 'user' });
+    setEditingUser(null);
+    setShowAddForm(false);
   };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
     try {
-      // Mapowanie roli tekstowej na ID (Backend oczekuje int rolaId)
-      // 1: Admin, 2: Inżynier, 3: Najemca (wg skryptu SQL/logiki backendu)
-      let rolaId = 3;
-      if (formData.role === 'admin') rolaId = 1;
-      else if (formData.role === 'engineer') rolaId = 2;
+      const rolaId = mapRoleToId(formData.role);
 
       const payload = {
         email: formData.email,
@@ -65,14 +92,107 @@ export default function UserManagement({ userRole }) {
 
       if (response.ok) {
         alert('Użytkownik został pomyślnie dodany!');
-        setShowAddForm(false);
-        setFormData({ email: '', password: '', firstName: '', lastName: '', phone: '', role: 'user' });
+        resetForm();
+        await fetchUsers(); // Odśwież listę
       } else {
-        alert(`Błąd: ${data.error || 'Nie udało się dodać użytkownika'}`);
+        setError(data.error || 'Nie udało się dodać użytkownika');
       }
     } catch (error) {
       console.error('Błąd dodawania użytkownika:', error);
-      alert('Wystąpił błąd połączenia z serwerem.');
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      password: '', // Nie pokazuj hasła
+      firstName: user.imie,
+      lastName: user.nazwisko,
+      phone: user.telefon || '',
+      role: user.role || 'user' // user.role już jest stringiem ('admin', 'engineer', 'user')
+    });
+    setShowAddForm(true);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const rolaId = mapRoleToId(formData.role);
+
+      const payload = {
+        imie: formData.firstName,
+        nazwisko: formData.lastName,
+        email: formData.email,
+        telefon: formData.phone,
+        rolaId: rolaId
+      };
+
+      // Dodaj hasło tylko jeśli zostało podane
+      if (formData.password && formData.password.trim() !== '') {
+        payload.password = formData.password;
+      }
+
+      const response = await fetch(`${API_URL}/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Użytkownik został pomyślnie zaktualizowany!');
+        resetForm();
+        await fetchUsers(); // Odśwież listę
+      } else {
+        setError(data.error || 'Nie udało się zaktualizować użytkownika');
+      }
+    } catch (error) {
+      console.error('Błąd aktualizacji użytkownika:', error);
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Czy na pewno chcesz usunąć tego użytkownika? Ta operacja jest nieodwracalna.')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Użytkownik został pomyślnie usunięty!');
+        await fetchUsers(); // Odśwież listę
+      } else {
+        setError(data.error || 'Nie udało się usunąć użytkownika');
+      }
+    } catch (error) {
+      console.error('Błąd usuwania użytkownika:', error);
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,10 +208,22 @@ export default function UserManagement({ userRole }) {
         </button>
       </div>
 
+      {error && (
+        <div className="error-message" style={{ 
+          background: '#f8d7da', 
+          color: '#721c24', 
+          padding: '10px', 
+          borderRadius: '4px', 
+          marginBottom: '20px' 
+        }}>
+          {error}
+        </div>
+      )}
+
       {showAddForm && (
         <div className="add-user-form">
-          <h3>Dodaj Nowego Użytkownika</h3>
-          <form onSubmit={handleAddUser}>
+          <h3>{editingUser ? 'Edytuj Użytkownika' : 'Dodaj Nowego Użytkownika'}</h3>
+          <form onSubmit={editingUser ? handleUpdateUser : handleAddUser}>
             <div className="form-group">
               <label>Email:</label>
               <input
@@ -107,7 +239,8 @@ export default function UserManagement({ userRole }) {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
+                required={!editingUser}
+                placeholder={editingUser ? 'Zostaw puste, aby nie zmieniać hasła' : ''}
               />
             </div>
             <div className="form-group">
@@ -149,11 +282,18 @@ export default function UserManagement({ userRole }) {
               </select>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn-submit">Dodaj Użytkownika</button>
+              <button 
+                type="submit" 
+                className="btn-submit"
+                disabled={loading}
+              >
+                {loading ? 'Zapisywanie...' : (editingUser ? 'Zaktualizuj Użytkownika' : 'Dodaj Użytkownika')}
+              </button>
               <button
                 type="button"
                 className="btn-cancel"
-                onClick={() => setShowAddForm(false)}
+                onClick={resetForm}
+                disabled={loading}
               >
                 Anuluj
               </button>
@@ -164,7 +304,9 @@ export default function UserManagement({ userRole }) {
 
       <div className="users-list">
         <h3>Lista Użytkowników</h3>
-        {users.length === 0 ? (
+        {loading && !users.length ? (
+          <p className="info-text">Ładowanie użytkowników...</p>
+        ) : users.length === 0 ? (
           <p className="no-users">Brak użytkowników</p>
         ) : (
           <table className="users-table">
@@ -175,6 +317,7 @@ export default function UserManagement({ userRole }) {
                 <th>Email</th>
                 <th>Telefon</th>
                 <th>Rola</th>
+                <th>Akcje</th>
               </tr>
             </thead>
             <tbody>
@@ -189,6 +332,42 @@ export default function UserManagement({ userRole }) {
                       {user.role === 'admin' ? 'Administrator' :
                         user.role === 'engineer' ? 'Inżynier' : 'Najemca'}
                     </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        className="btn-edit"
+                        onClick={() => handleEditUser(user)}
+                        disabled={loading}
+                        style={{
+                          padding: '5px 10px',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Edytuj
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={() => handleDeleteUser(user.id)}
+                        disabled={loading}
+                        style={{
+                          padding: '5px 10px',
+                          background: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Usuń
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

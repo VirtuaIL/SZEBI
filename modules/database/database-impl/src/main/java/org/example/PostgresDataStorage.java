@@ -1065,6 +1065,110 @@ public class PostgresDataStorage
         return user;
     }
 
+    /**
+     * Aktualizuje istniejącego użytkownika w bazie danych
+     */
+    public Uzytkownik updateUser(Uzytkownik user) {
+        if (user.getId() <= 0) {
+            System.out.println("Błąd: ID użytkownika musi być większe od 0");
+            return null;
+        }
+
+        // Sprawdź czy użytkownik istnieje
+        Uzytkownik existingUser = getUserById(user.getId());
+        if (existingUser == null) {
+            System.out.println("Błąd: Użytkownik o ID " + user.getId() + " nie istnieje");
+            return null;
+        }
+
+        // Jeśli hasło nie zostało podane, zachowaj istniejące
+        String hasloHash = user.getHasloHash();
+        if (hasloHash == null || hasloHash.isEmpty()) {
+            hasloHash = existingUser.getHasloHash();
+        }
+
+        String sql = "UPDATE Uzytkownik SET ID_roli = ?, Imie = ?, Nazwisko = ?, Telefon = ?, Email = ?, Haslo_hash = ?, preferencje = ?::jsonb WHERE ID_uzytkownika = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, user.getRolaId());
+            pstmt.setString(2, user.getImie());
+            pstmt.setString(3, user.getNazwisko());
+            pstmt.setString(4, user.getTelefon());
+            pstmt.setString(5, user.getEmail());
+            pstmt.setString(6, hasloHash);
+            
+            String prefJson = null;
+            // Użyj rawPreferences jeśli jest dostępne (surowy JSON, może być AdministratorPreferencesDTO)
+            if (user.getRawPreferences() != null && !user.getRawPreferences().isEmpty()) {
+                prefJson = user.getRawPreferences();
+            } else if (user.getPreferencje() != null) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    prefJson = mapper.writeValueAsString(user.getPreferencje());
+                } catch (Exception e) {
+                    System.err.println("Błąd serializacji preferencji: " + e.getMessage());
+                }
+            }
+            pstmt.setString(7, prefJson);
+            pstmt.setInt(8, user.getId());
+
+            int affectedRows = pstmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                System.out.println("Pomyślnie zaktualizowano użytkownika o ID: " + user.getId());
+                return getUserById(user.getId());
+            } else {
+                System.out.println("OSTRZEŻENIE: Nie zaktualizowano żadnego użytkownika.");
+                return null;
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas aktualizacji użytkownika: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Usuwa użytkownika z bazy danych
+     */
+    public boolean deleteUser(int userId) {
+        if (userId <= 0) {
+            System.out.println("Błąd: ID użytkownika musi być większe od 0");
+            return false;
+        }
+
+        // Sprawdź czy użytkownik istnieje
+        Uzytkownik existingUser = getUserById(userId);
+        if (existingUser == null) {
+            System.out.println("Błąd: Użytkownik o ID " + userId + " nie istnieje");
+            return false;
+        }
+
+        String sql = "DELETE FROM Uzytkownik WHERE ID_uzytkownika = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+
+            int affectedRows = pstmt.executeUpdate();
+
+            if (affectedRows > 0) {
+                System.out.println("Pomyślnie usunięto użytkownika o ID: " + userId);
+                return true;
+            } else {
+                System.out.println("OSTRZEŻENIE: Nie usunięto żadnego użytkownika.");
+                return false;
+            }
+        } catch (SQLException e) {
+            System.out.println("Błąd podczas usuwania użytkownika: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     private List<AlertSzczegoly> getAlertDetailsWithFilter(String whereClause, Object... params) {
         // Używamy LEFT JOIN aby zwracać alarmy nawet jeśli urządzenie nie istnieje lub
         // nie jest powiązane

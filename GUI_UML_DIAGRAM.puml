@@ -1,0 +1,253 @@
+@startuml GUI_Architecture
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam arrowThickness 1.5
+
+' ============================================
+' WARSTWA ROUTINGU I AUTENTYKACJI
+' ============================================
+
+package "Application Layer" {
+    class App {
+        -- Odpowiedzialności --
+        Zarządza stanem autentykacji
+        Decyduje o wyświetleniu odpowiedniego panelu
+        Koordynuje logowanie i wylogowanie
+    }
+
+    class LoginPanel {
+        -- Odpowiedzialności --
+        Wyświetla formularz logowania
+        Weryfikuje dane użytkownika
+        Przekazuje dane autentykacji do App
+    }
+}
+
+' ============================================
+' WARSTWA LAYOUTU (PANELI)
+' ============================================
+
+package "Layout Layer" {
+    abstract class BasePanel {
+        -- Odpowiedzialności --
+        Definiuje wspólny layout dla paneli
+        Zarządza nawigacją między widokami
+        Renderuje Navigation i Header
+    }
+
+    class AdminPanel {
+        -- Odpowiedzialności --
+        Panel dla administratora
+        Zawiera wszystkie widoki + zarządzanie
+    }
+
+    class EngineerPanel {
+        -- Odpowiedzialności --
+        Panel dla inżyniera
+        Zawiera widoki operacyjne i monitoring
+    }
+
+    class UserPanel {
+        -- Odpowiedzialności --
+        Panel dla najemcy
+        Zawiera podstawowe widoki użytkownika
+    }
+
+    class Navigation {
+        -- Odpowiedzialności --
+        Wyświetla menu nawigacyjne
+        Filtruje opcje na podstawie roli użytkownika
+        Obsługuje przełączanie między widokami
+    }
+
+    class Header {
+        -- Odpowiedzialności --
+        Wyświetla informacje o użytkowniku
+        Zawiera przycisk wylogowania
+        Obsługuje przełączanie menu mobilnego
+    }
+
+    BasePanel <|-- AdminPanel
+    BasePanel <|-- EngineerPanel
+    BasePanel <|-- UserPanel
+    BasePanel *-- Navigation
+    BasePanel *-- Header
+}
+
+' ============================================
+' WARSTWA WIDOKÓW (FUNKCJONALNOŚCI)
+' ============================================
+
+package "View Layer" {
+    class Dashboard {
+        -- Odpowiedzialności --
+        Wyświetla przegląd zużycia energii
+        Pokazuje wykresy i statystyki
+        Wykrywa i prezentuje anomalie
+    }
+
+    class ControlPanel {
+        -- Odpowiedzialności --
+        Steruje urządzeniami (klimatyzacja, oświetlenie, wentylacja)
+        Wyświetla status OZE
+        Wysyła komendy do urządzeń
+    }
+
+    class Monitoring {
+        -- Odpowiedzialności --
+        Monitoruje stan wszystkich urządzeń
+        Wyświetla historię odczytów
+        Agreguje dane pomiarowe
+    }
+
+    class AlertsCenter {
+        -- Odpowiedzialności --
+        Wyświetla aktywne i rozwiązane alarmy
+        Pozwala potwierdzać i rozwiązywać alarmy
+        Sortuje i filtruje alarmy
+    }
+
+    class Reports {
+        -- Odpowiedzialności --
+        Generuje raporty z danych historycznych
+        Wykrywa anomalie w raportach
+        Eksportuje dane do różnych formatów
+    }
+
+    class DeviceManagement {
+        -- Odpowiedzialności --
+        Zarządza urządzeniami w systemie
+        Dodaje i konfiguruje nowe urządzenia
+        Ustawia progi i parametry globalne
+    }
+
+    class UserManagement {
+        -- Odpowiedzialności --
+        Zarządza użytkownikami systemu
+        Dodaje i edytuje konta użytkowników
+        Przypisuje role użytkownikom
+    }
+
+    class Settings {
+        -- Odpowiedzialności --
+        Konfiguruje ustawienia globalne systemu
+        Ustawia progi temperatury i zużycia
+        Zarządza priorytetami (oszczędność vs komfort)
+    }
+}
+
+' ============================================
+' WARSTWA USŁUG I KOMUNIKACJI
+' ============================================
+
+package "Service Layer" {
+    class ApiUtils {
+        -- Odpowiedzialności --
+        Centralizuje komunikację z backendem
+        Obsługuje żądania HTTP do API
+        Zarządza błędami komunikacji
+        Automatycznie wykrywa adres API
+    }
+
+    class ToastContainer {
+        -- Odpowiedzialności --
+        Wyświetla powiadomienia użytkownikowi
+        Obsługuje różne typy komunikatów (success, error, warning)
+        Zarządza kolejką powiadomień
+    }
+
+    class ErrorBoundary {
+        -- Odpowiedzialności --
+        Przechwytuje błędy w komponentach React
+        Wyświetla przyjazny komunikat błędu
+        Zapobiega crashowaniu całej aplikacji
+    }
+}
+
+' ============================================
+' RELACJE ARCHITEKTONICZNE
+' ============================================
+
+' Routing aplikacji
+App *-- LoginPanel : "renderuje gdy nieautoryzowany"
+App *-- AdminPanel : "renderuje dla roli admin"
+App *-- EngineerPanel : "renderuje dla roli engineer"
+App *-- UserPanel : "renderuje dla roli user"
+App *-- ToastContainer : "zawsze renderuje"
+App *-- ErrorBoundary : "opakowuje całość"
+
+' Kompozycja paneli z widokami
+AdminPanel *-- Dashboard
+AdminPanel *-- ControlPanel
+AdminPanel *-- Monitoring
+AdminPanel *-- AlertsCenter
+AdminPanel *-- Reports
+AdminPanel *-- DeviceManagement
+AdminPanel *-- UserManagement
+AdminPanel *-- Settings
+
+EngineerPanel *-- Dashboard
+EngineerPanel *-- ControlPanel
+EngineerPanel *-- Monitoring
+EngineerPanel *-- AlertsCenter
+EngineerPanel *-- Reports
+
+UserPanel *-- Dashboard
+UserPanel *-- ControlPanel
+UserPanel *-- Reports
+
+' Zależności - komunikacja z backendem
+Dashboard ..> ApiUtils : "pobiera dane energii"
+ControlPanel ..> ApiUtils : "steruje urządzeniami"
+Monitoring ..> ApiUtils : "pobiera odczyty urządzeń"
+AlertsCenter ..> ApiUtils : "pobiera i aktualizuje alarmy"
+Reports ..> ApiUtils : "pobiera dane historyczne"
+DeviceManagement ..> ApiUtils : "zarządza urządzeniami"
+UserManagement ..> ApiUtils : "zarządza użytkownikami"
+LoginPanel ..> ApiUtils : "weryfikuje dane logowania"
+
+' Zależności - powiadomienia
+Dashboard ..> ToastContainer : "wyświetla komunikaty"
+ControlPanel ..> ToastContainer : "potwierdza akcje"
+Monitoring ..> ToastContainer : "informuje o błędach"
+AlertsCenter ..> ToastContainer : "powiadamia o nowych alarmach"
+DeviceManagement ..> ToastContainer : "potwierdza operacje"
+UserManagement ..> ToastContainer : "potwierdza operacje"
+
+' ============================================
+' NOTATKI ARCHITEKTONICZNE
+' ============================================
+
+note right of App
+  **Warstwa routingu**
+  Aplikacja React zarządza stanem autentykacji
+  i decyduje który panel wyświetlić na podstawie
+  roli użytkownika przechowywanej w localStorage.
+end note
+
+note right of BasePanel
+  **Wzorzec Layout**
+  Wszystkie panele dziedziczą wspólny layout
+  zawierający Navigation i Header.
+  Każdy panel renderuje różne zestawy widoków
+  w zależności od uprawnień użytkownika.
+end note
+
+note right of ApiUtils
+  **Warstwa komunikacji**
+  Centralizuje wszystkie wywołania API.
+  Automatycznie wykrywa adres backendu
+  na podstawie hosta frontendu.
+  Obsługuje błędy sieci i API.
+end note
+
+note bottom of "View Layer"
+  **Warstwa funkcjonalności**
+  Każdy widok odpowiada za konkretną
+  funkcjonalność systemu. Widoki są
+  niezależne i mogą być używane przez
+  różne panele w zależności od uprawnień.
+end note
+
+@enduml

@@ -47,6 +47,9 @@ public class DevicesController {
         // Aktualizacja urządzenia
         app.put("/api/devices/{id}", this::updateDevice);
         
+        // Sterowanie urządzeniem (zmiana parametrów)
+        app.post("/api/devices/{id}/control", this::controlDevice);
+        
         // Rejestracja nowego urządzenia
         app.post("/api/devices", this::registerDevice);
     }
@@ -225,25 +228,143 @@ public class DevicesController {
         }
     }
 
+    /**
+     * POST /api/devices/{id}/control
+     * Sterowanie urządzeniem - zmiana parametrów (temperatura, jasność, wentylacja, włącz/wyłącz)
+     */
+    private void controlDevice(Context ctx) {
+        try {
+            int deviceId = ctx.pathParamAsClass("id", Integer.class).get();
+            
+            // Pobierz istniejące urządzenie
+            Urzadzenie device = controlData.getDeviceById(deviceId);
+            if (device == null) {
+                ctx.status(404);
+                ObjectNode error = objectMapper.createObjectNode();
+                error.put("error", "Urządzenie o ID " + deviceId + " nie zostało znalezione");
+                ctx.json(error);
+                return;
+            }
+            
+            // Parsuj dane z request body
+            JsonNode requestBody = objectMapper.readTree(ctx.body());
+            
+            // Parsuj istniejące parametry pracy (JSON)
+            JsonNode paramsJson;
+            try {
+                String currentParams = device.getParametryPracy();
+                if (currentParams == null || currentParams.isEmpty()) {
+                    paramsJson = objectMapper.createObjectNode();
+                } else {
+                    paramsJson = objectMapper.readTree(currentParams);
+                }
+            } catch (Exception e) {
+                paramsJson = objectMapper.createObjectNode();
+            }
+            
+            // Aktualizuj parametry na podstawie typu urządzenia
+            if (requestBody.has("value")) {
+                // Uniwersalna wartość
+                ((ObjectNode) paramsJson).put("wartosc", requestBody.get("value").asDouble());
+            }
+            
+            if (requestBody.has("temperature") || requestBody.has("temp")) {
+                // Temperatura dla klimatyzacji
+                double temp = requestBody.has("temperature") 
+                    ? requestBody.get("temperature").asDouble() 
+                    : requestBody.get("temp").asDouble();
+                ((ObjectNode) paramsJson).put("temperatura_C", temp);
+                ((ObjectNode) paramsJson).put("set_temp", temp);
+            }
+            
+            if (requestBody.has("brightness") || requestBody.has("bright")) {
+                // Jasność dla oświetlenia
+                double brightness = requestBody.has("brightness")
+                    ? requestBody.get("brightness").asDouble()
+                    : requestBody.get("bright").asDouble();
+                ((ObjectNode) paramsJson).put("jasnosc_procent", brightness);
+            }
+            
+            if (requestBody.has("ventilation") || requestBody.has("vent")) {
+                // Poziom wentylacji
+                double vent = requestBody.has("ventilation")
+                    ? requestBody.get("ventilation").asDouble()
+                    : requestBody.get("vent").asDouble();
+                ((ObjectNode) paramsJson).put("ventilation_level", vent);
+            }
+            
+            if (requestBody.has("enabled") || requestBody.has("active")) {
+                // Włącz/wyłącz urządzenie
+                boolean enabled = requestBody.has("enabled")
+                    ? requestBody.get("enabled").asBoolean()
+                    : requestBody.get("active").asBoolean();
+                device.setAktywny(enabled);
+            }
+            
+            // Zaktualizuj parametry pracy
+            device.setParametryPracy(paramsJson.toString());
+            
+            // Zaktualizuj urządzenie w bazie
+            controlData.updateDevice(device);
+            
+            // Jeśli AcquisitionAPI jest dostępne, zaktualizuj symulację
+            if (acquisitionAPI != null && requestBody.has("value")) {
+                double value = requestBody.get("value").asDouble();
+                acquisitionAPI.updateDeviceSimulation(String.valueOf(deviceId), value);
+            }
+            
+            ObjectNode response = objectMapper.createObjectNode();
+            response.put("success", true);
+            response.put("message", "Urządzenie zostało zaktualizowane");
+            response.put("id", device.getId());
+            response.put("parametryPracy", paramsJson);
+            
+            ctx.status(200);
+            ctx.json(response);
+        } catch (Exception e) {
+            ctx.status(500);
+            ObjectNode error = objectMapper.createObjectNode();
+            error.put("error", "Błąd podczas sterowania urządzeniem: " + e.getMessage());
+            ctx.json(error);
+            e.printStackTrace();
+        }
+    }
+
     private void registerDevice(Context ctx) {
         try {
             JsonNode requestBody = objectMapper.readTree(ctx.body());
             
             String id = requestBody.has("deviceId") ? requestBody.get("deviceId").asText() : null;
             String name = requestBody.has("name") ? requestBody.get("name").asText() : null;
+            // Obsługa producerName i modelName jako alternatywa dla name
+            if (name == null || name.isEmpty()) {
+                String producerName = requestBody.has("producerName") ? requestBody.get("producerName").asText() : "";
+                String modelName = requestBody.has("modelName") ? requestBody.get("modelName").asText() : "";
+                if (!producerName.isEmpty() || !modelName.isEmpty()) {
+                    name = (producerName + " " + modelName).trim();
+                }
+            }
+            
             Number min = requestBody.has("minRange") ? requestBody.get("minRange").asDouble() : null;
             Number max = requestBody.has("maxRange") ? requestBody.get("maxRange").asDouble() : null;
             String metricLabel = requestBody.has("metricLabel") ? requestBody.get("metricLabel").asText() : null;
             Number powerUsage = requestBody.has("powerW") ? requestBody.get("powerW").asDouble() : null;
-            // roomId będzie używany w przyszłości do zapisu urządzenia do bazy danych
-            // Integer roomId = requestBody.has("roomId") ? requestBody.get("roomId").asInt() : null;
+            Integer roomId = requestBody.has("roomId") ? requestBody.get("roomId").asInt() : null;
             
-            // Rejestruj w AcquisitionAPI
-            acquisitionAPI.registerNewDevice(id, name, min, max, metricLabel, powerUsage);
+            // Jeśli podano roomId, zapisz do bazy danych używając createNewDevice
+            // W przeciwnym razie tylko zarejestruj w AcquisitionAPI
+            if (roomId != null && roomId > 0) {
+                // Używamy modelID = 0 jako domyślnego (można później rozszerzyć o wyszukiwanie modelu)
+                int modelID = 0;
+                acquisitionAPI.createNewDevice(name != null ? name : "Unknown Device", roomId, modelID, min, max, metricLabel, powerUsage);
+            } else {
+                // Tylko rejestracja w AcquisitionAPI bez zapisu do bazy
+                acquisitionAPI.registerNewDevice(id, name, min, max, metricLabel, powerUsage);
+            }
             
             ObjectNode response = objectMapper.createObjectNode();
             response.put("success", true);
-            response.put("message", "Urządzenie zostało zarejestrowane");
+            response.put("message", "Urządzenie zostało zarejestrowane" + (roomId != null && roomId > 0 ? " i zapisane do bazy danych" : ""));
             if (id != null) {
                 response.put("deviceId", id);
             }

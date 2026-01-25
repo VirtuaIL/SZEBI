@@ -156,4 +156,49 @@ public class AuthService {
     public java.util.List<org.example.DTO.Uzytkownik> getAllUsers() {
         return databaseStorage.getAllUsers();
     }
+
+    /**
+     * Aktualizuje istniejącego użytkownika
+     */
+    public Uzytkownik updateUser(int userId, String imie, String nazwisko, String email, String password, int rolaId, String telefon) {
+        Uzytkownik existingUser = databaseStorage.getUserById(userId);
+        if (existingUser == null) {
+            throw new IllegalArgumentException("Użytkownik o podanym ID nie istnieje");
+        }
+
+        // Sprawdź czy email nie jest już używany przez innego użytkownika
+        if (email != null && !email.equals(existingUser.getEmail())) {
+            Uzytkownik userWithEmail = databaseStorage.getUserByEmail(email);
+            if (userWithEmail != null && userWithEmail.getId() != userId) {
+                throw new IllegalArgumentException("Email jest już używany przez innego użytkownika");
+            }
+        }
+
+        // Aktualizuj pola
+        if (imie != null) existingUser.setImie(imie);
+        if (nazwisko != null) existingUser.setNazwisko(nazwisko);
+        if (email != null) existingUser.setEmail(email);
+        if (rolaId > 0) existingUser.setRolaId(rolaId);
+        if (telefon != null) existingUser.setTelefon(telefon);
+
+        // Jeśli hasło zostało podane, zahashuj je
+        if (password != null && !password.isEmpty()) {
+            String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+            existingUser.setHasloHash(hashedPassword);
+        }
+
+        return databaseStorage.updateUser(existingUser);
+    }
+
+    /**
+     * Usuwa użytkownika z systemu
+     */
+    public boolean deleteUser(int userId) {
+        Uzytkownik existingUser = databaseStorage.getUserById(userId);
+        if (existingUser == null) {
+            throw new IllegalArgumentException("Użytkownik o podanym ID nie istnieje");
+        }
+
+        return databaseStorage.deleteUser(userId);
+    }
 }

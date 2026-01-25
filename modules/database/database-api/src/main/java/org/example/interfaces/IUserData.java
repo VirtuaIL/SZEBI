@@ -16,5 +16,9 @@ public interface IUserData {
 
     Uzytkownik saveUser(Uzytkownik user);
 
+    Uzytkownik updateUser(Uzytkownik user);
+
+    boolean deleteUser(int userId);
+
     List<Uzytkownik> getUsersByRole(int roleId);
 }

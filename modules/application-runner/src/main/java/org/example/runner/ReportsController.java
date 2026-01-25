@@ -11,9 +11,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.example.interfaces.IAnalyticsData;
 import org.example.interfaces.IControlData;
 import org.example.DTO.Raport;
-import org.example.DTO.Odczyt;
-import org.example.DTO.AlertSzczegoly;
-import org.example.DTO.Umowa;
 import org.example.AnalysisReportAPI;
 import org.example.ConfigurationType;
 import org.example.IDocumentGeneratorService;
@@ -23,7 +20,6 @@ import org.example.IDocument;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -447,6 +443,13 @@ public class ReportsController {
 
       analysisReportAPI.sendDocumentScheme(scheme);
 
+      // Daj chwilę na zapisanie do bazy (może być asynchroniczne)
+      try {
+        Thread.sleep(500);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+
       // Reszta logiki pobierania z bazy...
       // AnalysisReportAPI zapisuje raporty jako "Raport", nie jako "alerts"/"energy" itp.
       List<Raport> recentReports = analyticsData.getReportsByType("Raport");
@@ -458,6 +461,15 @@ public class ReportsController {
       Raport savedReport = recentReports.stream()
           .max((r1, r2) -> r1.getCzasWygenerowania().compareTo(r2.getCzasWygenerowania()))
           .orElse(recentReports.get(0));
+
+      // Aktualizuj typ raportu i opis na podstawie parametrów z GUI
+      String zone = requestBody.has("zone") ? requestBody.get("zone").asText() : "all";
+      String description = generateReportDescription(reportType, zone, medium);
+      savedReport.setTypRaportu(reportType); // Użyj typu z GUI (energy, alerts, devices, costs)
+      savedReport.setOpis(description);
+      
+      // Zapisz zaktualizowany raport z powrotem do bazy
+      analyticsData.saveReport(savedReport);
 
       ObjectNode response = objectMapper.createObjectNode();
       response.put("success", true);

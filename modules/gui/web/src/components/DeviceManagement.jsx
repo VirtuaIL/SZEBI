@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './DeviceManagement.css';
 
 import { getApiBaseUrl } from '../utils/api';
@@ -16,27 +16,120 @@ export default function DeviceManagement({ userRole }) {
     powerW: '',
     roomId: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Konfiguracja globalna
+  const [globalConfig, setGlobalConfig] = useState({
+    preferredMinTemp: 18,
+    preferredMaxTemp: 24,
+    priorityComfort: 7
+  });
+  const [configLoading, setConfigLoading] = useState(false);
+
+  // Pobierz konfigurację globalną przy ładowaniu
+  useEffect(() => {
+    fetchGlobalConfig();
+  }, []);
+
+  const fetchGlobalConfig = async () => {
+    try {
+      const response = await fetch(`${API_URL}/optimization/config`);
+      if (response.ok) {
+        const data = await response.json();
+        setGlobalConfig({
+          preferredMinTemp: data.preferredMinTemp || 18,
+          preferredMaxTemp: data.preferredMaxTemp || 24,
+          priorityComfort: data.priorityComfort || 7
+        });
+      }
+    } catch (error) {
+      console.error('Błąd pobierania konfiguracji:', error);
+    }
+  };
 
   const handleAddDevice = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+
     try {
-      // TODO: Implementować endpoint API
-      console.log('Dodawanie urządzenia:', formData);
-      alert('Urządzenie zostało dodane (funkcja do implementacji)');
-      setShowAddForm(false);
-      setFormData({ 
-        deviceId: '', 
-        producerName: '', 
-        modelName: '', 
-        minRange: '', 
-        maxRange: '', 
-        metricLabel: '', 
-        powerW: '', 
-        roomId: '' 
+      // Mapuj pola z formularza na format API
+      const payload = {
+        deviceId: formData.deviceId || undefined,
+        producerName: formData.producerName,
+        modelName: formData.modelName,
+        name: `${formData.producerName} ${formData.modelName}`.trim(),
+        minRange: formData.minRange ? parseFloat(formData.minRange) : undefined,
+        maxRange: formData.maxRange ? parseFloat(formData.maxRange) : undefined,
+        metricLabel: formData.metricLabel,
+        powerW: formData.powerW ? parseFloat(formData.powerW) : undefined,
+        roomId: formData.roomId ? parseInt(formData.roomId) : undefined
+      };
+
+      const response = await fetch(`${API_URL}/devices`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
       });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+        setShowAddForm(false);
+        setFormData({ 
+          deviceId: '', 
+          producerName: '', 
+          modelName: '', 
+          minRange: '', 
+          maxRange: '', 
+          metricLabel: '', 
+          powerW: '', 
+          roomId: '' 
+        });
+      } else {
+        setError(data.error || 'Nie udało się dodać urządzenia');
+      }
     } catch (error) {
       console.error('Błąd dodawania urządzenia:', error);
-      alert('Błąd podczas dodawania urządzenia');
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveGlobalConfig = async () => {
+    setConfigLoading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await fetch(`${API_URL}/optimization/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(globalConfig)
+      });
+
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Nie udało się zapisać konfiguracji');
+      }
+    } catch (error) {
+      console.error('Błąd zapisywania konfiguracji:', error);
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setConfigLoading(false);
     }
   };
 
@@ -51,6 +144,30 @@ export default function DeviceManagement({ userRole }) {
           + Dodaj Nowe Urządzenie
         </button>
       </div>
+
+      {error && (
+        <div className="error-message" style={{ 
+          background: '#f8d7da', 
+          color: '#721c24', 
+          padding: '10px', 
+          borderRadius: '4px', 
+          marginBottom: '20px' 
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="success-message" style={{ 
+          background: '#d4edda', 
+          color: '#155724', 
+          padding: '10px', 
+          borderRadius: '4px', 
+          marginBottom: '20px' 
+        }}>
+          Operacja zakończona sukcesem!
+        </div>
+      )}
 
       {showAddForm && (
         <div className="add-device-form">
@@ -137,11 +254,21 @@ export default function DeviceManagement({ userRole }) {
               />
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn-submit">Dodaj Urządzenie</button>
+              <button 
+                type="submit" 
+                className="btn-submit"
+                disabled={loading}
+              >
+                {loading ? 'Dodawanie...' : 'Dodaj Urządzenie'}
+              </button>
               <button 
                 type="button" 
                 className="btn-cancel"
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setError(null);
+                }}
+                disabled={loading}
               >
                 Anuluj
               </button>
@@ -155,20 +282,50 @@ export default function DeviceManagement({ userRole }) {
         <div className="config-form">
           <div className="form-group">
             <label>Temperatura komfortowa (min):</label>
-            <input type="number" defaultValue="18" min="16" max="25" />
+            <input 
+              type="number" 
+              value={globalConfig.preferredMinTemp}
+              onChange={(e) => setGlobalConfig({ ...globalConfig, preferredMinTemp: parseFloat(e.target.value) })}
+              min="16" 
+              max="25" 
+            />
             <span>°C</span>
           </div>
           <div className="form-group">
             <label>Temperatura komfortowa (max):</label>
-            <input type="number" defaultValue="24" min="18" max="30" />
+            <input 
+              type="number" 
+              value={globalConfig.preferredMaxTemp}
+              onChange={(e) => setGlobalConfig({ ...globalConfig, preferredMaxTemp: parseFloat(e.target.value) })}
+              min="18" 
+              max="30" 
+            />
             <span>°C</span>
           </div>
           <div className="form-group">
             <label>Priorytet (Oszczędność vs Komfort):</label>
-            <input type="range" min="1" max="10" defaultValue="7" />
-            <span>7/10 (Komfort)</span>
+            <div className="range-input-group">
+              <input 
+                type="range" 
+                min="1" 
+                max="10" 
+                value={globalConfig.priorityComfort}
+                onChange={(e) => setGlobalConfig({ ...globalConfig, priorityComfort: parseInt(e.target.value) })}
+              />
+              <span>{globalConfig.priorityComfort}/10</span>
+              <span className="range-hint">
+                {globalConfig.priorityComfort <= 3 ? 'Oszczędność' : 
+                 globalConfig.priorityComfort <= 7 ? 'Równowaga' : 'Komfort'}
+              </span>
+            </div>
           </div>
-          <button className="btn-save-config">Zapisz Konfigurację</button>
+          <button 
+            className="btn-save-config"
+            onClick={handleSaveGlobalConfig}
+            disabled={configLoading}
+          >
+            {configLoading ? 'Zapisywanie...' : 'Zapisz Konfigurację'}
+          </button>
         </div>
       </div>
     </div>

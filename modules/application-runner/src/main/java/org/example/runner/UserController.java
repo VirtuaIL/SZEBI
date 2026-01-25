@@ -21,6 +21,12 @@ public class UserController {
 
         // Endpoint do pobierania listy użytkowników
         app.get("/api/users", this::handleGetAllUsers);
+
+        // Endpoint do aktualizacji użytkownika
+        app.put("/api/users/{id}", this::handleUpdateUser);
+
+        // Endpoint do usuwania użytkownika
+        app.delete("/api/users/{id}", this::handleDeleteUser);
     }
 
     private void handleCreateUser(Context ctx) {
@@ -91,6 +97,81 @@ public class UserController {
         } catch (Exception e) {
             ctx.status(500);
             ctx.json(createErrorResponse("Błąd pobierania listy użytkowników: " + e.getMessage()));
+            e.printStackTrace();
+        }
+    }
+
+    private void handleUpdateUser(Context ctx) {
+        try {
+            int userId = Integer.parseInt(ctx.pathParam("id"));
+            ObjectNode requestBody = objectMapper.readValue(ctx.body(), ObjectNode.class);
+
+            String imie = requestBody.has("imie") ? requestBody.get("imie").asText() : null;
+            String nazwisko = requestBody.has("nazwisko") ? requestBody.get("nazwisko").asText() : null;
+            String email = requestBody.has("email") ? requestBody.get("email").asText() : null;
+            String password = requestBody.has("password") ? requestBody.get("password").asText() : null;
+            String telefon = requestBody.has("telefon") ? requestBody.get("telefon").asText() : null;
+            int rolaId = requestBody.has("rolaId") ? requestBody.get("rolaId").asInt() : -1;
+
+            try {
+                Uzytkownik updatedUser = authService.updateUser(userId, imie, nazwisko, email, password, rolaId, telefon);
+
+                if (updatedUser != null) {
+                    ObjectNode response = objectMapper.createObjectNode();
+                    response.put("success", true);
+                    response.put("userId", updatedUser.getId());
+                    response.put("message", "Użytkownik został zaktualizowany");
+
+                    ctx.status(200);
+                    ctx.json(response);
+                } else {
+                    ctx.status(404);
+                    ctx.json(createErrorResponse("Nie udało się zaktualizować użytkownika"));
+                }
+            } catch (IllegalArgumentException e) {
+                ctx.status(400);
+                ctx.json(createErrorResponse(e.getMessage()));
+            }
+
+        } catch (NumberFormatException e) {
+            ctx.status(400);
+            ctx.json(createErrorResponse("Nieprawidłowe ID użytkownika"));
+        } catch (Exception e) {
+            ctx.status(500);
+            ctx.json(createErrorResponse("Błąd serwera: " + e.getMessage()));
+            e.printStackTrace();
+        }
+    }
+
+    private void handleDeleteUser(Context ctx) {
+        try {
+            int userId = Integer.parseInt(ctx.pathParam("id"));
+
+            try {
+                boolean deleted = authService.deleteUser(userId);
+
+                if (deleted) {
+                    ObjectNode response = objectMapper.createObjectNode();
+                    response.put("success", true);
+                    response.put("message", "Użytkownik został usunięty");
+
+                    ctx.status(200);
+                    ctx.json(response);
+                } else {
+                    ctx.status(404);
+                    ctx.json(createErrorResponse("Nie udało się usunąć użytkownika"));
+                }
+            } catch (IllegalArgumentException e) {
+                ctx.status(404);
+                ctx.json(createErrorResponse(e.getMessage()));
+            }
+
+        } catch (NumberFormatException e) {
+            ctx.status(400);
+            ctx.json(createErrorResponse("Nieprawidłowe ID użytkownika"));
+        } catch (Exception e) {
+            ctx.status(500);
+            ctx.json(createErrorResponse("Błąd serwera: " + e.getMessage()));
             e.printStackTrace();
         }
     }

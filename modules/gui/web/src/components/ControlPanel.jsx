@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './ControlPanel.css';
-import { handleApiError, getApiBaseUrl } from '../utils/api';
+import { apiRequest, handleApiError, getApiBaseUrl } from '../utils/api';
 import { showToast } from './ToastContainer';
 
 const API_URL = getApiBaseUrl();
@@ -17,40 +17,119 @@ export default function ControlPanel() {
 
   const loadDevices = async () => {
     try {
-      // TODO: Implementować endpoint API
-      // Na razie mock data
-      setDevices([
-        { id: 1, name: 'Klimatyzator - Pokój 101', type: 'hvac', value: 22, currentTemp: 19.5, min: 16, max: 30, enabled: true },
-        { id: 2, name: 'Oświetlenie - Pokój 102', type: 'light', value: 50, enabled: true },
-        { id: 3, name: 'Wentylacja - Serwerownia', type: 'ventilation', value: 2, max: 5, enabled: true }
-      ]);
+      setLoading(true);
+      // Pobierz listę urządzeń z API
+      const devicesData = await apiRequest('/devices');
+      
+      // Mapuj dane z API do formatu używanego w komponencie
+      const mappedDevices = devicesData.map(device => {
+        // Określ typ urządzenia na podstawie metryki
+        let type = 'other';
+        let value = 0;
+        let min = 16;
+        let max = 30;
+        let currentTemp = null;
+        
+        // Parsuj parametry pracy (JSON)
+        let params = {};
+        try {
+          if (device.parametryPracy) {
+            params = typeof device.parametryPracy === 'string' 
+              ? JSON.parse(device.parametryPracy) 
+              : device.parametryPracy;
+          }
+        } catch (e) {
+          console.warn('Błąd parsowania parametrów pracy:', e);
+        }
+        
+        // Określ typ i wartość na podstawie metryki i parametrów
+        const metric = device.metryka || device.metric || '';
+        if (metric.toLowerCase().includes('temperatura') || metric.toLowerCase().includes('temp')) {
+          type = 'hvac';
+          value = params.temperatura_C || params.set_temp || params.wartosc || 22;
+          min = device.minRange || 16;
+          max = device.maxRange || 30;
+          currentTemp = device.currentValue || null;
+        } else if (metric.toLowerCase().includes('jasnosc') || metric.toLowerCase().includes('brightness') || metric.toLowerCase().includes('light')) {
+          type = 'light';
+          value = params.jasnosc_procent || params.wartosc || 50;
+          min = 0;
+          max = 100;
+        } else if (metric.toLowerCase().includes('ventilation') || metric.toLowerCase().includes('wentylacja')) {
+          type = 'ventilation';
+          value = params.ventilation_level || params.wartosc || 2;
+          min = 0;
+          max = device.maxRange || 5;
+        } else {
+          type = 'other';
+          value = params.wartosc || params.value || 0;
+        }
+        
+        return {
+          id: device.id,
+          name: device.name || `${device.producerName || ''} ${device.modelName || ''}`.trim() || `Urządzenie ${device.id}`,
+          type: type,
+          value: value,
+          currentTemp: currentTemp,
+          min: min,
+          max: max,
+          enabled: device.aktywny !== false // Domyślnie true jeśli nie określono
+        };
+      });
+      
+      setDevices(mappedDevices);
       setLoading(false);
     } catch (error) {
       console.error('Błąd ładowania urządzeń:', error);
       handleApiError(error, showToast);
       setLoading(false);
+      setDevices([]); // Fallback do pustej listy
     }
   };
 
   const loadOZEStatus = async () => {
     try {
-      // TODO: Implementować endpoint API
-      setOzeStatus({ production: 350, grid: 1200 });
+      // Użyj endpointu z DashboardController
+      const ozeData = await apiRequest('/dashboard/oze-status?buildingId=1');
+      setOzeStatus({ 
+        production: ozeData.production || 0, 
+        grid: ozeData.grid || 0 
+      });
     } catch (error) {
       console.error('Błąd ładowania statusu OZE:', error);
       handleApiError(error, showToast);
+      setOzeStatus({ production: 0, grid: 0 }); // Fallback
     }
   };
 
   const handleDeviceControl = async (deviceId, newValue) => {
     try {
-      // TODO: Implementować endpoint API do sterowania
-      console.log(`Sterowanie urządzeniem ${deviceId}: ${newValue}`);
+      const device = devices.find(d => d.id === deviceId);
+      if (!device) return;
+      
+      // Przygotuj dane do wysłania w zależności od typu urządzenia
+      let controlData = { value: newValue };
+      
+      if (device.type === 'hvac') {
+        controlData = { temperature: newValue, value: newValue };
+      } else if (device.type === 'light') {
+        controlData = { brightness: newValue, value: newValue };
+      } else if (device.type === 'ventilation') {
+        controlData = { ventilation: newValue, value: newValue };
+      }
+      
+      // Wyślij żądanie sterowania
+      await apiRequest(`/devices/${deviceId}/control`, {
+        method: 'POST',
+        body: JSON.stringify(controlData)
+      });
       
       // Aktualizacja lokalnego stanu
       setDevices(devices.map(device => 
         device.id === deviceId ? { ...device, value: newValue } : device
       ));
+      
+      showToast('Urządzenie zostało zaktualizowane', 'success');
     } catch (error) {
       console.error('Błąd sterowania urządzeniem:', error);
       handleApiError(error, showToast);
@@ -60,14 +139,25 @@ export default function ControlPanel() {
   const handleToggle = async (deviceId) => {
     try {
       const device = devices.find(d => d.id === deviceId);
+      if (!device) return;
+      
       const newEnabled = !device.enabled;
       
-      // TODO: Implementować endpoint API
+      // Wyślij żądanie sterowania z parametrem enabled
+      await apiRequest(`/devices/${deviceId}/control`, {
+        method: 'POST',
+        body: JSON.stringify({ enabled: newEnabled, active: newEnabled })
+      });
+      
+      // Aktualizacja lokalnego stanu
       setDevices(devices.map(device => 
         device.id === deviceId ? { ...device, enabled: newEnabled } : device
       ));
+      
+      showToast(`Urządzenie ${newEnabled ? 'włączone' : 'wyłączone'}`, 'success');
     } catch (error) {
       console.error('Błąd przełączania urządzenia:', error);
+      handleApiError(error, showToast);
     }
   };
 

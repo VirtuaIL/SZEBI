@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Settings.css';
+import { getApiBaseUrl } from '../utils/api';
+
+const API_URL = getApiBaseUrl();
 
 export default function Settings({ userRole }) {
   const [settings, setSettings] = useState({
@@ -10,21 +13,102 @@ export default function Settings({ userRole }) {
     timeClose: '20:00',
     priorityComfort: 7
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  // Pobierz preferencje przy ładowaniu komponentu
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/optimization/config`);
+      if (response.ok) {
+        const data = await response.json();
+        setSettings({
+          preferredMinTemp: data.preferredMinTemp || 18,
+          preferredMaxTemp: data.preferredMaxTemp || 24,
+          maxEnergyUsage: data.maxEnergyUsage || 1500,
+          timeOpen: data.timeOpen || '08:00',
+          timeClose: data.timeClose || '20:00',
+          priorityComfort: data.priorityComfort || 7
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(`Błąd pobierania ustawień: ${errorData.error || response.status}`);
+      }
+    } catch (error) {
+      console.error('Błąd połączenia:', error);
+      setError('Błąd połączenia z serwerem. Upewnij się, że backend jest uruchomiony.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    
     try {
-      // TODO: Implementować endpoint API
-      console.log('Zapisywanie ustawień:', settings);
-      alert('Ustawienia zostały zapisane (funkcja do implementacji)');
+      const response = await fetch(`${API_URL}/optimization/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      });
+
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000); // Ukryj komunikat sukcesu po 3 sekundach
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Nie udało się zapisać ustawień');
+      }
     } catch (error) {
       console.error('Błąd zapisywania ustawień:', error);
-      alert('Błąd podczas zapisywania ustawień');
+      setError('Wystąpił błąd połączenia z serwerem.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="settings">
       <h2>Ustawienia Globalne</h2>
+
+      {error && (
+        <div className="error-message" style={{ 
+          background: '#f8d7da', 
+          color: '#721c24', 
+          padding: '10px', 
+          borderRadius: '4px', 
+          marginBottom: '20px' 
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="success-message" style={{ 
+          background: '#d4edda', 
+          color: '#155724', 
+          padding: '10px', 
+          borderRadius: '4px', 
+          marginBottom: '20px' 
+        }}>
+          Ustawienia zostały pomyślnie zapisane!
+        </div>
+      )}
+
+      {loading && !settings.preferredMinTemp && (
+        <p style={{ color: '#666', fontStyle: 'italic' }}>Ładowanie ustawień...</p>
+      )}
 
       <div className="settings-form">
         <div className="setting-group">
@@ -98,8 +182,12 @@ export default function Settings({ userRole }) {
           </div>
         </div>
 
-        <button className="btn-save" onClick={handleSave}>
-          Zapisz Ustawienia
+        <button 
+          className="btn-save" 
+          onClick={handleSave}
+          disabled={loading}
+        >
+          {loading ? 'Zapisywanie...' : 'Zapisz Ustawienia'}
         </button>
       </div>
     </div>
