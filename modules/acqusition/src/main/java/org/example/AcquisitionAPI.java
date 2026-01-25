@@ -117,7 +117,8 @@ public class AcquisitionAPI {
     double safeMax = (max != null) ? max.doubleValue() : 0.0;
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;
 
-    String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
+
+    String deviceID = id;
     String safeName = (name != null) ? name : "Unknown Device";
 
     DeviceType safeLabel;
@@ -170,7 +171,9 @@ public class AcquisitionAPI {
     double safeMax = (max != null) ? max.doubleValue() : 0.0;
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;
 
-    String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
+    int deviceID = deviceManager.getNextAvailableID();
+    //String deviceID = Integer.toString(deviceManager.getActiveDevices().size());
+
     String safeName = (deviceName != null) ? deviceName : "Unknown Device";
 
     DeviceType safeLabel;
@@ -196,7 +199,7 @@ public class AcquisitionAPI {
       expectedValue = 0;
 
     IDeviceConnector connector = new MockDeviceConnector(expectedValue, safePower);
-    Device newDevice = new Device(deviceID, safeName, safeMin, safeMax, safeLabel, connector);
+    Device newDevice = new Device(Integer.toString(deviceID), safeName, safeMin, safeMax, safeLabel, connector);
 
     // JSON do bazy
     JSONObject parameters = new JSONObject();
@@ -207,7 +210,7 @@ public class AcquisitionAPI {
     parameters.put("zakres_pomiaru", zakres);
     parameters.put("etykieta_metryki", metricLabel);
 
-    deviceManager.saveDeviceToDB(parameters, roomID, modelID);
+    deviceManager.saveDeviceToDB(deviceID, parameters, roomID, modelID);
 
     deviceManager.addNewDevice(newDevice);
   }
