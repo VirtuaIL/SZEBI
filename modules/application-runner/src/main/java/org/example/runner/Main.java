@@ -4,7 +4,7 @@ import org.example.*;
 import org.example.DTO.*;
 import org.example.interfaces.*;
 import java.util.Collections;
-import org.example.OptimizationController;
+import org.example.OptimizationAPI;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
 import org.example.runner.UserController;
@@ -31,7 +31,7 @@ public class Main {
     // 2. Inicjalizacja komponentów wewnętrznych - Moduł Akwizycji
     System.out.println("[INFO] Inicjalizacja modułu akwizycji danych...");
 
-    //AcquisitionController acquisitionController = new AcquisitionController();
+    // AcquisitionController acquisitionController = new AcquisitionController();
     DataCollector dataCollector = new DataCollector(databaseStorage);
     DeviceManager deviceManager = new DeviceManager(databaseStorage);
     ErrorReporter errorReporter = new ErrorReporter(AnalysisReportAPI.getAquisitionProxy());
@@ -72,37 +72,37 @@ public class Main {
     }
     System.out.println("[INFO] Zarejestrowano " + api.getAvailableDevices().size() + " urządzeń w module akwizycji.\n");
 
-    //api.createNewDevice("name",1,1,10,50,"temperatura_C",25);
+    // api.createNewDevice("name",1,1,10,50,"temperatura_C",25);
 
     // === 5. Inicjalizacja Modułu Optymalizacji ===
     System.out.println("=== Inicjalizacja modułu optymalizacji ===");
-    OptimizationController optimizationController = new OptimizationController();
+    OptimizationAPI optimizationAPI = new OptimizationAPI();
 
     // 5a. Preferencje administratora są teraz ładowane dynamicznie z bazy danych
     // (Rola ID 1)
     System.out.println("[INFO] Preferencje administratora będą ładowane z bazy danych.");
 
     // 5b. Podłączenie serwisów do kontrolera optymalizacji
-    optimizationController.setAcquisitionAPI(api);
+    optimizationAPI.setAcquisitionAPI(api);
 
     // Użycie AlertService zamiast bezpośredniego IAlertData
     org.example.alerts.AlertService alertServiceRef = new org.example.alerts.AlertService(databaseStorage);
-    optimizationController.setAlertService(alertServiceRef);
+    optimizationAPI.setAlertService(alertServiceRef);
 
-    optimizationController.setAcquisitionService(databaseStorage);
-    optimizationController.setForecastService(databaseStorage);
-    optimizationController.setControlService(databaseStorage);
-    optimizationController.setAnalyticsService(databaseStorage);
+    optimizationAPI.setAcquisitionService(databaseStorage);
+    optimizationAPI.setForecastService(databaseStorage);
+    optimizationAPI.setControlService(databaseStorage);
+    optimizationAPI.setAnalyticsService(databaseStorage);
 
     System.out.println("[INFO] Kontroler optymalizacji skonfigurowany.");
-    optimizationController.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
-    optimizationController.setOptimizationData(databaseStorage);
+    optimizationAPI.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
+    optimizationAPI.setOptimizationData(databaseStorage);
 
     ForecastServiceAPI forecastServiceAPI = new ForecastServiceAPI(databaseStorage, databaseStorage);
-    optimizationController.setForecastServiceAPI(forecastServiceAPI);
+    optimizationAPI.setForecastServiceAPI(forecastServiceAPI);
 
     // Uruchomienie automatycznego cyklu
-    optimizationController.startAutoCycle(1, 10);
+    optimizationAPI.startAutoCycle(1, 10);
 
     System.out.println("\n=== System SZEBI uruchomiony ===");
 
@@ -137,7 +137,7 @@ public class Main {
     reportsController.setupRoutes(app);
     forecastController.setupRoutes(app);
 
-    OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationController,
+    OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationAPI,
         databaseStorage);
     optimizationRestController.setupRoutes(app);
 
@@ -146,7 +146,7 @@ public class Main {
     // urządzeń w sieci
     app.start("0.0.0.0", apiPort);
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
-    
+
     forecastService.startScheduler();
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");

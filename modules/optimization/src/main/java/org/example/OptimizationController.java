@@ -292,13 +292,28 @@ public class OptimizationController {
     }
 
     private void checkEnergyLimit(Urzadzenie device) {
-        LocalDateTime from = LocalDateTime.now().minusHours(24);
-        LocalDateTime to = LocalDateTime.now();
-        List<Odczyt> readings = forecastService.getReadingsForDevice(device.getId(), from, to);
+        if (forecastServiceAPI == null) {
+            System.err.println("[Optymalizacja] Brak ForecastServiceAPI - pomijam sprawdzanie limitów.");
+            return;
+        }
 
-        double avgUsage = calculateAverageFromReadings(readings);
+        // Sprawdzamy prognozę na najbliższe 4 godziny
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime future = now.plusHours(4);
 
-        double solarProduction = calculateSolarProduction();
+        List<Prognoza> forecasts = forecastServiceAPI.getForecasts(device.getId(), now, future);
+
+        double predictedAvgUsage = calculateAverageFromForecasts(forecasts);
+
+        // Jeśli brak prognoz, próbujemy fallback do historii (opcjonalnie) lub pomijamy
+        if (forecasts.isEmpty()) {
+            System.out.println(
+                    "   [ENERGIA] Brak prognoz dla urządzenia " + device.getId() + ". Zakładam typowe zużycie.");
+            // Można tu dodać logikę awaryjną
+            return;
+        }
+
+        double solarProduction = calculateSolarProduction(); // To jest mock, ale zostawiamy zgodnie z poleceniem
         double baseLimit = adminPref.getMaxEnergyUsage();
 
         List<Urzadzenie> activeDevices = getActiveDevices();
@@ -312,14 +327,29 @@ public class OptimizationController {
                     + " W. Bonus na urządzenie: " + String.format("%.2f", perDeviceBonus) + " W");
         }
 
-        if (avgUsage > effectiveLimit) {
-            System.out.println("   [ENERGIA] Urządzenie " + device.getId() + " przekracza limit (" + avgUsage + " > "
-                    + String.format("%.2f", effectiveLimit) + "). Ograniczam.");
+        System.out
+                .println("   [ENERGIA] Prognozowane średnie zużycie (4h): " + String.format("%.2f", predictedAvgUsage));
+
+        if (predictedAvgUsage > effectiveLimit) {
+            System.out.println(
+                    "   [ENERGIA] Urządzenie " + device.getId() + " PRZEKROCZY limit (" + predictedAvgUsage + " > "
+                            + String.format("%.2f", effectiveLimit) + "). Ograniczam prewencyjnie.");
             controlDevice(device.getId(), "limit_power", 50.0);
         } else {
-            System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie ("
-                    + avgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
+            System.out.println(" [ENERGIA] Urządzenie " + device.getId() + " w normie prognozy ("
+                    + predictedAvgUsage + " < " + String.format("%.2f", effectiveLimit) + ")");
         }
+    }
+
+    private double calculateAverageFromForecasts(List<Prognoza> forecasts) {
+        if (forecasts == null || forecasts.isEmpty())
+            return 0.0;
+
+        double sum = 0;
+        for (Prognoza p : forecasts) {
+            sum += p.getPrognozowanaWartosc();
+        }
+        return sum / forecasts.size();
     }
 
     private List<Urzadzenie> getActiveDevices() {
