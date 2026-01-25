@@ -1,66 +1,81 @@
 package org.example;
 
-import org.example.DTO.Odczyt;
-import org.example.DTO.Prognoza;
-
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
+/**
+ * Struktura danych reprezentująca wytrenowany model prognozujący.
+ * Przechowuje parametry modelu, metryki jakości i status treningu.
+ */
 public class ForecastModel {
     private double baselineConsumption = 0.0;
     private boolean isTrained = false;
-    private final DataPreprocessor preprocessor;
-
-    public ForecastModel(DataPreprocessor preprocessor) {
-        this.preprocessor = preprocessor;
+    private ModelMetrics metrics; // Metryki jakości modelu
+    private LocalDateTime trainingTimestamp; // Kiedy model został wytrenowany
+    private int trainingSamplesCount; // Liczba próbek użytych do treningu
+    
+    public ForecastModel() {
+        // Pusty konstruktor dla nowego modelu
+    }
+    
+    public ForecastModel(double baselineConsumption, boolean isTrained, ModelMetrics metrics, 
+                        LocalDateTime trainingTimestamp, int trainingSamplesCount) {
+        this.baselineConsumption = baselineConsumption;
+        this.isTrained = isTrained;
+        this.metrics = metrics;
+        this.trainingTimestamp = trainingTimestamp;
+        this.trainingSamplesCount = trainingSamplesCount;
     }
 
-    public void train(List<Odczyt> data) {
-        if (data.isEmpty()) return;
-
-        double sum = 0;
-        int count = 0;
-
-        for (Odczyt o : data) {
-            DataPreprocessor.ParsedData features = preprocessor.extractFeatures(o);
-
-            if (features.moc > 0) {
-                sum += features.moc;
-                count++;
-            }
-        }
-
-        if (count > 0) {
-            this.baselineConsumption = sum / count;
-            this.isTrained = true;
-            System.out.println("[MODEL] Wytrenowano. Średnie zużycie bazowe: " + baselineConsumption);
-        } else {
-            System.out.println("[MODEL] Nie udało się wytrenować (brak dodatnich wartości zużycia).");
-        }
+    public double getBaselineConsumption() {
+        return baselineConsumption;
     }
-
-    public List<Prognoza> predict(int deviceId, LocalDateTime start, int hours, WeatherDataProvider weather) {
-        List<Prognoza> results = new ArrayList<>();
-        if (!isTrained) return results;
-
-        for (int i = 1; i <= hours; i++) {
-            LocalDateTime time = start.plusHours(i);
-            double temp = weather.getForecastTemperature(time);
-
-            double factor = (temp < 18.0) ? 1.2 : 0.9;
-            double predictedVal = baselineConsumption * factor;
-
-            Prognoza p = new Prognoza();
-            p.setUrzadzenieId(deviceId);
-            p.setBudynekId(null);
-            p.setCzasWygenerowania(LocalDateTime.now());
-            p.setCzasPrognozy(time);
-            p.setPrognozowanaWartosc(predictedVal);
-            p.setMetryka("kWh");
-
-            results.add(p);
+    
+    public void setBaselineConsumption(double baselineConsumption) {
+        this.baselineConsumption = baselineConsumption;
+    }
+    
+    public boolean isTrained() {
+        return isTrained;
+    }
+    
+    public void setTrained(boolean trained) {
+        isTrained = trained;
+    }
+    
+    public ModelMetrics getMetrics() {
+        return metrics;
+    }
+    
+    public void setMetrics(ModelMetrics metrics) {
+        this.metrics = metrics;
+    }
+    
+    public LocalDateTime getTrainingTimestamp() {
+        return trainingTimestamp;
+    }
+    
+    public void setTrainingTimestamp(LocalDateTime trainingTimestamp) {
+        this.trainingTimestamp = trainingTimestamp;
+    }
+    
+    public int getTrainingSamplesCount() {
+        return trainingSamplesCount;
+    }
+    
+    public void setTrainingSamplesCount(int trainingSamplesCount) {
+        this.trainingSamplesCount = trainingSamplesCount;
+    }
+    
+    /**
+     * Sprawdza czy model jest lepszy niż inny model na podstawie MAPE.
+     */
+    public boolean isBetterThan(ForecastModel other) {
+        if (other == null || other.metrics == null) {
+            return this.metrics != null;
         }
-        return results;
+        if (this.metrics == null) {
+            return false;
+        }
+        return this.metrics.getMape() < other.metrics.getMape();
     }
 }

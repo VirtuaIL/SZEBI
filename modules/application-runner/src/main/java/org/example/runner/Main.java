@@ -7,10 +7,12 @@ import java.util.Collections;
 import org.example.OptimizationController;
 import org.example.runner.AuthService;
 import org.example.runner.AuthController;
-import org.example.runner.UserController; // Import UserController
+import org.example.runner.UserController;
 import org.example.runner.AlertsController;
 import org.example.runner.DevicesController;
 import org.example.runner.ReportsController;
+import org.example.ForecastServiceAPI;
+import org.example.ForecastController;
 
 
 
@@ -96,7 +98,7 @@ public class Main {
     optimizationController.setUserService(databaseStorage); // Podłączenie serwisu użytkowników
     optimizationController.setOptimizationData(databaseStorage);
 
-    ForecastServiceAPI forecastServiceAPI = new ForecastServiceAPI(databaseStorage);
+    ForecastServiceAPI forecastServiceAPI = new ForecastServiceAPI(databaseStorage, databaseStorage);
     optimizationController.setForecastServiceAPI(forecastServiceAPI);
 
     // Uruchomienie automatycznego cyklu
@@ -117,6 +119,10 @@ public class Main {
 
     ReportsController reportsController = new ReportsController(databaseStorage, databaseStorage, anal);
 
+    ForecastServiceAPI forecastService = new ForecastServiceAPI(databaseStorage, databaseStorage);
+    forecastService.initializeScheduler(databaseStorage);
+    ForecastController forecastController = new ForecastController(forecastService);
+
     io.javalin.Javalin app = io.javalin.Javalin.create(config -> {
       config.bundledPlugins.enableCors(cors -> {
         cors.addRule(it -> it.anyHost());
@@ -124,11 +130,12 @@ public class Main {
     });
 
     authController.setupRoutes(app);
-    userController.setupRoutes(app); // Rejestracja endpointów użytkownika
+    userController.setupRoutes(app);
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
     acquisitionController.setupRoutes(app);
     reportsController.setupRoutes(app);
+    forecastController.setupRoutes(app);
 
     OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationController,
         databaseStorage);
@@ -139,9 +146,12 @@ public class Main {
     // urządzeń w sieci
     app.start("0.0.0.0", apiPort);
     System.out.println("[INFO] REST API uruchomione na porcie " + apiPort);
+    
+    forecastService.startScheduler();
     System.out.println("[INFO] Endpoint logowania: http://localhost:" + apiPort + "/api/login");
     System.out.println("[INFO] Endpoint alarmów: http://localhost:" + apiPort + "/api/alerts");
     System.out.println("[INFO] Endpoint urządzeń: http://localhost:" + apiPort + "/api/devices");
+    System.out.println("[INFO] Endpoint prognoz: http://localhost:" + apiPort + "/api/forecasts");
     System.out.println("[INFO] Endpoint raportów: http://localhost:" + apiPort + "/api/reports");
     System.out.println("[INFO] API dostępne również z sieci lokalnej na porcie " + apiPort);
     System.out.println("\n=== System SZEBI w pełni uruchomiony ===");

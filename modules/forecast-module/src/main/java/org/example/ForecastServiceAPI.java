@@ -2,6 +2,8 @@ package org.example;
 
 import org.example.DTO.Prognoza;
 import org.example.interfaces.IForecastingData;
+import org.example.interfaces.IAnalyticsData;
+import org.example.interfaces.IAcquisitionData;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,33 +11,56 @@ public class ForecastServiceAPI {
 
     private final ForecastingModule forecastingModule;
     private final IForecastingData forecastingData;
+    private final IAnalyticsData analyticsData;
+    private ForecastScheduler scheduler;
 
-    public ForecastServiceAPI(IForecastingData forecastingData) {
+    public ForecastServiceAPI(IForecastingData forecastingData, IAnalyticsData analyticsData) {
         this.forecastingData = forecastingData;
+        this.analyticsData = analyticsData;
         this.forecastingModule = new ForecastingModule(forecastingData);
     }
-
-    /**
-     * Uruchamia proces generowania prognoz dla danego urządzenia.
-     */
-    public void generateForecast(int deviceId) {
-        forecastingModule.startPredictionProcess(deviceId);
+    
+    public void initializeScheduler(IAcquisitionData acquisitionData) {
+        if (scheduler == null) {
+            this.scheduler = new ForecastScheduler(this, acquisitionData);
+        }
+    }
+    
+    public void startScheduler() {
+        if (scheduler != null) {
+            scheduler.start();
+        }
+    }
+    
+    public void stopScheduler() {
+        if (scheduler != null) {
+            scheduler.stop();
+        }
     }
 
-    /**
-     * Pobiera prognozy dla urządzenia na zadany okres.
-     * Metoda ta może być używana przez inne moduły (np. Optymalizację) do
-     * planowania.
-     */
+    public void generateForecast(int deviceId) throws IncompleteDataException {
+        try {
+            forecastingModule.startPredictionProcess(deviceId);
+        } catch (IncompleteDataException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IncompleteDataException(deviceId, "Błąd podczas generowania prognoz: " + e.getMessage());
+        }
+    }
+
     public List<Prognoza> getForecasts(int deviceId, LocalDateTime from, LocalDateTime to) {
-        // Zakładamy, że IForecastingData ma metodę do pobierania prognoz.
-        // Jeśli nie, trzeba ją dodać lub symulować.
-        // Na razie zwracamy null lub implementujemy logikę jeśli interfejs na to
-        // pozwala.
-        // Sprawdzimy IForecastingData w kolejnym kroku, tutaj zakładam istnienie takiej
-        // metody
-        // lub konieczność jej dodania.
-        // Dla uproszczenia teraz zwrócimy pustą listę, ale docelowo to powinno działać.
-        return null; // TODO: Dodać metodę getForecasts do IForecastingData
+        return analyticsData.getForecastsForDevice(deviceId, from, to);
+    }
+
+    public List<Prognoza> getForecastsForBuilding(int buildingId, LocalDateTime from, LocalDateTime to) {
+        return analyticsData.getForecastsForBuilding(buildingId, from, to);
+    }
+
+    public ForecastModel getCurrentModel() {
+        return forecastingModule.getCurrentModel();
+    }
+
+    public void retrainModel(int deviceId) throws IncompleteDataException {
+        forecastingModule.retrainModel(deviceId);
     }
 }
