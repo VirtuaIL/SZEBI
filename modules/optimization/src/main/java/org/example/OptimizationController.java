@@ -213,20 +213,18 @@ public class OptimizationController {
                     }
                 }
 
-                // Konwersja 1-5 na 0-100 (tak jak chciał user)
-                // 1 -> 20.0, 5 -> 100.0
+                // Konwersja 1-5 na 0-100
                 double targetScaled = Math.min(100.0, targetBrightness * 20.0);
 
-                // Sprawdzenie, czy aktualna wartość jest już poprawna (tolerancja 1.0 dla szumu
-                // +/- 0.5)
+                // Sprawdzenie, czy aktualna wartość jest już poprawna
+                // (tolerancja 1.0 dla szumu +/- 0.5)
                 if (Math.abs(currentVal - targetScaled) < 1.0) {
                     System.out.println(String.format("   %-10s [ID:%s] | Jasność OK (%.1f%%). Brak akcji.", "[LIGHT]",
                             deviceId, currentVal));
                     return;
                 }
 
-                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę
-                // jasności
+                // Jeśli urządzenie jest ściemnialne (zgodnie z init.sql) lub ma metrykę jasności
                 if (supportsDimming) {
                     System.out.println(String.format("      -> Ustawiam jasność: %.1f%%", targetScaled));
                     controlDevice(device.getId(), "jasnosc_procent", targetScaled);
@@ -269,7 +267,6 @@ public class OptimizationController {
             return false;
 
         // "temperatura_C" - zazwyczaj odczyt z czujnika
-        // "set_temp" lub "docelowa_temperatura" - nastawy grzejników
         return params.contains("temperatura_C");
     }
 
@@ -305,15 +302,13 @@ public class OptimizationController {
 
         double predictedAvgUsage = calculateAverageFromForecasts(forecasts);
 
-        // Jeśli brak prognoz, próbujemy fallback do historii (opcjonalnie) lub pomijamy
         if (forecasts.isEmpty()) {
             System.out.println(
                     "   [ENERGIA] Brak prognoz dla urządzenia " + device.getId() + ". Zakładam typowe zużycie.");
-            // Można tu dodać logikę awaryjną
             return;
         }
 
-        double solarProduction = calculateSolarProduction(); // To jest mock, ale zostawiamy zgodnie z poleceniem
+        double solarProduction = calculateSolarProduction();
         double baseLimit = adminPref.getMaxEnergyUsage();
 
         List<Urzadzenie> activeDevices = getActiveDevices();
