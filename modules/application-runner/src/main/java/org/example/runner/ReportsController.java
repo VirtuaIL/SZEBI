@@ -427,9 +427,17 @@ public class ReportsController {
       Set<ConfigurationType> allAvailableMetrics = AnalysisReportAPI.getAvailableMetrics();
       System.out.println("[INFO] Metrics Count " + allAvailableMetrics.stream().count());
 
-      Set<ConfigurationType> filteredMetrics = allAvailableMetrics.stream()
-          .filter(x -> x.equals(ConfigurationType.fromString(medium)))
-          .collect(Collectors.toSet());
+      Set<ConfigurationType> filteredMetrics;
+      if (medium == null || medium.isEmpty()) {
+        // Gdy medium jest puste, użyj wszystkich dostępnych metryk
+        filteredMetrics = allAvailableMetrics;
+        System.out.println("[INFO] Using all metrics (no filter)");
+      } else {
+        filteredMetrics = allAvailableMetrics.stream()
+            .filter(x -> x.equals(ConfigurationType.fromString(medium)))
+            .collect(Collectors.toSet());
+        System.out.println("[INFO] Filtered metrics for medium '" + medium + "': " + filteredMetrics.size());
+      }
 
       // Budowanie schematu z uwzględnieniem filtrowania
       IDocument.Scheme scheme = AnalysisReportAPI.newReportScheme()
@@ -440,7 +448,8 @@ public class ReportsController {
       analysisReportAPI.sendDocumentScheme(scheme);
 
       // Reszta logiki pobierania z bazy...
-      List<Raport> recentReports = analyticsData.getReportsByType(reportType);
+      // AnalysisReportAPI zapisuje raporty jako "Raport", nie jako "alerts"/"energy" itp.
+      List<Raport> recentReports = analyticsData.getReportsByType("Raport");
       if (recentReports == null || recentReports.isEmpty()) {
         ctx.status(500).json(objectMapper.createObjectNode().put("error", "Nie udalo sie pobrac zapisanego raportu"));
         return;
@@ -453,6 +462,8 @@ public class ReportsController {
       ObjectNode response = objectMapper.createObjectNode();
       response.put("success", true);
       response.set("report", convertReportToJson(savedReport));
+
+      System.out.println(response);
 
       ctx.status(201).json(response);
     } catch (Exception e) {
@@ -737,7 +748,7 @@ public class ReportsController {
 
       // Daj chwilę na zapisanie do bazy (może być asynchroniczne)
       try {
-        Thread.sleep(100);
+        Thread.sleep(500);
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
       }

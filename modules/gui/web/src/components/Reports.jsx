@@ -160,7 +160,7 @@ export default function Reports({ userRole }) {
           }),
         });
 
-        if (!response.ok) throw new Error('Błąd generowania raportu');
+        if (!response.ok) throw new Error('Błąd generowania raportu' + response.status);
 
         const result = await response.json();
         if (result.success && result.report) {
@@ -256,9 +256,11 @@ export default function Reports({ userRole }) {
         const report = await response.json();
         setCurrentReportId(report.id);
         setReportType(report.type);
+        // Dane mogą być w report.content.data lub bezpośrednio w report.content
+        const reportData = report.content?.data || report.content;
         processPreviewData({
-            data: report.content.data,
-            reportType: report.type
+          data: reportData,
+          reportType: report.type
         });
       }
     } catch (error) {
@@ -296,7 +298,7 @@ export default function Reports({ userRole }) {
     }
     try {
       const response = await fetch(`${API_URL}/reports/${currentReportId}/export/${format.toLowerCase()}`);
-      
+
       if (response.status === 501) {
         const errorData = await response.json();
         alert(errorData.error + (errorData.suggestion ? '\n' + errorData.suggestion : ''));
@@ -373,7 +375,7 @@ export default function Reports({ userRole }) {
               <Bar dataKey="value" fill="#007bff" />
             </BarChart>
           </ResponsiveContainer>
-          <p style={{marginTop: '10px', fontSize: '12px', color: '#666'}}>
+          <p style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
             Wyświetlono pierwsze 50 punktów danych. Metryki: {metrics.join(', ')}
           </p>
         </div>
@@ -390,11 +392,11 @@ export default function Reports({ userRole }) {
             stroke="#007bff"
             strokeWidth={2}
             dot={(props) => {
-                const { cx, cy, payload } = props;
-                if (payload.isAnomaly) {
-                    return <circle cx={cx} cy={cy} r={6} fill="#e74c3c" stroke="#fff" strokeWidth={2} />;
-                }
-                return <circle cx={cx} cy={cy} r={3} fill="#007bff" />;
+              const { cx, cy, payload } = props;
+              if (payload.isAnomaly) {
+                return <circle cx={cx} cy={cy} r={6} fill="#e74c3c" stroke="#fff" strokeWidth={2} />;
+              }
+              return <circle cx={cx} cy={cy} r={3} fill="#007bff" />;
             }}
           />
         </LineChart>
@@ -469,24 +471,24 @@ export default function Reports({ userRole }) {
       </div>
 
       {/* Opcja tworzenia jako generator */}
-      <div style={{marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '6px'}}>
-        <label style={{display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 'bold'}}>
+      <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '6px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 'bold' }}>
           <input
             type="checkbox"
             checked={createAsGenerator}
             onChange={(e) => setCreateAsGenerator(e.target.checked)}
-            style={{marginRight: '10px', width: '18px', height: '18px'}}
+            style={{ marginRight: '10px', width: '18px', height: '18px' }}
           />
           ⚙️ Utwórz jako generator cykliczny
         </label>
 
         {createAsGenerator && (
-          <div style={{marginTop: '15px'}}>
-            <p style={{fontSize: '13px', color: '#666', marginBottom: '15px', padding: '10px', background: '#fff3cd', borderRadius: '4px', border: '1px solid #ffc107'}}>
+          <div style={{ marginTop: '15px' }}>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px', padding: '10px', background: '#fff3cd', borderRadius: '4px', border: '1px solid #ffc107' }}>
               ℹ️ Generator będzie automatycznie tworzył {documentType === 'analysis' ? 'analizy' : 'raporty'} według określonego harmonogramu.
               Zakres dat zostanie ustawiony dynamicznie przy każdym uruchomieniu (ostatnie 7 dni).
             </p>
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px'}}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
               <div className="filter-group">
                 <label>Nazwa generatora (opcjonalnie):</label>
                 <input
@@ -531,12 +533,12 @@ export default function Reports({ userRole }) {
         )}
       </div>
 
-      <div style={{marginTop: '15px', display: 'flex', justifyContent: 'center'}}>
+      <div style={{ marginTop: '15px', display: 'flex', justifyContent: 'center' }}>
         <button
           className="btn-generate"
           onClick={handleGenerate}
           disabled={loading || (!createAsGenerator && (!dateFrom || !dateTo))}
-          style={{padding: '12px 40px', fontSize: '16px'}}
+          style={{ padding: '12px 40px', fontSize: '16px' }}
         >
           {loading ? 'Generowanie...' : createAsGenerator ? '⚙️ Utwórz Generator' : (documentType === 'analysis' ? '🔍 Generuj Analizę' : '💾 Generuj Raport')}
         </button>
@@ -545,21 +547,21 @@ export default function Reports({ userRole }) {
       {analysisData && documentType === 'analysis' && (
         <div className="analysis-results">
           <h3>📊 Wyniki Analizy</h3>
-          <div className="analysis-summary" style={{background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
+          <div className="analysis-summary" style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
             <p><strong>Typ analizy:</strong> {analysisData.analysisType}</p>
             <p><strong>Liczba analizowanych metryk:</strong> {analysisData.metricsCount}</p>
             <p><strong>Ogólna ocena systemu:</strong> <span className="quality-badge" style={{
               padding: '4px 12px',
               borderRadius: '4px',
               background: analysisData.overallAssessment?.startsWith('EXCELLENT') ? '#28a745' :
-                         analysisData.overallAssessment?.startsWith('GOOD') ? '#17a2b8' :
-                         analysisData.overallAssessment?.startsWith('FAIR') ? '#ffc107' : '#dc3545',
+                analysisData.overallAssessment?.startsWith('GOOD') ? '#17a2b8' :
+                  analysisData.overallAssessment?.startsWith('FAIR') ? '#ffc107' : '#dc3545',
               color: 'white',
               fontWeight: 'bold'
             }}>{analysisData.overallAssessment}</span></p>
           </div>
 
-          <h4 style={{marginTop: '30px', marginBottom: '15px'}}>📊 Wizualizacja statystyk:</h4>
+          <h4 style={{ marginTop: '30px', marginBottom: '15px' }}>📊 Wizualizacja statystyk:</h4>
           {analysisData.metrics && (() => {
             // Przygotuj dane do wykresu porównawczego wszystkich metryk
             const metricsComparisonData = Object.entries(analysisData.metrics).map(([key, metric]) => ({
@@ -571,7 +573,7 @@ export default function Reports({ userRole }) {
             }));
 
             return (
-              <div style={{marginBottom: '30px'}}>
+              <div style={{ marginBottom: '30px' }}>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={metricsComparisonData}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -585,14 +587,14 @@ export default function Reports({ userRole }) {
                     <Bar dataKey="Max" fill="#dc3545" />
                   </BarChart>
                 </ResponsiveContainer>
-                <p style={{textAlign: 'center', fontSize: '12px', color: '#666', marginTop: '10px'}}>
+                <p style={{ textAlign: 'center', fontSize: '12px', color: '#666', marginTop: '10px' }}>
                   Porównanie statystyk opisowych dla wszystkich metryk
                 </p>
               </div>
             );
           })()}
 
-          <h4 style={{marginTop: '30px', marginBottom: '15px'}}>Szczegółowa analiza metryk:</h4>
+          <h4 style={{ marginTop: '30px', marginBottom: '15px' }}>Szczegółowa analiza metryk:</h4>
 
           {analysisData.metrics && Object.entries(analysisData.metrics).map(([key, metric]) => (
             <div key={key} className="metric-card" style={{
@@ -611,16 +613,16 @@ export default function Reports({ userRole }) {
                 alignItems: 'center'
               }}>
                 <span>{metric.configurationType}</span>
-                <span style={{fontSize: '14px', color: '#666', fontWeight: 'normal'}}>
+                <span style={{ fontSize: '14px', color: '#666', fontWeight: 'normal' }}>
                   Typ urządzenia: {metric.deviceType}
                 </span>
               </h4>
 
               {/* Wykresy dla tej metryki */}
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 {/* Wykres statystyk opisowych */}
-                <div style={{background: '#f8f9fa', padding: '15px', borderRadius: '6px'}}>
-                  <h5 style={{color: '#007bff', marginBottom: '10px', textAlign: 'center'}}>📈 Statystyki opisowe</h5>
+                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '6px' }}>
+                  <h5 style={{ color: '#007bff', marginBottom: '10px', textAlign: 'center' }}>📈 Statystyki opisowe</h5>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={[
                       { name: 'Min', value: metric.descriptiveStatistics?.min },
@@ -637,7 +639,7 @@ export default function Reports({ userRole }) {
                       <Bar dataKey="value" fill="#007bff" />
                     </BarChart>
                   </ResponsiveContainer>
-                  <div style={{marginTop: '10px', fontSize: '12px'}}>
+                  <div style={{ marginTop: '10px', fontSize: '12px' }}>
                     <p>Zakres: <strong>{metric.descriptiveStatistics?.range} {metric.unit}</strong></p>
                     <p>Odchylenie std: <strong>{metric.descriptiveStatistics?.standardDeviation} {metric.unit}</strong></p>
                     <p>Próbek: <strong>{metric.sampleCount}</strong></p>
@@ -645,8 +647,8 @@ export default function Reports({ userRole }) {
                 </div>
 
                 {/* Wykres zgodności */}
-                <div style={{background: '#f8f9fa', padding: '15px', borderRadius: '6px'}}>
-                  <h5 style={{color: '#28a745', marginBottom: '10px', textAlign: 'center'}}>✅ Zgodność z zakresami</h5>
+                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '6px' }}>
+                  <h5 style={{ color: '#28a745', marginBottom: '10px', textAlign: 'center' }}>✅ Zgodność z zakresami</h5>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={[
                       {
@@ -666,7 +668,7 @@ export default function Reports({ userRole }) {
                       <Bar dataKey="Poza typowym" stackId="a" fill="#dc3545" />
                     </BarChart>
                   </ResponsiveContainer>
-                  <div style={{marginTop: '10px', fontSize: '12px'}}>
+                  <div style={{ marginTop: '10px', fontSize: '12px' }}>
                     <p>Typowy zakres: <strong>{metric.referenceRanges?.typical?.min}-{metric.referenceRanges?.typical?.max} {metric.unit}</strong></p>
                     <p>Optymalny zakres: <strong>{metric.referenceRanges?.optimal?.min}-{metric.referenceRanges?.optimal?.max} {metric.unit}</strong></p>
                   </div>
@@ -674,9 +676,9 @@ export default function Reports({ userRole }) {
               </div>
 
               {/* Szczegółowe wartości numeryczne */}
-              <div className="metric-stats" style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px'}}>
-                <div className="stat-group" style={{background: '#f8f9fa', padding: '15px', borderRadius: '6px'}}>
-                  <h5 style={{color: '#007bff', marginBottom: '10px'}}>📊 Wartości liczbowe</h5>
+              <div className="metric-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                <div className="stat-group" style={{ background: '#f8f9fa', padding: '15px', borderRadius: '6px' }}>
+                  <h5 style={{ color: '#007bff', marginBottom: '10px' }}>📊 Wartości liczbowe</h5>
                   <p>Min: <strong>{metric.descriptiveStatistics?.min} {metric.unit}</strong></p>
                   <p>P25: <strong>{metric.percentiles?.p25} {metric.unit}</strong></p>
                   <p>Mediana: <strong>{metric.descriptiveStatistics?.median} {metric.unit}</strong></p>
@@ -685,12 +687,12 @@ export default function Reports({ userRole }) {
                   <p>Max: <strong>{metric.descriptiveStatistics?.max} {metric.unit}</strong></p>
                 </div>
 
-                <div className="stat-group" style={{background: '#f8f9fa', padding: '15px', borderRadius: '6px'}}>
-                  <h5 style={{color: '#28a745', marginBottom: '10px'}}>✅ Zgodność (liczby)</h5>
-                  <p>Poza typowym: <strong style={{color: metric.rangeCompliance?.outOfTypicalRangePercentage > 10 ? '#dc3545' : '#28a745'}}>
+                <div className="stat-group" style={{ background: '#f8f9fa', padding: '15px', borderRadius: '6px' }}>
+                  <h5 style={{ color: '#28a745', marginBottom: '10px' }}>✅ Zgodność (liczby)</h5>
+                  <p>Poza typowym: <strong style={{ color: metric.rangeCompliance?.outOfTypicalRangePercentage > 10 ? '#dc3545' : '#28a745' }}>
                     {metric.rangeCompliance?.outOfTypicalRangeCount} / {metric.sampleCount} ({metric.rangeCompliance?.outOfTypicalRangePercentage}%)
                   </strong></p>
-                  <p>W optymalnym: <strong style={{color: metric.rangeCompliance?.inOptimalRangePercentage > 70 ? '#28a745' : '#ffc107'}}>
+                  <p>W optymalnym: <strong style={{ color: metric.rangeCompliance?.inOptimalRangePercentage > 70 ? '#28a745' : '#ffc107' }}>
                     {metric.rangeCompliance?.inOptimalRangeCount} / {metric.sampleCount} ({metric.rangeCompliance?.inOptimalRangePercentage}%)
                   </strong></p>
                 </div>
@@ -701,8 +703,8 @@ export default function Reports({ userRole }) {
                 borderRadius: '6px',
                 marginBottom: '15px',
                 background: metric.qualityAssessment?.startsWith('EXCELLENT') ? '#d4edda' :
-                           metric.qualityAssessment?.startsWith('GOOD') ? '#d1ecf1' :
-                           metric.qualityAssessment?.startsWith('FAIR') ? '#fff3cd' : '#f8d7da'
+                  metric.qualityAssessment?.startsWith('GOOD') ? '#d1ecf1' :
+                    metric.qualityAssessment?.startsWith('FAIR') ? '#fff3cd' : '#f8d7da'
               }}>
                 <p><strong>🎯 Ocena jakości:</strong> {metric.qualityAssessment}</p>
               </div>
@@ -714,10 +716,10 @@ export default function Reports({ userRole }) {
                   borderRadius: '6px',
                   borderLeft: '4px solid #ffc107'
                 }}>
-                  <h5 style={{color: '#856404', marginBottom: '10px'}}>💡 Rekomendacje:</h5>
-                  <ul style={{marginLeft: '20px'}}>
+                  <h5 style={{ color: '#856404', marginBottom: '10px' }}>💡 Rekomendacje:</h5>
+                  <ul style={{ marginLeft: '20px' }}>
                     {metric.recommendations.map((rec, i) => (
-                      <li key={i} style={{marginBottom: '8px', color: '#856404'}}>{rec}</li>
+                      <li key={i} style={{ marginBottom: '8px', color: '#856404' }}>{rec}</li>
                     ))}
                   </ul>
                 </div>
@@ -738,10 +740,10 @@ export default function Reports({ userRole }) {
               <h4>Wykryte Anomalie ({anomalies.length})</h4>
               <ul>
                 {anomalies.map((a, i) => (
-                    <li key={i} className={a.type === 'high' ? 'anomaly-high' : 'anomaly-low'}>
-                        <strong>{a.time}</strong>: {a.value}W
-                        <span> ({a.type === 'high' ? 'Wysokie zużycie' : 'Niskie zużycie'})</span>
-                    </li>
+                  <li key={i} className={a.type === 'high' ? 'anomaly-high' : 'anomaly-low'}>
+                    <strong>{a.time}</strong>: {a.value}W
+                    <span> ({a.type === 'high' ? 'Wysokie zużycie' : 'Niskie zużycie'})</span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -769,8 +771,8 @@ export default function Reports({ userRole }) {
         </div>
       )}
 
-      <div className="generator-section" style={{marginTop: '40px'}}>
-        <h3 style={{marginBottom: '20px'}}>⚙️ Aktywne Generatory Cykliczne</h3>
+      <div className="generator-section" style={{ marginTop: '40px' }}>
+        <h3 style={{ marginBottom: '20px' }}>⚙️ Aktywne Generatory Cykliczne</h3>
 
         {generators.length > 0 ? (
           <table className="reports-table">
@@ -812,7 +814,7 @@ export default function Reports({ userRole }) {
                     <button
                       className="btn-load"
                       onClick={() => handleDeleteGenerator(gen.serviceKey, gen.id)}
-                      style={{background: '#dc3545', color: 'white'}}
+                      style={{ background: '#dc3545', color: 'white' }}
                     >
                       Usuń
                     </button>
@@ -822,13 +824,13 @@ export default function Reports({ userRole }) {
             </tbody>
           </table>
         ) : (
-          <p style={{textAlign: 'center', color: '#666', padding: '20px'}}>
+          <p style={{ textAlign: 'center', color: '#666', padding: '20px' }}>
             Brak aktywnych generatorów. Dodaj pierwszy generator klikając przycisk powyżej.
           </p>
         )}
       </div>
 
-      <div className="export-section" style={{marginTop: '40px'}}>
+      <div className="export-section" style={{ marginTop: '40px' }}>
         <h3>Eksportuj wybrany raport</h3>
         <div className="export-buttons">
           <button className="btn-export" onClick={() => handleExport('JSON')} disabled={!currentReportId}>Pobierz JSON</button>

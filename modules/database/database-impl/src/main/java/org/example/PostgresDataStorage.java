@@ -29,13 +29,13 @@ public class PostgresDataStorage
 
     // config postgres
     //FIXME
-    private final String DB_URL = "jdbc:postgresql://192.168.1.13:5433/szebi_db_nowa";
+    private final String DB_URL = "jdbc:postgresql://127.0.0.1:5433/szebi_db_nowa";
     private final String USER = "admin";
     private final String PASS = "bazka_haslo";
 
     // config mongo
     //FIXME
-    private final String MONGO_URI = "mongodb://root:bazka@192.168.1.13:27018/";
+    private final String MONGO_URI = "mongodb://root:bazka@127.0.0.1:27018/";
     private final String MONGO_DATABASE = "szebi_timeseries_db";
     private final String MONGO_COLLECTION = "odczyty_urzadzen";
 

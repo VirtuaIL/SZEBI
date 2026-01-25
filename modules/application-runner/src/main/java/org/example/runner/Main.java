@@ -128,6 +128,7 @@ public class Main {
     alertsController.setupRoutes(app);
     devicesController.setupRoutes(app);
     acquisitionController.setupRoutes(app);
+    reportsController.setupRoutes(app);
 
     OptimizationRestController optimizationRestController = new OptimizationRestController(optimizationController,
         databaseStorage);
