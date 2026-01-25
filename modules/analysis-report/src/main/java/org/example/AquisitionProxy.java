@@ -69,6 +69,13 @@ public class AquisitionProxy implements IAnalysisService {
                 Collectors.toList())));
   }
 
+  public List<SensorReading> getSensorReadingsFor(HashSet<ConfigurationType> labels) {
+    return sensors.stream()
+        .filter(s -> s.getLabel() != null && labels.contains(s.getLabel()))
+        .map(s -> new SensorReading(s.getId(), s.getValue(), s.getLabel()))
+        .collect(Collectors.toList());
+  }
+
   @Override
   public void sendSensorUpdate(String deviceId, double value, DeviceType metricLabel, double powerUsage) {
     sensors.add(new InternalSensors(deviceId, value, metricLabel, powerUsage));

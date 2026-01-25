@@ -8,6 +8,16 @@ import java.util.Map;
 interface IAnalysisStrategy {
   List<AlertEvent> analyze(Map<ConfigurationType, List<Double>> data);
 
+  default List<AlertEvent> analyzeWithDeviceId(List<SensorReading> readings) {
+    // Domyślna implementacja - wywołuje starą metodę bez deviceId
+    Map<ConfigurationType, List<Double>> data = new HashMap<>();
+    for (SensorReading reading : readings) {
+      data.computeIfAbsent(reading.getConfigurationType(), k -> new ArrayList<>())
+          .add(reading.getValue());
+    }
+    return analyze(data);
+  }
+
   class DefaultStrategy implements IAnalysisStrategy {
     @Override
     public List<AlertEvent> analyze(Map<ConfigurationType, List<Double>> data) {
@@ -29,6 +39,34 @@ interface IAnalysisStrategy {
               if (!alerts.contains(event)) {
                 alerts.add(event);
               }
+            }
+          }
+        }
+      }
+
+      return alerts;
+    }
+
+    @Override
+    public List<AlertEvent> analyzeWithDeviceId(List<SensorReading> readings) {
+      List<AlertEvent> alerts = new ArrayList<>();
+
+      if (readings == null || readings.isEmpty()) {
+        return alerts;
+      }
+
+      for (SensorReading reading : readings) {
+        ConfigurationType type = reading.getConfigurationType();
+        double value = reading.getValue();
+        String deviceId = reading.getDeviceId();
+
+        if (isOutOfTypicalRange(type, value)) {
+          AlertEventType alertType = getAlertForConfigurationType(type);
+          if (alertType != null) {
+            AlertEvent event = new AlertEvent(alertType, deviceId);
+            // Dodaj alert tylko jeśli nie ma jeszcze takiego samego (typ + deviceId)
+            if (!alerts.contains(event)) {
+              alerts.add(event);
             }
           }
         }

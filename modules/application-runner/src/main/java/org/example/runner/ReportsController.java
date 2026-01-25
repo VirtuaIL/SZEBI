@@ -11,12 +11,20 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.example.interfaces.IAnalyticsData;
 import org.example.interfaces.IControlData;
 import org.example.DTO.Raport;
+import org.example.DTO.Alert;
 import org.example.AnalysisReportAPI;
 import org.example.ConfigurationType;
 import org.example.IDocumentGeneratorService;
 import org.example.DocumentGenerator;
 import org.example.IDocument;
+import org.example.IAlertNotifier;
+import org.example.AlertEvent;
+import org.example.AlertEventType;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
@@ -27,11 +35,13 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 
-public class ReportsController {
+public class ReportsController implements IAlertNotifier {
   private final IAnalyticsData analyticsData;
   private final IControlData controlData;
   private final AnalysisReportAPI analysisReportAPI;
   private final ObjectMapper objectMapper;
+  private final HttpClient httpClient;
+  private final String alertsApiUrl;
 
   // Przechowywanie referencji do serwisów generatorów
   private final Map<String, IDocumentGeneratorService> activeServices = new HashMap<>();
@@ -91,12 +101,23 @@ public class ReportsController {
 
   public ReportsController(IAnalyticsData analyticsData, IControlData controlData,
       AnalysisReportAPI analysisReportAPI) {
+    this(analyticsData, controlData, analysisReportAPI, "http://localhost:7070/api/alerts/report");
+  }
+
+  public ReportsController(IAnalyticsData analyticsData, IControlData controlData,
+      AnalysisReportAPI analysisReportAPI, String alertsApiUrl) {
     this.analyticsData = analyticsData;
     this.controlData = controlData;
     this.analysisReportAPI = analysisReportAPI;
+    this.alertsApiUrl = alertsApiUrl;
+    this.httpClient = HttpClient.newHttpClient();
     this.objectMapper = new ObjectMapper();
     this.objectMapper.registerModule(new JavaTimeModule());
     this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    // Automatyczna rejestracja jako notifier alertów
+    this.analysisReportAPI.subscribeToAlertNotifier(this);
+    System.out.println("[ReportsController] Zarejestrowano jako IAlertNotifier");
   }
 
   public void setupRoutes(Javalin app) {
@@ -955,6 +976,85 @@ public class ReportsController {
       ObjectNode error = objectMapper.createObjectNode();
       error.put("error", "Blad podczas usuwania generatora: " + e.getMessage());
       ctx.json(error);
+    }
+  }
+
+  // ===============================
+  // Implementacja IAlertNotifier
+  // ===============================
+
+  @Override
+  public void notify(String analysisUUID, AlertEvent alertEvent) {
+    try {
+      System.out.println("[ReportsController] Otrzymano alert z analizy " + analysisUUID + ": " + alertEvent);
+
+      // Mapuj AlertEventType na AlertSeverity
+      Alert.AlertSeverity severity = mapAlertTypeToSeverity(alertEvent.getType());
+
+      // Przygotuj deviceId - jeśli jest null, użyj 0
+      int deviceId = 0;
+      if (alertEvent.getDeviceId() != null && !alertEvent.getDeviceId().isEmpty()) {
+        try {
+          deviceId = Integer.parseInt(alertEvent.getDeviceId());
+        } catch (NumberFormatException e) {
+          // Jeśli deviceId nie jest liczbą, hash do int
+          deviceId = Math.abs(alertEvent.getDeviceId().hashCode() % 10000);
+        }
+      }
+
+      // Przygotuj JSON body dla ZgloszenieDTO
+      ObjectNode requestBody = objectMapper.createObjectNode();
+      requestBody.put("tresc", alertEvent.getMessage());
+      requestBody.put("deviceId", deviceId);
+      requestBody.put("priorytet", severity.name());
+      requestBody.put("zrodlo", "analysis-report:" + analysisUUID);
+
+      String jsonBody = objectMapper.writeValueAsString(requestBody);
+      System.out.println("[ReportsController] Wysyłam alert na " + alertsApiUrl + ": " + jsonBody);
+
+      // Wyślij POST request
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(alertsApiUrl))
+          .header("Content-Type", "application/json")
+          .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+          .build();
+
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() >= 200 && response.statusCode() < 300) {
+        System.out.println("[ReportsController] Alert wysłany pomyślnie. Odpowiedź: " + response.body());
+      } else {
+        System.err.println("[ReportsController] Błąd wysyłania alertu. Status: " + response.statusCode()
+            + ", Body: " + response.body());
+      }
+
+    } catch (Exception e) {
+      System.err.println("[ReportsController] Błąd podczas wysyłania alertu: " + e.getMessage());
+      e.printStackTrace();
+    }
+  }
+
+  private Alert.AlertSeverity mapAlertTypeToSeverity(AlertEventType alertType) {
+    if (alertType == null) {
+      return Alert.AlertSeverity.INFO;
+    }
+
+    switch (alertType) {
+      case TemperatureExceedsThreshold:
+      case HumidityExceedsThreshold:
+      case PressureExceedsThreshold:
+        return Alert.AlertSeverity.WARNING;
+
+      case PowerExceedsThreshold:
+      case CO2LevelExceedsThreshold:
+        return Alert.AlertSeverity.CRITICAL;
+
+      case LuminosityExceedsThreshold:
+      case NoiseLevelExceedsThreshold:
+        return Alert.AlertSeverity.INFO;
+
+      default:
+        return Alert.AlertSeverity.INFO;
     }
   }
 }
