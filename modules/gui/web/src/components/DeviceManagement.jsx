@@ -10,6 +10,8 @@ export default function DeviceManagement({ userRole }) {
   const [devices, setDevices] = useState([]); // Nowy stan dla urządzeń
   const [formData, setFormData] = useState({
     modelId: '',
+    customProducer: '',
+    customModel: '',
     minRange: '',
     maxRange: '',
     metricLabel: '',
@@ -90,41 +92,66 @@ export default function DeviceManagement({ userRole }) {
 
     try {
       // Znajdź wybrany model
-      const selectedModel = models.find(m => m.id === parseInt(formData.modelId));
+      // Logic for Custom vs Selected Model
+      let payload = {};
 
-      // Mapuj pola z formularza na format API
-      const payload = {
-        modelId: parseInt(formData.modelId),
-        name: selectedModel ? `${selectedModel.nazwaProducenta} ${selectedModel.nazwaModelu}` : undefined,
-        minRange: formData.minRange ? parseFloat(formData.minRange) : undefined,
-        maxRange: formData.maxRange ? parseFloat(formData.maxRange) : undefined,
-        metricLabel: formData.metricLabel,
-        powerW: formData.powerW ? parseFloat(formData.powerW) : undefined,
-        roomId: formData.roomId ? parseInt(formData.roomId) : undefined
-      };
+      if (formData.modelId === '-1') {
+        // Custom Device
+        // Use generic model ID = 1 (assuming it exists as fallback) or handle via backend if it allows 0
+        // Backend createNewDevice allows modelID to be passed. 
+        // We will use 1 as a safe default for "Generic" behavior if DB constraints require it.
+        payload = {
+          deviceName: `${formData.customProducer} ${formData.customModel}`,
+          roomID: formData.roomId ? parseInt(formData.roomId) : 0,
+          modelID: 1, // Using 1 as generic/fallback ID
+          minValue: formData.minRange ? parseFloat(formData.minRange) : -1,
+          maxValue: formData.maxRange ? parseFloat(formData.maxRange) : -1,
+          metricLabel: formData.metricLabel,
+          powerUsage: formData.powerW ? parseFloat(formData.powerW) : -1,
+          customProducer: formData.customProducer,
+          customModel: formData.customModel
+        };
+      } else {
+        // Standard Selection
+        const selectedModel = models.find(m => m.id === parseInt(formData.modelId));
+        payload = {
+          deviceName: selectedModel ? `${selectedModel.nazwaProducenta} ${selectedModel.nazwaModelu}` : 'Unknown Device',
+          roomID: formData.roomId ? parseInt(formData.roomId) : 0,
+          modelID: parseInt(formData.modelId),
+          minValue: formData.minRange ? parseFloat(formData.minRange) : -1,
+          maxValue: formData.maxRange ? parseFloat(formData.maxRange) : -1,
+          metricLabel: formData.metricLabel,
+          powerUsage: formData.powerW ? parseFloat(formData.powerW) : -1
+        };
+      }
 
-      const response = await fetch(`${API_URL}/devices`, {
-        method: 'POST',
+      const response = await fetch(`${API_URL.replace('/api', '')}/api/acquisition/createDevice`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload)
       });
 
+      // API zwraca 200 nawet przy błędzie logicznym (success: "false") lub 500 przy wyjątkach
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success === "true") {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
         setShowAddForm(false);
         setFormData({
           modelId: '',
+          customProducer: '',
+          customModel: '',
           minRange: '',
           maxRange: '',
           metricLabel: '',
           powerW: '',
           roomId: ''
         });
+        // Odśwież listę urządzeń
+        fetchDevices();
       } else {
         setError(data.error || 'Nie udało się dodać urządzenia');
       }
@@ -162,6 +189,53 @@ export default function DeviceManagement({ userRole }) {
       setError('Wystąpił błąd połączenia z serwerem.');
     } finally {
       setConfigLoading(false);
+    }
+  };
+
+  const handleGenerateForecast = async (deviceId) => {
+    setLoading(true);
+    try {
+      // POST /api/forecasts/generate/{deviceId}
+      const response = await fetch(`${API_URL}/forecasts/generate/${deviceId}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess(true); // Re-using success state to show generic green message
+        // Ideally we'd have a toast message system, but reusing the top banner for now
+        setTimeout(() => setSuccess(false), 3000);
+        console.log("Forecast generated:", data);
+      } else {
+        setError(data.error || 'Błąd generowania prognozy');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Błąd połączenia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetrainModel = async (deviceId) => {
+    setLoading(true);
+    try {
+      // POST /api/forecasts/retrain/{deviceId}
+      const response = await fetch(`${API_URL}/forecasts/retrain/${deviceId}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+        console.log("Retraining started:", data);
+      } else {
+        setError(data.error || 'Błąd retreningu');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Błąd połączenia');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -219,6 +293,7 @@ export default function DeviceManagement({ userRole }) {
                 }}
               >
                 <option value="">Wybierz model...</option>
+                <option value="-1">Inny (Wprowadź ręcznie...)</option>
                 {models.map(model => (
                   <option key={model.id} value={model.id}>
                     {model.nazwaProducenta} {model.nazwaModelu} ({model.nazwaTypu})
@@ -226,6 +301,31 @@ export default function DeviceManagement({ userRole }) {
                 ))}
               </select>
             </div>
+
+            {formData.modelId === '-1' && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Producent:</label>
+                  <input
+                    type="text"
+                    value={formData.customProducer}
+                    onChange={(e) => setFormData({ ...formData, customProducer: e.target.value })}
+                    required
+                    placeholder="np. Moja Firma"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Model:</label>
+                  <input
+                    type="text"
+                    value={formData.customModel}
+                    onChange={(e) => setFormData({ ...formData, customModel: e.target.value })}
+                    required
+                    placeholder="np. Super Sensor X"
+                  />
+                </div>
+              </div>
+            )}
             <div className="form-row">
               <div className="form-group">
                 <label>Zakres Min:</label>
@@ -314,6 +414,7 @@ export default function DeviceManagement({ userRole }) {
                 <th style={{ padding: '10px', border: '1px solid #ddd' }}>Typ</th>
                 <th style={{ padding: '10px', border: '1px solid #ddd' }}>Pokój</th>
                 <th style={{ padding: '10px', border: '1px solid #ddd' }}>Status</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Akcje (AI)</th>
               </tr>
             </thead>
             <tbody>
@@ -332,6 +433,22 @@ export default function DeviceManagement({ userRole }) {
                     }}>
                       {device.status}
                     </span>
+                  </td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                    <button
+                      onClick={() => handleGenerateForecast(device.id)}
+                      style={{ marginRight: '5px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.8rem' }}
+                      title="Wygeneruj prognozę"
+                    >
+                      Prognoza
+                    </button>
+                    <button
+                      onClick={() => handleRetrainModel(device.id)}
+                      style={{ padding: '2px 8px', cursor: 'pointer', fontSize: '0.8rem' }}
+                      title="Przeucz model AI"
+                    >
+                      Trening
+                    </button>
                   </td>
                 </tr>
               ))}

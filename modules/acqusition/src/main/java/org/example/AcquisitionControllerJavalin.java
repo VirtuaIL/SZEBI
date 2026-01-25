@@ -24,7 +24,8 @@ public class AcquisitionControllerJavalin {
     private final AcquisitionAPI acquisitionAPI;
     private final ObjectMapper objectMapper;
 
-    public AcquisitionControllerJavalin(IAcquisitionData acquisitionData, IControlData controlData, AcquisitionAPI acquisitionAPI) {
+    public AcquisitionControllerJavalin(IAcquisitionData acquisitionData, IControlData controlData,
+            AcquisitionAPI acquisitionAPI) {
         this.acquisitionData = acquisitionData;
         this.controlData = controlData;
         this.acquisitionAPI = acquisitionAPI;
@@ -44,8 +45,6 @@ public class AcquisitionControllerJavalin {
 
         // Create device and add it to list + db
         app.put("/api/acquisition/createDevice", this::createDevice);
-
-
 
     }
 
@@ -91,7 +90,6 @@ public class AcquisitionControllerJavalin {
             e.printStackTrace();
         }
 
-
     }
 
     private void requestAllRead(Context ctx) {
@@ -114,7 +112,6 @@ public class AcquisitionControllerJavalin {
             e.printStackTrace();
         }
 
-
     }
 
     private void createDevice(Context ctx) {
@@ -128,6 +125,8 @@ public class AcquisitionControllerJavalin {
             String metricLabel = "none";
             Number powerUsage = -1;
 
+            String customProducer = null;
+            String customModel = null;
 
             // Parsuj dane z request body
             JsonNode requestBody = objectMapper.readTree(ctx.body());
@@ -154,8 +153,15 @@ public class AcquisitionControllerJavalin {
             if (requestBody.has("powerUsage")) {
                 powerUsage = requestBody.get("powerUsage").asDouble();
             }
+            if (requestBody.has("customProducer")) {
+                customProducer = requestBody.get("customProducer").asText();
+            }
+            if (requestBody.has("customModel")) {
+                customModel = requestBody.get("customModel").asText();
+            }
 
-            acquisitionAPI.createNewDevice(deviceName, roomID, modelID, minValue, maxValue, metricLabel, powerUsage);
+            acquisitionAPI.createNewDevice(deviceName, roomID, modelID, minValue, maxValue, metricLabel, powerUsage,
+                    customProducer, customModel);
             // Response
             ObjectNode response = objectMapper.createObjectNode();
             response.put("success", "true");
@@ -171,8 +177,6 @@ public class AcquisitionControllerJavalin {
             e.printStackTrace();
         }
 
-
     }
-
 
 }

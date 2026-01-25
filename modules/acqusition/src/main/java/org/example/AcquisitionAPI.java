@@ -192,16 +192,11 @@ public class AcquisitionAPI {
    * (np. wykrywa elementy sterowalne przy braku etykiety metryki).
    * </p>
    *
-   * @param deviceName  Nazwa własna urządzenia (String)
-   * @param roomID      ID pokoju
-   * @param modelID     ID modelu
-   * @param min         Dolny zakres normy pomiarowej
-   * @param max         Górny zakres normy pomiarowej
-   * @param metricLabel Etykieta typu pomiaru (np. "temperatura_C")
-   * @param powerUsage  Nominalne zużycie energii w Watach
+   * @param customProducer Nazwa producenta (opcjonalna)
+   * @param customModel    Nazwa modelu (opcjonalna)
    */
   public void createNewDevice(String deviceName, int roomID, int modelID, Number min, Number max, String metricLabel,
-      Number powerUsage) {
+      Number powerUsage, String customProducer, String customModel) {
     double safeMin = (min != null) ? min.doubleValue() : 0.0;
     double safeMax = (max != null) ? max.doubleValue() : 0.0;
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;
@@ -245,9 +240,22 @@ public class AcquisitionAPI {
     parameters.put("zakres_pomiaru", zakres);
     parameters.put("etykieta_metryki", metricLabel);
 
+    if (customProducer != null && !customProducer.isEmpty()) {
+      parameters.put("custom_producer", customProducer);
+    }
+    if (customModel != null && !customModel.isEmpty()) {
+      parameters.put("custom_model", customModel);
+    }
+
     deviceManager.saveDeviceToDB(deviceID, parameters, roomID, modelID);
 
     deviceManager.addNewDevice(newDevice);
+  }
+
+  // Wersja wstecznie kompatybilna (przeładowanie)
+  public void createNewDevice(String deviceName, int roomID, int modelID, Number min, Number max, String metricLabel,
+      Number powerUsage) {
+    createNewDevice(deviceName, roomID, modelID, min, max, metricLabel, powerUsage, null, null);
   }
 
   public void updateDeviceSimulation(String deviceId, double value) {

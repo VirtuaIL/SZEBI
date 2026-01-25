@@ -190,6 +190,13 @@ public class PostgresDataStorage
                             }
                         }
 
+                        if (rootNode.has("custom_producer")) {
+                            device.setNazwaProducenta(rootNode.get("custom_producer").asText());
+                        }
+                        if (rootNode.has("custom_model")) {
+                            device.setNazwaModelu(rootNode.get("custom_model").asText());
+                        }
+
                     } catch (Exception e) {
                         System.err.println("Błąd JSON ID " + device.getId() + ": " + e.getMessage());
                     }
