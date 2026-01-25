@@ -144,6 +144,11 @@ public class AcquisitionAPI {
    * @param powerUsage  Nominalne zużycie energii w Watach (może być null).
    */
   public void registerNewDevice(String id, String name, Number min, Number max, String metricLabel, Number powerUsage) {
+    if (deviceManager.getDeviceById(id) != null) {
+      System.out.println("[API] Urządzenie " + id + " już istnieje w menedżerze. Pomijam rejestrację.");
+      return;
+    }
+
     double safeMin = (min != null) ? min.doubleValue() : 0.0;
     double safeMax = (max != null) ? max.doubleValue() : 0.0;
     double safePower = (powerUsage != null) ? powerUsage.doubleValue() : 0.0;

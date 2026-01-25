@@ -290,7 +290,7 @@ public class OptimizationController {
             return 0.0;
         }
 
-        double maxPower = 5000.0;
+        double maxPower = 10.0;
 
         double timeFromNoon = (hour - 13.0) / 7.0;
         double productionFactor = Math.cos(timeFromNoon * Math.PI / 2.0);

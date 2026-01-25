@@ -119,13 +119,25 @@ public class PostgresDataStorage
 
     @Override
     public List<UrzadzenieSzczegoly> getActiveDevicesWithDetails() {
+        return getDevicesWithDetails(true);
+    }
+
+    @Override
+    public List<UrzadzenieSzczegoly> getAllDevicesWithDetails() {
+        return getDevicesWithDetails(false);
+    }
+
+    private List<UrzadzenieSzczegoly> getDevicesWithDetails(boolean onlyActive) {
         String sql = "SELECT u.*, p.numer_pokoju, m.nazwa_modelu, tu.nazwa_typu_urzadzenia, pu.nazwa_producenta " +
                 "FROM Urzadzenia u " +
                 "JOIN Pokoje p ON u.ID_pokoju = p.ID_pokoju " +
                 "JOIN Model_urzadzenia m ON u.ID_modelu = m.ID_modelu " +
                 "JOIN Typ_urzadzenia tu ON m.ID_typu_urzadzenia = tu.ID_typu_urzadzenia " +
-                "JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta " +
-                "WHERE u.aktywny = true";
+                "JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta";
+
+        if (onlyActive) {
+            sql += " WHERE u.aktywny = true";
+        }
 
         List<UrzadzenieSzczegoly> devicesWithDetails = new ArrayList<>();
         ObjectMapper objectMapper = new ObjectMapper();
@@ -148,11 +160,14 @@ public class PostgresDataStorage
                 device.setNazwaProducenta(rs.getString("nazwa_producenta"));
 
                 String paramsJson = rs.getString("Parametry_pracy");
+                int fetchedPower = 0;
+
                 if (paramsJson != null && !paramsJson.isEmpty()) {
                     try {
                         JsonNode rootNode = objectMapper.readTree(paramsJson);
 
-                        device.setMocW(rootNode.path("moc_W").asInt(0));
+                        fetchedPower = rootNode.path("moc_W").asInt(0);
+                        device.setMocW(fetchedPower);
 
                         if (rootNode.has("sciemnialna")) {
                             device.setSciemnialna(rootNode.get("sciemnialna").asBoolean());
@@ -178,8 +193,28 @@ public class PostgresDataStorage
                     } catch (Exception e) {
                         System.err.println("Błąd JSON ID " + device.getId() + ": " + e.getMessage());
                     }
-                } else {
-                    device.setMocW(0);
+                }
+
+                // Fallback logic for Power if 0
+                if (fetchedPower == 0) {
+                    String type = device.getNazwaTypu();
+                    if (type != null) {
+                        type = type.toLowerCase();
+                        if (type.contains("klimatyz") || type.contains("hvac") || type.contains("ac")) {
+                            device.setMocW(2500);
+                        } else if (type.contains("oświetlenie") || type.contains("light") || type.contains("led")) {
+                            device.setMocW(60);
+                        } else if (type.contains("wentylacja") || type.contains("fan")
+                                || type.contains("rekuperator")) {
+                            device.setMocW(150);
+                        } else if (type.contains("czujnik") || type.contains("sensor")) {
+                            device.setMocW(5);
+                        } else {
+                            device.setMocW(500); // Default for unknown
+                        }
+                    } else {
+                        device.setMocW(500);
+                    }
                 }
 
                 devicesWithDetails.add(device);
@@ -221,7 +256,11 @@ public class PostgresDataStorage
     @Override
     public List<ModelUrzadzenia> getAvailableModels() {
 
-        String sql = "SELECT * FROM model_urzadzenia";
+        String sql = "SELECT m.ID_modelu, m.nazwa_modelu, m.ID_typu_urzadzenia, m.ID_producenta, " +
+                "tu.nazwa_typu_urzadzenia, pu.nazwa_producenta " +
+                "FROM Model_urzadzenia m " +
+                "JOIN Typ_urzadzenia tu ON m.ID_typu_urzadzenia = tu.ID_typu_urzadzenia " +
+                "JOIN Producent_urzadzenia pu ON m.ID_producenta = pu.ID_producenta";
 
         List<ModelUrzadzenia> availableModels = new ArrayList<>();
 
@@ -230,12 +269,16 @@ public class PostgresDataStorage
                 ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                ModelUrzadzenia producent = new ModelUrzadzenia();
+                ModelUrzadzenia model = new ModelUrzadzenia();
 
-                producent.setId(rs.getInt("ID_modelu"));
-                producent.setNazwaModelu(rs.getString("nazwa_modelu"));
+                model.setId(rs.getInt("ID_modelu"));
+                model.setNazwaModelu(rs.getString("nazwa_modelu"));
+                model.setTypId(rs.getInt("ID_typu_urzadzenia"));
+                model.setProducentId(rs.getInt("ID_producenta"));
+                model.setNazwaTypu(rs.getString("nazwa_typu_urzadzenia"));
+                model.setNazwaProducenta(rs.getString("nazwa_producenta"));
 
-                availableModels.add(producent);
+                availableModels.add(model);
             }
         } catch (SQLException e) {
             System.out.println("Błąd podczas pobierania dostępnych modeli: " + e.getMessage());

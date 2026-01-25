@@ -14,6 +14,8 @@ public interface IAcquisitionData {
 
     List<UrzadzenieSzczegoly> getActiveDevicesWithDetails();
 
+    List<UrzadzenieSzczegoly> getAllDevicesWithDetails();
+
     List<ProducentUrzadzenia> getAvailableManufacturers();
 
     List<ModelUrzadzenia> getAvailableModels();

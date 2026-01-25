@@ -11,16 +11,16 @@ export default function Monitoring({ userRole }) {
   const [loading, setLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [deviceHistory, setDeviceHistory] = useState(null);
-  
+
   // Refs do przechowywania aktualnych wartości (aby uniknąć problemów z zależnościami w useEffect)
   const devicesRef = useRef(devices);
   const selectedDeviceRef = useRef(selectedDevice);
-  
+
   // Aktualizuj refs gdy zmieniają się wartości
   useEffect(() => {
     devicesRef.current = devices;
   }, [devices]);
-  
+
   useEffect(() => {
     selectedDeviceRef.current = selectedDevice;
   }, [selectedDevice]);
@@ -54,7 +54,7 @@ export default function Monitoring({ userRole }) {
     sorted.forEach(reading => {
       const time = new Date(reading.timestamp).getTime();
       const intervalKey = Math.floor(time / intervalMs) * intervalMs;
-      
+
       if (!grouped.has(intervalKey)) {
         grouped.set(intervalKey, {
           timestamp: intervalKey,
@@ -62,7 +62,7 @@ export default function Monitoring({ userRole }) {
           count: 0
         });
       }
-      
+
       const group = grouped.get(intervalKey);
       if (reading.value !== null && reading.value !== undefined) {
         group.values.push(reading.value);
@@ -73,13 +73,13 @@ export default function Monitoring({ userRole }) {
     // Oblicz średnią dla każdej grupy
     const aggregated = Array.from(grouped.values())
       .map(group => ({
-        time: new Date(group.timestamp).toLocaleTimeString('pl-PL', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: new Date(group.timestamp).toLocaleTimeString('pl-PL', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         timestamp: group.timestamp,
-        value: group.values.length > 0 
-          ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length 
+        value: group.values.length > 0
+          ? group.values.reduce((sum, val) => sum + val, 0) / group.values.length
           : 0,
         count: group.count
       }))
@@ -99,12 +99,12 @@ export default function Monitoring({ userRole }) {
       // Pobierz historię odczytów z ostatnich 24h
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      
+
       const from = yesterday.toISOString().replace('Z', '');
       const to = now.toISOString().replace('Z', '');
-      
+
       const response = await apiRequest(`/devices/${deviceId}/readings?from=${from}&to=${to}`);
-      
+
       // Jeśli jest za dużo odczytów, agreguj je
       let mappedHistory;
       if (response.length > 50) {
@@ -113,14 +113,14 @@ export default function Monitoring({ userRole }) {
       } else {
         // Mapuj wszystkie odczyty
         mappedHistory = response.map(reading => ({
-          time: reading.time || new Date(reading.timestamp).toLocaleTimeString('pl-PL', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+          time: reading.time || new Date(reading.timestamp).toLocaleTimeString('pl-PL', {
+            hour: '2-digit',
+            minute: '2-digit'
           }),
           value: reading.value || 0
         }));
       }
-      
+
       setDeviceHistory(mappedHistory);
     } catch (error) {
       console.error('Błąd ładowania historii urządzenia:', error);
@@ -165,6 +165,11 @@ export default function Monitoring({ userRole }) {
 
     // Odczytuj wartości równolegle dla wszystkich urządzeń
     const refreshPromises = devicesList.map(async (device) => {
+      // Pomiń odczyt jeśli urządzenie nie działa (zachowaj komunikat o statusie)
+      if (device.status !== 'DZIAŁA') {
+        return device;
+      }
+
       try {
         const response = await apiRequest(`/devices/${device.id}/read`, {
           method: 'POST'
@@ -184,7 +189,7 @@ export default function Monitoring({ userRole }) {
     try {
       const updatedDevices = await Promise.all(refreshPromises);
       setDevices(updatedDevices);
-      
+
       // Zaktualizuj też wybrane urządzenie jeśli jest otwarte
       const currentSelected = selectedDeviceRef.current;
       if (currentSelected) {
@@ -201,7 +206,7 @@ export default function Monitoring({ userRole }) {
   const loadDevices = useCallback(async () => {
     try {
       const response = await apiRequest('/devices');
-      
+
       // Mapuj odpowiedź z API na format używany przez GUI
       const mappedDevices = response.map(device => ({
         id: device.id,
@@ -214,12 +219,13 @@ export default function Monitoring({ userRole }) {
         aktywny: device.aktywny,
         producer: device.producer,
         model: device.model,
+        name: device.name || `${device.producer || ''} ${device.model || ''}`.trim() || `Urządzenie ${device.id}`,
         metricLabel: device.metricLabel
       }));
-      
+
       setDevices(mappedDevices);
       setLoading(false);
-      
+
       // Po załadowaniu listy, odśwież wartości dla wszystkich urządzeń
       refreshAllDeviceValues(mappedDevices);
     } catch (error) {
@@ -235,7 +241,7 @@ export default function Monitoring({ userRole }) {
     const devicesInterval = setInterval(() => {
       loadDevices();
     }, 30000);
-    
+
     return () => {
       clearInterval(devicesInterval);
     };
@@ -244,15 +250,15 @@ export default function Monitoring({ userRole }) {
   // Osobny efekt do odświeżania wartości (uruchamia się po załadowaniu urządzeń)
   useEffect(() => {
     if (devices.length === 0) return;
-    
+
     // Odświeżaj wartości urządzeń co 15 sekund
     const valuesInterval = setInterval(() => {
       refreshAllDeviceValues();
     }, 15000);
-    
+
     // Odśwież wartości od razu po załadowaniu
     refreshAllDeviceValues();
-    
+
     return () => {
       clearInterval(valuesInterval);
     };
@@ -261,19 +267,19 @@ export default function Monitoring({ userRole }) {
   // Automatyczne odświeżanie wartości dla wybranego urządzenia
   useEffect(() => {
     if (!selectedDevice) return;
-    
+
     // Odświeżaj wartość wybranego urządzenia co 10 sekund
     const selectedInterval = setInterval(() => {
       refreshDeviceValue(selectedDevice.id);
     }, 10000);
-    
+
     // Odświeżaj historię co 30 sekund
     const historyInterval = setInterval(() => {
       if (selectedDeviceRef.current) {
         loadDeviceHistory(selectedDeviceRef.current.id);
       }
     }, 30000);
-    
+
     return () => {
       clearInterval(selectedInterval);
       clearInterval(historyInterval);
@@ -282,13 +288,13 @@ export default function Monitoring({ userRole }) {
 
   const handleDeviceClick = useCallback(async (device) => {
     setSelectedDevice(device);
-    
+
     // Spróbuj pobrać aktualną wartość dla wybranego urządzenia
     try {
       const readingResponse = await apiRequest(`/devices/${device.id}/read`, {
         method: 'POST'
       });
-      
+
       // Zaktualizuj wybrane urządzenie z aktualną wartością
       const updatedDevice = {
         ...device,
@@ -296,7 +302,7 @@ export default function Monitoring({ userRole }) {
         lastUpdate: readingResponse.timestamp
       };
       setSelectedDevice(updatedDevice);
-      
+
       // Zaktualizuj również w liście urządzeń
       setDevices(prevDevices => prevDevices.map(d =>
         d.id === device.id ? updatedDevice : d
@@ -305,7 +311,7 @@ export default function Monitoring({ userRole }) {
       // Jeśli nie można odczytać, po prostu pokaż szczegóły bez aktualnej wartości
       console.log('Nie można odczytać aktualnej wartości:', error);
     }
-    
+
     // Załaduj historię odczytów
     loadDeviceHistory(device.id);
   }, [formatValue, loadDeviceHistory]);
@@ -333,6 +339,7 @@ export default function Monitoring({ userRole }) {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Nazwa</th>
               <th>Typ</th>
               <th>Lokalizacja</th>
               <th>Status</th>
@@ -343,12 +350,13 @@ export default function Monitoring({ userRole }) {
           </thead>
           <tbody>
             {devices.map(device => (
-              <tr 
+              <tr
                 key={device.id}
                 className={selectedDevice?.id === device.id ? 'selected' : ''}
                 onClick={() => setSelectedDevice(device)}
               >
                 <td>{device.id}</td>
+                <td>{device.name}</td>
                 <td>{device.type}</td>
                 <td>{device.location}</td>
                 <td>
@@ -359,7 +367,7 @@ export default function Monitoring({ userRole }) {
                 <td><strong>{device.currentValue}</strong></td>
                 <td>{new Date(device.lastUpdate).toLocaleString('pl-PL')}</td>
                 <td>
-                  <button 
+                  <button
                     className="btn-view"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -386,6 +394,10 @@ export default function Monitoring({ userRole }) {
           </div>
           <div className="details-content">
             <div className="detail-item">
+              <label>Nazwa:</label>
+              <span style={{ fontWeight: 'bold' }}>{selectedDevice.name}</span>
+            </div>
+            <div className="detail-item">
               <label>Typ:</label>
               <span>{selectedDevice.type}</span>
             </div>
@@ -402,23 +414,25 @@ export default function Monitoring({ userRole }) {
             <div className="detail-item">
               <label>Aktualny Odczyt:</label>
               <span className="current-value">{selectedDevice.currentValue}</span>
-              <button 
-                className="btn-refresh"
-                onClick={async () => {
-                  await refreshDeviceValue(selectedDevice.id);
-                  showToast('Odczyt zaktualizowany', 'success', 2000);
-                }}
-                title="Ręczne odświeżenie (automatyczne co 10 sekund)"
-              >
-                Odśwież
-              </button>
+              {selectedDevice.status === 'DZIAŁA' && (
+                <button
+                  className="btn-refresh"
+                  onClick={async () => {
+                    await refreshDeviceValue(selectedDevice.id);
+                    showToast('Odczyt zaktualizowany', 'success', 2000);
+                  }}
+                  title="Ręczne odświeżenie (automatyczne co 10 sekund)"
+                >
+                  Odśwież
+                </button>
+              )}
             </div>
             <div className="detail-item">
               <label>Ostatnia Aktualizacja:</label>
               <span>{new Date(selectedDevice.lastUpdate).toLocaleString('pl-PL')}</span>
             </div>
           </div>
-          
+
           {deviceHistory && deviceHistory.length > 0 && (
             <div className="device-history">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -429,13 +443,13 @@ export default function Monitoring({ userRole }) {
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={350}>
-                <LineChart 
+                <LineChart
                   data={deviceHistory}
                   margin={{ top: 5, right: 20, left: 10, bottom: 60 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                  <XAxis 
-                    dataKey="time" 
+                  <XAxis
+                    dataKey="time"
                     angle={-45}
                     textAnchor="end"
                     height={80}
@@ -443,12 +457,12 @@ export default function Monitoring({ userRole }) {
                     tick={{ fontSize: 11 }}
                     tickCount={10}
                   />
-                  <YAxis 
+                  <YAxis
                     domain={['auto', 'auto']}
                     tick={{ fontSize: 11 }}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
+                  <Tooltip
+                    contentStyle={{
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
                       border: '1px solid #ccc',
                       borderRadius: '4px'
@@ -457,12 +471,12 @@ export default function Monitoring({ userRole }) {
                     labelFormatter={(label) => `Czas: ${label}`}
                   />
                   <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#8884d8" 
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#8884d8"
                     strokeWidth={2}
-                    dot={deviceHistory.length < 50 ? { r: 3 } : false}
+                    dot={deviceHistory.length < 20 ? { r: 3 } : false}
                     activeDot={{ r: 5 }}
                     name="Wartość"
                     animationDuration={300}

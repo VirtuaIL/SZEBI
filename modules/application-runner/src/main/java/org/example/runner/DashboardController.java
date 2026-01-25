@@ -150,10 +150,12 @@ public class DashboardController {
         List<Odczyt> readings = analyticsData.getReadingsForBuilding(buildingId, from, to);
 
         // Pobierz informacje o urządzeniach (potrzebne dla mocy i ID urządzeń)
-        List<org.example.DTO.UrzadzenieSzczegoly> devices = acquisitionData.getActiveDevicesWithDetails();
+        // Pobieramy wszystkie urządzenia (również nieaktywne), aby mieć pełny obraz
+        List<org.example.DTO.UrzadzenieSzczegoly> devices = acquisitionData.getAllDevicesWithDetails();
         Map<Integer, Double> devicePowerMap = new HashMap<>();
         List<Integer> deviceIds = new ArrayList<>();
         for (org.example.DTO.UrzadzenieSzczegoly device : devices) {
+            // Dla wykresów bierzemy wszystkie urządzenia, niezależnie od statusu aktywności
             devicePowerMap.put(device.getId(), (double) device.getMocW());
             deviceIds.add(device.getId());
         }

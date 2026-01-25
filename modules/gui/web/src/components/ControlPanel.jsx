@@ -20,7 +20,7 @@ export default function ControlPanel() {
       setLoading(true);
       // Pobierz listę urządzeń z API
       const devicesData = await apiRequest('/devices');
-      
+
       // Mapuj dane z API do formatu używanego w komponencie
       const mappedDevices = devicesData.map(device => {
         // Określ typ urządzenia na podstawie metryki
@@ -29,19 +29,19 @@ export default function ControlPanel() {
         let min = 16;
         let max = 30;
         let currentTemp = null;
-        
+
         // Parsuj parametry pracy (JSON)
         let params = {};
         try {
           if (device.parametryPracy) {
-            params = typeof device.parametryPracy === 'string' 
-              ? JSON.parse(device.parametryPracy) 
+            params = typeof device.parametryPracy === 'string'
+              ? JSON.parse(device.parametryPracy)
               : device.parametryPracy;
           }
         } catch (e) {
           console.warn('Błąd parsowania parametrów pracy:', e);
         }
-        
+
         // Określ typ i wartość na podstawie metryki i parametrów
         const metric = device.metryka || device.metric || '';
         if (metric.toLowerCase().includes('temperatura') || metric.toLowerCase().includes('temp')) {
@@ -64,19 +64,21 @@ export default function ControlPanel() {
           type = 'other';
           value = params.wartosc || params.value || 0;
         }
-        
+
         return {
           id: device.id,
-          name: device.name || `${device.producerName || ''} ${device.modelName || ''}`.trim() || `Urządzenie ${device.id}`,
+          name: device.name || `${device.producer || ''} ${device.model || ''}`.trim() || `Urządzenie ${device.id}`,
           type: type,
           value: value,
           currentTemp: currentTemp,
           min: min,
           max: max,
-          enabled: device.aktywny !== false // Domyślnie true jeśli nie określono
+          enabled: device.aktywny !== false,
+          location: device.location || 'Nieznana',
+          power: device.powerW || 0
         };
       });
-      
+
       setDevices(mappedDevices);
       setLoading(false);
     } catch (error) {
@@ -91,9 +93,9 @@ export default function ControlPanel() {
     try {
       // Użyj endpointu z DashboardController
       const ozeData = await apiRequest('/dashboard/oze-status?buildingId=1');
-      setOzeStatus({ 
-        production: ozeData.production || 0, 
-        grid: ozeData.grid || 0 
+      setOzeStatus({
+        production: ozeData.production || 0,
+        grid: ozeData.grid || 0
       });
     } catch (error) {
       console.error('Błąd ładowania statusu OZE:', error);
@@ -106,10 +108,10 @@ export default function ControlPanel() {
     try {
       const device = devices.find(d => d.id === deviceId);
       if (!device) return;
-      
+
       // Przygotuj dane do wysłania w zależności od typu urządzenia
       let controlData = { value: newValue };
-      
+
       if (device.type === 'hvac') {
         controlData = { temperature: newValue, value: newValue };
       } else if (device.type === 'light') {
@@ -117,18 +119,18 @@ export default function ControlPanel() {
       } else if (device.type === 'ventilation') {
         controlData = { ventilation: newValue, value: newValue };
       }
-      
+
       // Wyślij żądanie sterowania
       await apiRequest(`/devices/${deviceId}/control`, {
         method: 'POST',
         body: JSON.stringify(controlData)
       });
-      
+
       // Aktualizacja lokalnego stanu
-      setDevices(devices.map(device => 
+      setDevices(devices.map(device =>
         device.id === deviceId ? { ...device, value: newValue } : device
       ));
-      
+
       showToast('Urządzenie zostało zaktualizowane', 'success');
     } catch (error) {
       console.error('Błąd sterowania urządzeniem:', error);
@@ -140,20 +142,20 @@ export default function ControlPanel() {
     try {
       const device = devices.find(d => d.id === deviceId);
       if (!device) return;
-      
+
       const newEnabled = !device.enabled;
-      
+
       // Wyślij żądanie sterowania z parametrem enabled
       await apiRequest(`/devices/${deviceId}/control`, {
         method: 'POST',
         body: JSON.stringify({ enabled: newEnabled, active: newEnabled })
       });
-      
+
       // Aktualizacja lokalnego stanu
-      setDevices(devices.map(device => 
+      setDevices(devices.map(device =>
         device.id === deviceId ? { ...device, enabled: newEnabled } : device
       ));
-      
+
       showToast(`Urządzenie ${newEnabled ? 'włączone' : 'wyłączone'}`, 'success');
     } catch (error) {
       console.error('Błąd przełączania urządzenia:', error);
@@ -188,14 +190,14 @@ export default function ControlPanel() {
           </div>
           <div className="oze-chart">
             <div className="oze-bar">
-              <div 
-                className="oze-production" 
+              <div
+                className="oze-production"
                 style={{ width: `${(ozeStatus.production / (ozeStatus.production + ozeStatus.grid)) * 100}%` }}
               >
                 OZE: {ozeStatus.production}W
               </div>
-              <div 
-                className="oze-grid" 
+              <div
+                className="oze-grid"
                 style={{ width: `${(ozeStatus.grid / (ozeStatus.production + ozeStatus.grid)) * 100}%` }}
               >
                 Sieć: {ozeStatus.grid}W
@@ -212,7 +214,12 @@ export default function ControlPanel() {
           {devices.map(device => (
             <div key={device.id} className="device-card">
               <div className="device-header">
-                <h4>{device.name}</h4>
+                <div className="device-title">
+                  <h4>{device.name}</h4>
+                  <span className="device-details-text">
+                    {device.location} • {device.power} W
+                  </span>
+                </div>
                 <label className="toggle-switch">
                   <input
                     type="checkbox"
@@ -272,21 +279,21 @@ export default function ControlPanel() {
                     Poziom nawiewu: <strong>{device.value}/{device.max}</strong>
                   </label>
                   <div className="ventilation-buttons">
-                    <button 
+                    <button
                       className={device.value === 0 ? 'active' : ''}
                       onClick={() => handleDeviceControl(device.id, 0)}
                       disabled={!device.enabled}
                     >
                       Niski
                     </button>
-                    <button 
+                    <button
                       className={device.value === Math.floor((device.max || 5) / 2) ? 'active' : ''}
                       onClick={() => handleDeviceControl(device.id, Math.floor((device.max || 5) / 2))}
                       disabled={!device.enabled}
                     >
                       Średni
                     </button>
-                    <button 
+                    <button
                       className={device.value === (device.max || 5) ? 'active' : ''}
                       onClick={() => handleDeviceControl(device.id, device.max || 5)}
                       disabled={!device.enabled}

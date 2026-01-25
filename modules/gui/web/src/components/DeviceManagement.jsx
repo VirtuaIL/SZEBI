@@ -6,10 +6,10 @@ const API_URL = getApiBaseUrl();
 
 export default function DeviceManagement({ userRole }) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [models, setModels] = useState([]);
+  const [devices, setDevices] = useState([]); // Nowy stan dla urządzeń
   const [formData, setFormData] = useState({
-    deviceId: '',
-    producerName: '',
-    modelName: '',
+    modelId: '',
     minRange: '',
     maxRange: '',
     metricLabel: '',
@@ -28,10 +28,43 @@ export default function DeviceManagement({ userRole }) {
   });
   const [configLoading, setConfigLoading] = useState(false);
 
-  // Pobierz konfigurację globalną przy ładowaniu
+  // Pobierz konfigurację, modele i urządzenia przy ładowaniu
   useEffect(() => {
     fetchGlobalConfig();
+    fetchModels();
+    fetchDevices();
   }, []);
+
+  const fetchDevices = async () => {
+    try {
+      const response = await fetch(`${API_URL}/devices`);
+      if (response.ok) {
+        const data = await response.json();
+        setDevices(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Błąd pobierania urządzeń:', error);
+    }
+  };
+
+  const fetchModels = async () => {
+    try {
+      const response = await fetch(`${API_URL}/models`);
+      if (response.ok) {
+        const data = await response.json();
+        setModels(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Błąd pobierania modeli:', error);
+    }
+  };
+
+  // ... rest of functions ...
+
+  // Update render to include table
+  // I will invoke a larger replace to cover the render part too, or do it in two chunks?
+  // Since I can't put two chunks in one `replace_file_content` unless using `multi_replace`.
+  // I'll use multi_replace.
 
   const fetchGlobalConfig = async () => {
     try {
@@ -56,12 +89,13 @@ export default function DeviceManagement({ userRole }) {
     setSuccess(false);
 
     try {
+      // Znajdź wybrany model
+      const selectedModel = models.find(m => m.id === parseInt(formData.modelId));
+
       // Mapuj pola z formularza na format API
       const payload = {
-        deviceId: formData.deviceId || undefined,
-        producerName: formData.producerName,
-        modelName: formData.modelName,
-        name: `${formData.producerName} ${formData.modelName}`.trim(),
+        modelId: parseInt(formData.modelId),
+        name: selectedModel ? `${selectedModel.nazwaProducenta} ${selectedModel.nazwaModelu}` : undefined,
         minRange: formData.minRange ? parseFloat(formData.minRange) : undefined,
         maxRange: formData.maxRange ? parseFloat(formData.maxRange) : undefined,
         metricLabel: formData.metricLabel,
@@ -83,15 +117,13 @@ export default function DeviceManagement({ userRole }) {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
         setShowAddForm(false);
-        setFormData({ 
-          deviceId: '', 
-          producerName: '', 
-          modelName: '', 
-          minRange: '', 
-          maxRange: '', 
-          metricLabel: '', 
-          powerW: '', 
-          roomId: '' 
+        setFormData({
+          modelId: '',
+          minRange: '',
+          maxRange: '',
+          metricLabel: '',
+          powerW: '',
+          roomId: ''
         });
       } else {
         setError(data.error || 'Nie udało się dodać urządzenia');
@@ -137,7 +169,7 @@ export default function DeviceManagement({ userRole }) {
     <div className="device-management">
       <div className="device-management-header">
         <h2>Zarządzanie Urządzeniami</h2>
-        <button 
+        <button
           className="btn-add-device"
           onClick={() => setShowAddForm(!showAddForm)}
         >
@@ -146,24 +178,24 @@ export default function DeviceManagement({ userRole }) {
       </div>
 
       {error && (
-        <div className="error-message" style={{ 
-          background: '#f8d7da', 
-          color: '#721c24', 
-          padding: '10px', 
-          borderRadius: '4px', 
-          marginBottom: '20px' 
+        <div className="error-message" style={{
+          background: '#f8d7da',
+          color: '#721c24',
+          padding: '10px',
+          borderRadius: '4px',
+          marginBottom: '20px'
         }}>
           {error}
         </div>
       )}
 
       {success && (
-        <div className="success-message" style={{ 
-          background: '#d4edda', 
-          color: '#155724', 
-          padding: '10px', 
-          borderRadius: '4px', 
-          marginBottom: '20px' 
+        <div className="success-message" style={{
+          background: '#d4edda',
+          color: '#155724',
+          padding: '10px',
+          borderRadius: '4px',
+          marginBottom: '20px'
         }}>
           Operacja zakończona sukcesem!
         </div>
@@ -174,33 +206,25 @@ export default function DeviceManagement({ userRole }) {
           <h3>Dodaj Nowe Urządzenie</h3>
           <form onSubmit={handleAddDevice}>
             <div className="form-group">
-              <label>ID Urządzenia:</label>
-              <input
-                type="text"
-                value={formData.deviceId}
-                onChange={(e) => setFormData({ ...formData, deviceId: e.target.value })}
-                placeholder="Nadawane automatycznie lub wpisz ręcznie"
-              />
-            </div>
-            <div className="form-group">
-              <label>Nazwa Producenta:</label>
-              <input
-                type="text"
-                value={formData.producerName}
-                onChange={(e) => setFormData({ ...formData, producerName: e.target.value })}
-                placeholder="np. Siemens"
+              <label>Model Urządzenia:</label>
+              <select
+                value={formData.modelId}
+                onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
                 required
-              />
-            </div>
-            <div className="form-group">
-              <label>Nazwa Modelu:</label>
-              <input
-                type="text"
-                value={formData.modelName}
-                onChange={(e) => setFormData({ ...formData, modelName: e.target.value })}
-                placeholder="np. Climatix T1"
-                required
-              />
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd'
+                }}
+              >
+                <option value="">Wybierz model...</option>
+                {models.map(model => (
+                  <option key={model.id} value={model.id}>
+                    {model.nazwaProducenta} {model.nazwaModelu} ({model.nazwaTypu})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -254,15 +278,15 @@ export default function DeviceManagement({ userRole }) {
               />
             </div>
             <div className="form-actions">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn-submit"
                 disabled={loading}
               >
                 {loading ? 'Dodawanie...' : 'Dodaj Urządzenie'}
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn-cancel"
                 onClick={() => {
                   setShowAddForm(false);
@@ -277,49 +301,88 @@ export default function DeviceManagement({ userRole }) {
         </div>
       )}
 
+      <div className="device-list" style={{ marginBottom: '30px' }}>
+        <h3>Lista Urządzeń</h3>
+        {devices.length === 0 ? (
+          <p>Brak urządzeń w systemie.</p>
+        ) : (
+          <table className="devices-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>ID</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Nazwa</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Typ</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Pokój</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {devices.map(device => (
+                <tr key={device.id} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{device.id}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{device.name}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{device.type}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{device.location}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: device.status === 'DZIAŁA' ? '#d4edda' : '#f8d7da',
+                      color: device.status === 'DZIAŁA' ? '#155724' : '#721c24'
+                    }}>
+                      {device.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       <div className="device-config">
         <h3>Konfiguracja Globalna</h3>
         <div className="config-form">
           <div className="form-group">
             <label>Temperatura komfortowa (min):</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               value={globalConfig.preferredMinTemp}
               onChange={(e) => setGlobalConfig({ ...globalConfig, preferredMinTemp: parseFloat(e.target.value) })}
-              min="16" 
-              max="25" 
+              min="16"
+              max="25"
             />
             <span>°C</span>
           </div>
           <div className="form-group">
             <label>Temperatura komfortowa (max):</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               value={globalConfig.preferredMaxTemp}
               onChange={(e) => setGlobalConfig({ ...globalConfig, preferredMaxTemp: parseFloat(e.target.value) })}
-              min="18" 
-              max="30" 
+              min="18"
+              max="30"
             />
             <span>°C</span>
           </div>
           <div className="form-group">
             <label>Priorytet (Oszczędność vs Komfort):</label>
             <div className="range-input-group">
-              <input 
-                type="range" 
-                min="1" 
-                max="10" 
+              <input
+                type="range"
+                min="1"
+                max="10"
                 value={globalConfig.priorityComfort}
                 onChange={(e) => setGlobalConfig({ ...globalConfig, priorityComfort: parseInt(e.target.value) })}
               />
               <span>{globalConfig.priorityComfort}/10</span>
               <span className="range-hint">
-                {globalConfig.priorityComfort <= 3 ? 'Oszczędność' : 
-                 globalConfig.priorityComfort <= 7 ? 'Równowaga' : 'Komfort'}
+                {globalConfig.priorityComfort <= 3 ? 'Oszczędność' :
+                  globalConfig.priorityComfort <= 7 ? 'Równowaga' : 'Komfort'}
               </span>
             </div>
           </div>
-          <button 
+          <button
             className="btn-save-config"
             onClick={handleSaveGlobalConfig}
             disabled={configLoading}

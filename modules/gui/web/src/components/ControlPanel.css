@@ -103,13 +103,26 @@
 .device-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 
-.device-header h4 {
+.device-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.device-title h4 {
   margin: 0;
   color: #2c3e50;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.device-details-text {
+  font-size: 0.85em;
+  color: #7f8c8d;
 }
 
 .toggle-switch {
